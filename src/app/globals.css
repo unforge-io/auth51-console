@@ -2,26 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Auth51 design tokens.
+ *
+ * All values declared as `r g b` triplets so they compose with Tailwind's
+ * `<alpha-value>` syntax — see tailwind.config.ts.
+ *
+ * Light mode is the default. Dark mode is opt-in via a `.dark` class on
+ * <html>; we don't auto-switch on prefers-color-scheme because the editorial
+ * aesthetic is calibrated for the light surface. (We can revisit later.)
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — warm, paper-like (stone palette, not zinc) */
+  --bg-primary:    250 250 249;  /* #fafaf9 */
+  --bg-subtle:     245 245 244;  /* #f5f5f4 */
+  --bg-muted:      231 229 228;  /* #e7e5e4 */
+  --bg-inverted:    28  25  23;  /* #1c1917 */
+
+  /* Text */
+  --text-primary:    28  25  23;  /* #1c1917 — warm near-black */
+  --text-secondary:  68  64  60;  /* #44403c */
+  --text-tertiary:  120 113 108;  /* #78716c */
+  --text-muted:     168 162 158;  /* #a8a29e */
+  --text-inverted:  250 250 249;  /* #fafaf9 */
+
+  /* Borders */
+  --border-default:  231 229 228;  /* #e7e5e4 */
+  --border-strong:   214 211 209;  /* #d6d3d1 */
+  --border-emphasis:  30  58  95;  /* same as brand-primary */
+
+  /* Brand */
+  --brand-primary:    30  58  95;  /* #1e3a5f — navy, anchor color */
+  --brand-accent:     37  99 235;  /* #2563eb — interactive blue */
+
+  /* Semantic — used only where they carry meaning */
+  --color-success:    4 120  87;  /* #047857 — deeper, serious green */
+  --color-warning:  180  83   9;  /* #b45309 — deeper amber */
+  --color-danger:   185  28  28;  /* #b91c1c — deeper red */
+  --color-info:      14 116 144;  /* #0e7490 — teal */
+
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular,
+               'SF Mono', Menlo, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Sensible defaults applied site-wide. */
+@layer base {
+  html {
+    font-feature-settings: 'cv11', 'ss01', 'kern';
+    -webkit-text-size-adjust: 100%;
   }
-}
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-bg text-ink antialiased font-sans;
+    /* Tabular figures by default — tables, timestamps, latencies all align cleanly */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Standard heading rhythm */
+  h1, h2, h3, h4 {
+    @apply text-ink;
+  }
+
+  /* Anchors */
+  a {
+    @apply text-brand-accent underline-offset-2 transition-colors;
+  }
+  a:hover {
+    @apply underline;
+  }
+
+  /* Better focus rings */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-accent/40 ring-offset-2 ring-offset-bg;
+  }
+
+  /* Selection color */
+  ::selection {
+    background: rgb(var(--brand-accent) / 0.18);
+    color: rgb(var(--text-primary));
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Editorial eyebrow used above section headings: e.g., "01 — IDENTITY" */
+  .eyebrow {
+    @apply text-eyebrow uppercase text-ink-tertiary font-medium;
+  }
+
+  /* Subtle paper-grain texture, used very sparingly on heroes */
+  .grain {
+    position: relative;
+  }
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    mix-blend-mode: multiply;
   }
 }
