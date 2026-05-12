@@ -15,6 +15,7 @@ import { walkthroughReducer, initialState, type Act, type ThreatBranch } from '@
 import { ACT_CONTENT } from '@/lib/walkthrough/content'
 import { getReactFlowData } from '@/lib/walkthrough/reactFlowData'
 import { nodeTypes } from './flow/FlowNodes'
+import { edgeTypes } from './flow/FloatingLabelEdge'
 import { ProgressIndicator } from './ProgressIndicator'
 
 /**
@@ -106,14 +107,16 @@ export function WalkthroughClient() {
         </div>
 
         {/* React Flow canvas */}
-        <div className="h-[520px]">
+        <div style={{ height: 560 }}>
           <ReactFlow
+            key={`${state.act}-${state.threatBranch ?? ''}`}
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodeClick={onNodeClick}
             fitView
-            fitViewOptions={{ padding: 0.4, maxZoom: 1 }}
+            fitViewOptions={{ padding: 0.1 }}
             proOptions={{ hideAttribution: true }}
             nodesDraggable={true}
             nodesConnectable={false}
@@ -138,14 +141,27 @@ export function WalkthroughClient() {
         </div>
       </div>
 
-      {/* Narrative text below the diagram */}
+      {/* Narrative + extras below the diagram */}
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_300px]">
         <div>
-          <div className="text-[15px] text-[#425466] leading-[1.7] space-y-3">
-            {actContent.narrative.split('\n\n').map((p: string, i: number) => (
-              <p key={i}>{p}</p>
-            ))}
-          </div>
+          {/* Collapsible narrative — keeps focus on the diagram by default */}
+          <details className="group rounded-xl border border-stone-200 bg-white open:bg-stone-50/50 transition-colors">
+            <summary className="cursor-pointer list-none flex items-center justify-between px-5 py-3 hover:bg-stone-50 rounded-xl select-none">
+              <span className="text-[13px] font-semibold text-[#0a2540] flex items-center gap-2">
+                <span className="font-mono text-[10px] text-[#8898aa] tracking-wider uppercase">Story</span>
+                <span className="text-stone-300">·</span>
+                <span className="text-[#425466] font-normal">Read the narrative for this scene</span>
+              </span>
+              <span className="text-[#8898aa] text-[14px] transition-transform duration-200 group-open:rotate-180">▾</span>
+            </summary>
+            <div className="px-5 pb-5 pt-1">
+              <div className="text-[14px] text-[#425466] leading-[1.7] space-y-3">
+                {actContent.narrative.split('\n\n').map((p: string, i: number) => (
+                  <p key={i}>{p}</p>
+                ))}
+              </div>
+            </div>
+          </details>
 
           {/* Act 2: comparison panels */}
           {state.act === 2 && 'comparison' in actContent && (
