@@ -144,24 +144,49 @@ export function WalkthroughClient() {
       {/* Narrative + extras below the diagram */}
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_300px]">
         <div>
-          {/* Collapsible narrative — keeps focus on the diagram by default */}
-          <details className="group rounded-xl border border-stone-200 bg-white open:bg-stone-50/50 transition-colors">
-            <summary className="cursor-pointer list-none flex items-center justify-between px-5 py-3 hover:bg-stone-50 rounded-xl select-none">
-              <span className="text-[13px] font-semibold text-[#0a2540] flex items-center gap-2">
-                <span className="font-mono text-[10px] text-[#8898aa] tracking-wider uppercase">Story</span>
-                <span className="text-stone-300">·</span>
-                <span className="text-[#425466] font-normal">Read the narrative for this scene</span>
-              </span>
-              <span className="text-[#8898aa] text-[14px] transition-transform duration-200 group-open:rotate-180">▾</span>
-            </summary>
-            <div className="px-5 pb-5 pt-1">
-              <div className="text-[14px] text-[#425466] leading-[1.7] space-y-3">
-                {actContent.narrative.split('\n\n').map((p: string, i: number) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
-            </div>
-          </details>
+          {/* Collapsible narrative — keeps focus on the diagram by default,
+              but the prompt itself is intentionally bold so visitors can't miss it. */}
+          {(() => {
+            const paragraphs = actContent.narrative.split('\n\n')
+            const firstPara = paragraphs[0] ?? ''
+            const firstSentence = firstPara.match(/^[^.!?]+[.!?]/)?.[0] ?? firstPara.slice(0, 180)
+            return (
+              <details className="group overflow-hidden rounded-xl border-l-4 border-l-[#4338ca] border border-stone-200 bg-gradient-to-r from-[#f5f6ff] via-white to-white open:from-white open:bg-stone-50/30 transition-colors">
+                <summary className="cursor-pointer list-none px-5 py-4 hover:bg-white/60 select-none">
+                  <div className="flex items-start gap-3">
+                    <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#4338ca]/10 text-[#4338ca] text-[16px] mt-0.5 group-hover:bg-[#4338ca]/15 transition-colors">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                      </svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-mono text-[10px] font-semibold tracking-[0.12em] text-[#4338ca] uppercase">
+                          The story behind this scene
+                        </p>
+                        <span className="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-[#4338ca] group-open:text-[#4338ca] group-hover:underline">
+                          <span className="group-open:hidden">Read more</span>
+                          <span className="hidden group-open:inline">Hide</span>
+                          <span className="text-[#4338ca] transition-transform duration-200 group-open:rotate-180" aria-hidden>▾</span>
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[14px] text-[#0a2540] leading-snug group-open:hidden">
+                        {firstSentence}{firstSentence !== firstPara && ' …'}
+                      </p>
+                    </div>
+                  </div>
+                </summary>
+                <div className="px-5 pb-5 pt-1 pl-[68px]">
+                  <div className="text-[14px] text-[#425466] leading-[1.7] space-y-3">
+                    {paragraphs.map((p: string, i: number) => (
+                      <p key={i}>{p}</p>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            )
+          })()}
 
           {/* Act 2: comparison panels */}
           {state.act === 2 && 'comparison' in actContent && (
