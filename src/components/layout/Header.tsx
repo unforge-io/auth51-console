@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
 import { Container } from '@/components/ui/Container'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +14,8 @@ const NAV_ITEMS = [
 ] as const
 
 export function Header() {
+  const pathname = usePathname()
+  if (pathname?.startsWith('/console')) return null
   return (
     <>
       {/* Header background — sits below the globe */}

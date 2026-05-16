@@ -62,6 +62,22 @@ const config: Config = {
           danger: 'rgb(var(--color-danger) / <alpha-value>)',
           info: 'rgb(var(--color-info) / <alpha-value>)',
         },
+        // ─── Console palette (Linear-style, theme-aware) ───
+        c: {
+          bg:        'rgb(var(--c-bg) / <alpha-value>)',
+          surface:   'rgb(var(--c-surface) / <alpha-value>)',
+          'surface-2': 'rgb(var(--c-surface-2) / <alpha-value>)',
+          border:    'rgb(var(--c-border) / <alpha-value>)',
+          'border-2':'rgb(var(--c-border-2) / <alpha-value>)',
+          text:      'rgb(var(--c-text) / <alpha-value>)',
+          'text-2':  'rgb(var(--c-text-2) / <alpha-value>)',
+          'text-3':  'rgb(var(--c-text-3) / <alpha-value>)',
+          accent:    'rgb(var(--c-accent) / <alpha-value>)',
+          'accent-2':'rgb(var(--c-accent-2) / <alpha-value>)',
+          success:   'rgb(var(--c-success) / <alpha-value>)',
+          warning:   'rgb(var(--c-warning) / <alpha-value>)',
+          danger:    'rgb(var(--c-danger) / <alpha-value>)',
+        },
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
