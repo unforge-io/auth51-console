@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
 import { Container } from '@/components/ui/Container'
 
@@ -28,6 +31,8 @@ const FOOTER_LINKS = {
 } as const
 
 export function Footer() {
+  const pathname = usePathname()
+  if (pathname?.startsWith('/console')) return null
   return (
     <footer className="bg-[#0a2540] text-white">
       <Container>
