@@ -125,7 +125,7 @@ function Option({
 function ConnectDialog({ onClose }: { onClose: () => void }) {
   const { addContext } = useControlPlane()
   const [name, setName] = useState('dev')
-  const [endpoint, setEndpoint] = useState('https://idp.unforge.io')
+  const [endpoint, setEndpoint] = useState('https://idp.auth51.com')
   const [apiKey, setApiKey] = useState('')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
