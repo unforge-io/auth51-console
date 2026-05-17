@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
+import { checkHealth, mintToken, listAgents, AuthorityError } from '@/lib/console/api'
 import { cn } from '@/lib/utils'
 
 /**
@@ -126,65 +127,97 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
   const { addContext } = useControlPlane()
   const [name, setName] = useState('dev')
   const [endpoint, setEndpoint] = useState('https://idp.auth51.com')
-  const [apiKey, setApiKey] = useState('')
+  const [clientId, setClientId] = useState('patchet')
+  const [clientSecret, setClientSecret] = useState('')
+  const [audience, setAudience] = useState('idp.localhost')
+  const [appId, setAppId] = useState('Patchet')
   const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; agentCount?: number } | null>(null)
 
   const test = async () => {
     setTesting(true)
     setTestResult(null)
     try {
-      const url = `${endpoint.replace(/\/$/, '')}/health`
-      const res = await fetch(url, { method: 'GET' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setTestResult({ ok: true, msg: 'Reachable. Health check OK.' })
+      // 1. Health check
+      const healthy = await checkHealth(endpoint)
+      if (!healthy) throw new AuthorityError('Health endpoint unreachable. Check the URL and CORS.')
+
+      // 2. Mint a token to validate credentials
+      if (clientId && clientSecret) {
+        await mintToken(endpoint, clientId, clientSecret, audience, 'read:agents')
+
+        // 3. Try fetching agents to validate scopes + app_id
+        const agents = await listAgents(
+          { name, endpoint, clientId, clientSecret, audience, appId, addedAt: 0 },
+          appId,
+        )
+        setTestResult({
+          ok: true,
+          msg: `Healthy. Token minted. Found ${agents.length} registered agent${agents.length === 1 ? '' : 's'}.`,
+          agentCount: agents.length,
+        })
+      } else {
+        setTestResult({ ok: true, msg: 'Healthy. (No credentials provided — token mint skipped.)' })
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setTestResult({ ok: false, msg: `Could not reach: ${msg}. CORS may need configuring.` })
+      let msg = err instanceof Error ? err.message : String(err)
+      if (err instanceof AuthorityError && err.detail) {
+        msg += ` — ${JSON.stringify(err.detail).slice(0, 100)}`
+      }
+      setTestResult({ ok: false, msg })
     } finally {
       setTesting(false)
     }
   }
 
   const connect = () => {
-    addContext({ name: name.trim(), endpoint: endpoint.trim(), apiKey: apiKey.trim() || undefined, addedAt: Date.now() })
+    addContext({
+      name: name.trim(),
+      endpoint: endpoint.trim(),
+      clientId: clientId.trim() || undefined,
+      clientSecret: clientSecret.trim() || undefined,
+      audience: audience.trim() || undefined,
+      appId: appId.trim() || undefined,
+      addedAt: Date.now(),
+    })
     onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-c-surface border border-c-border rounded-xl shadow-2xl p-5">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-c-surface border border-c-border rounded-xl shadow-2xl p-5">
         <h2 className="text-[16px] font-semibold text-c-text mb-1">Connect to a Control Plane</h2>
-        <p className="text-[12.5px] text-c-text-2 mb-5">Point the Console at an Auth51 Authority endpoint.</p>
+        <p className="text-[12.5px] text-c-text-2 mb-5">Point the Console at an Auth51 Authority endpoint and authenticate with OAuth client credentials.</p>
 
-        <div className="space-y-3">
-          <Field label="Context name" hint="Short label, e.g. dev, staging, prod">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent"
-              placeholder="dev"
-            />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Context name" hint="dev / staging / prod">
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent" />
           </Field>
-          <Field label="Endpoint URL" hint="https://idp.your-domain.com">
-            <input
-              type="url"
-              value={endpoint}
-              onChange={(e) => setEndpoint(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono"
-              placeholder="https://idp.example.com"
-            />
+          <Field label="App ID" hint="Default app to query">
+            <input type="text" value={appId} onChange={(e) => setAppId(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
           </Field>
-          <Field label="API key" hint="Optional. Required if the Authority is protected.">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono"
-              placeholder="—"
-            />
+          <div className="col-span-2">
+            <Field label="Endpoint URL" hint="https://idp.your-domain.com">
+              <input type="url" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
+            </Field>
+          </div>
+          <Field label="OAuth client ID">
+            <input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
           </Field>
+          <Field label="OAuth client secret">
+            <input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
+          </Field>
+          <div className="col-span-2">
+            <Field label="Token audience" hint="JWT 'aud' claim required by routes">
+              <input type="text" value={audience} onChange={(e) => setAudience(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
+            </Field>
+          </div>
         </div>
 
         {testResult && (
@@ -199,22 +232,16 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
         )}
 
         <div className="mt-5 flex items-center justify-between">
-          <button
-            onClick={test}
-            disabled={testing || !endpoint}
-            className="text-[12.5px] text-c-text-2 hover:text-c-text disabled:opacity-50 transition-colors"
-          >
+          <button onClick={test} disabled={testing || !endpoint}
+            className="text-[12.5px] text-c-text-2 hover:text-c-text disabled:opacity-50 transition-colors">
             {testing ? 'Testing…' : 'Test connection'}
           </button>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-3 py-1.5 rounded-md text-[12.5px] text-c-text-2 hover:bg-c-surface-2 transition-colors">
               Cancel
             </button>
-            <button
-              onClick={connect}
-              disabled={!name || !endpoint}
-              className="px-3 py-1.5 rounded-md text-[12.5px] font-medium text-white bg-c-accent hover:bg-c-accent-2 disabled:opacity-50 transition-colors"
-            >
+            <button onClick={connect} disabled={!name || !endpoint}
+              className="px-3 py-1.5 rounded-md text-[12.5px] font-medium text-white bg-c-accent hover:bg-c-accent-2 disabled:opacity-50 transition-colors">
               Connect
             </button>
           </div>
