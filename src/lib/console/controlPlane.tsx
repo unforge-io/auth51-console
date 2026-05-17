@@ -20,6 +20,14 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 export type ControlPlaneContext = {
   name: string
   endpoint: string
+  /** OAuth client_credentials inputs */
+  clientId?: string
+  clientSecret?: string
+  /** What audience to request when minting tokens (e.g. "idp.localhost") */
+  audience?: string
+  /** Default app to query for agents/workflows (e.g. "Patchet") */
+  appId?: string
+  /** Legacy field — still kept for transitional users who paste bare tokens */
   apiKey?: string
   /** When the user added it */
   addedAt: number
