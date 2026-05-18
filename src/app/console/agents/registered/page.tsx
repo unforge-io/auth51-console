@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { listAgents, formatRegisteredAt, shortChecksum, type Registration, AuthorityError } from '@/lib/console/api'
 import { classifyAgents, type AgentClassification } from '@/lib/agent-classification'
+import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
+import { LiveIndicator } from '@/components/console/LiveIndicator'
 import { cn } from '@/lib/utils'
 
 type ClassifiedRegistration = Registration & { classification: AgentClassification }
@@ -53,7 +55,12 @@ export default function RegisteredAgentsPage() {
     }
   }, [currentContext])
 
-  useEffect(() => { load() }, [load])
+  // Live polling — refreshes every 5s while the tab is visible
+  const { lastUpdatedAt, tickedAt } = useAutoRefresh({
+    intervalMs: 5000,
+    fetcher: load,
+    enabled: !!currentContext,
+  })
 
   // Classify all agents once on load
   const classified = useMemo<ClassifiedRegistration[]>(
@@ -110,6 +117,8 @@ export default function RegisteredAgentsPage() {
           setScope={setScope}
           onRefresh={load}
           loading={loading}
+          lastUpdatedAt={lastUpdatedAt}
+          tickedAt={tickedAt}
         />
 
         {error && <ErrorBanner message={error} onRetry={load} />}
@@ -143,6 +152,7 @@ type Scope = 'all' | 'orchestrators' | 'workers' | 'scenarios'
 
 function PageHeader({
   appId, agentCount, filteredCount, filter, setFilter, scope, setScope, onRefresh, loading,
+  lastUpdatedAt, tickedAt,
 }: {
   appId: string
   agentCount: number
@@ -153,11 +163,13 @@ function PageHeader({
   setScope: (s: Scope) => void
   onRefresh: () => void
   loading: boolean
+  lastUpdatedAt: number | null
+  tickedAt: number
 }) {
   return (
     <div className="border-b border-c-border px-6 py-4">
-      <div className="flex items-center justify-between mb-3">
-        <div>
+      <div className="flex items-center justify-between mb-3 gap-3">
+        <div className="min-w-0">
           <p className="text-[11px] font-mono tracking-wider uppercase text-c-text-3 mb-1">Agents · Registered</p>
           <h1 className="text-[20px] font-semibold text-c-text tracking-tight">
             {appId}
@@ -166,10 +178,12 @@ function PageHeader({
             </span>
           </h1>
         </div>
-        <button onClick={onRefresh} disabled={loading}
-          className="text-[12px] text-c-text-2 hover:text-c-text px-2.5 py-1.5 rounded border border-c-border hover:border-c-border-2 transition-colors disabled:opacity-50">
-          {loading ? 'Refreshing…' : '↻ Refresh'}
-        </button>
+        <LiveIndicator
+          lastUpdatedAt={lastUpdatedAt}
+          tick={tickedAt}
+          loading={loading}
+          onRefresh={onRefresh}
+        />
       </div>
 
       <div className="flex items-center gap-2">
