@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
-import { checkHealth, mintToken, listAgents, AuthorityError } from '@/lib/console/api'
+import { checkHealth, listAgents, AuthorityError } from '@/lib/console/api'
 import { cn } from '@/lib/utils'
 
 /**
@@ -127,12 +127,10 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
   const { addContext } = useControlPlane()
   const [name, setName] = useState('dev')
   const [endpoint, setEndpoint] = useState('https://idp.auth51.com')
-  const [clientId, setClientId] = useState('patchet')
-  const [clientSecret, setClientSecret] = useState('')
   const [audience, setAudience] = useState('idp.localhost')
   const [appId, setAppId] = useState('Patchet')
   const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; agentCount?: number } | null>(null)
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
   const test = async () => {
     setTesting(true)
@@ -142,27 +140,19 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
       const healthy = await checkHealth(endpoint)
       if (!healthy) throw new AuthorityError('Health endpoint unreachable. Check the URL and CORS.')
 
-      // 2. Mint a token to validate credentials
-      if (clientId && clientSecret) {
-        await mintToken(endpoint, clientId, clientSecret, audience, 'read:agents')
-
-        // 3. Try fetching agents to validate scopes + app_id
-        const agents = await listAgents(
-          { name, endpoint, clientId, clientSecret, audience, appId, addedAt: 0 },
-          appId,
-        )
-        setTestResult({
-          ok: true,
-          msg: `Healthy. Token minted. Found ${agents.length} registered agent${agents.length === 1 ? '' : 's'}.`,
-          agentCount: agents.length,
-        })
-      } else {
-        setTestResult({ ok: true, msg: 'Healthy. (No credentials provided — token mint skipped.)' })
-      }
+      // 2. Try the full identity federation via Console exchange
+      const agents = await listAgents(
+        { name, endpoint, audience, appId, addedAt: 0 },
+        appId,
+      )
+      setTestResult({
+        ok: true,
+        msg: `Healthy. Token exchanged. Found ${agents.length} registered agent${agents.length === 1 ? '' : 's'}.`,
+      })
     } catch (err: unknown) {
       let msg = err instanceof Error ? err.message : String(err)
       if (err instanceof AuthorityError && err.detail) {
-        msg += ` — ${JSON.stringify(err.detail).slice(0, 100)}`
+        msg += ` — ${JSON.stringify(err.detail).slice(0, 200)}`
       }
       setTestResult({ ok: false, msg })
     } finally {
@@ -174,8 +164,6 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
     addContext({
       name: name.trim(),
       endpoint: endpoint.trim(),
-      clientId: clientId.trim() || undefined,
-      clientSecret: clientSecret.trim() || undefined,
       audience: audience.trim() || undefined,
       appId: appId.trim() || undefined,
       addedAt: Date.now(),
@@ -187,7 +175,7 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-c-surface border border-c-border rounded-xl shadow-2xl p-5">
         <h2 className="text-[16px] font-semibold text-c-text mb-1">Connect to a Control Plane</h2>
-        <p className="text-[12.5px] text-c-text-2 mb-5">Point the Console at an Auth51 Authority endpoint and authenticate with OAuth client credentials.</p>
+        <p className="text-[12.5px] text-c-text-2 mb-5">Point the Console at an Auth51 Authority. Your signed-in Console identity is exchanged for an Authority-issued token — no secrets in your browser.</p>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Context name" hint="dev / staging / prod">
@@ -199,25 +187,24 @@ function ConnectDialog({ onClose }: { onClose: () => void }) {
               className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
           </Field>
           <div className="col-span-2">
-            <Field label="Endpoint URL" hint="https://idp.your-domain.com">
+            <Field label="Authority endpoint" hint="https://idp.your-domain.com">
               <input type="url" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
             </Field>
           </div>
-          <Field label="OAuth client ID">
-            <input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
-          </Field>
-          <Field label="OAuth client secret">
-            <input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
-          </Field>
           <div className="col-span-2">
-            <Field label="Token audience" hint="JWT 'aud' claim required by routes">
+            <Field label="Token audience" hint="JWT 'aud' claim required by routes — usually defaults are fine">
               <input type="text" value={audience} onChange={(e) => setAudience(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
             </Field>
           </div>
+        </div>
+
+        <div className="mt-4 px-3 py-2 rounded-md text-[11.5px] border border-c-border bg-c-bg text-c-text-2 leading-relaxed">
+          <span className="font-medium text-c-text">How it works:</span> When you Connect, the Console signs a short-lived JWT
+          asserting your identity and exchanges it with the Authority via RFC 8693. The Authority verifies the signature
+          against <code className="font-mono text-c-text-3">auth51.com/api/jwks.json</code> and issues a token bound to
+          your user. The Console is not in the data path after that.
         </div>
 
         {testResult && (

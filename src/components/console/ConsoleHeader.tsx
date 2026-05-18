@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { UserButton } from '@clerk/nextjs'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { useConsoleTheme } from '@/lib/console/ThemeProvider'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,9 @@ export function ConsoleHeader() {
 
       {/* Theme toggle */}
       <ThemeToggle />
+
+      {/* User menu */}
+      <UserButton appearance={{ elements: { avatarBox: 'h-7 w-7' } }} />
     </header>
   )
 }

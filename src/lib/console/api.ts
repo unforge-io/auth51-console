@@ -97,28 +97,77 @@ export async function mintToken(
 }
 
 /**
- * Get a valid access token for the given Control Plane context, minting
- * a fresh one if the cached token has expired or doesn't exist.
+ * Exchange a Console session for a fresh Authority access token via
+ * the server-side /api/cp/exchange route. Returns the access_token.
+ * Cached in memory via the standard token cache.
+ */
+async function exchangeViaConsole(
+  endpoint: string,
+  audience: string,
+  scope: string,
+): Promise<string> {
+  const res = await fetch('/api/cp/exchange', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, audience, scope }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Token exchange failed (HTTP ${res.status})`, res.status, detail)
+  }
+  const data = await res.json() as { access_token: string; expires_in?: number }
+  const expiresIn = data.expires_in ?? 1800
+  tokenCache.set(cacheKey(endpoint, '__exchange__', audience, scope), {
+    access_token: data.access_token,
+    expiresAt: Date.now() + expiresIn * 1000,
+  })
+  return data.access_token
+}
+
+/**
+ * Get a valid access token for the given Control Plane context.
+ *
+ * Resolution order:
+ *   1. Cached token (from previous exchange) if still valid → return it
+ *   2. Token exchange via Console server (production path) → uses Clerk session
+ *   3. Static API key (legacy / dev fallback)
+ *   4. OAuth client_credentials (dev/demo only — secrets in browser)
  */
 export async function getAccessToken(
   ctx: ControlPlaneContext,
   scope = 'read:agents',
 ): Promise<string> {
-  // If user pasted a static API key, use it directly (legacy / dev mode)
-  if (ctx.apiKey && (!ctx.clientId || !ctx.clientSecret)) {
-    return ctx.apiKey
-  }
-  if (!ctx.clientId || !ctx.clientSecret) {
-    throw new AuthorityError('No credentials configured — set OAuth client_id and client_secret for this control plane.')
-  }
   const audience = ctx.audience ?? 'idp.localhost'
-  const key = cacheKey(ctx.endpoint, ctx.clientId, audience, scope)
-  const cached = tokenCache.get(key)
-  // Refresh if expired or within 60s of expiry
-  if (cached && cached.expiresAt > Date.now() + 60_000) {
-    return cached.access_token
+
+  // 1 — Check in-memory cache (keyed by either client_id OR __exchange__)
+  for (const candidateKey of [
+    cacheKey(ctx.endpoint, '__exchange__', audience, scope),
+    ctx.clientId ? cacheKey(ctx.endpoint, ctx.clientId, audience, scope) : null,
+  ].filter(Boolean) as string[]) {
+    const cached = tokenCache.get(candidateKey)
+    if (cached && cached.expiresAt > Date.now() + 60_000) return cached.access_token
   }
-  return mintToken(ctx.endpoint, ctx.clientId, ctx.clientSecret, audience, scope)
+
+  // 2 — Production path: token exchange via Console (Clerk session required)
+  try {
+    return await exchangeViaConsole(ctx.endpoint, audience, scope)
+  } catch (err) {
+    // Fall through to legacy paths if exchange fails — the user is likely
+    // in a dev/demo configuration where Clerk isn't set up or the Authority
+    // doesn't yet support token exchange.
+    if (!(ctx.apiKey || (ctx.clientId && ctx.clientSecret))) throw err
+  }
+
+  // 3 — Legacy: pasted bearer token
+  if (ctx.apiKey) return ctx.apiKey
+
+  // 4 — Legacy: client_credentials (browser-side secrets, dev only)
+  if (ctx.clientId && ctx.clientSecret) {
+    return mintToken(ctx.endpoint, ctx.clientId, ctx.clientSecret, audience, scope)
+  }
+
+  throw new AuthorityError('Unable to obtain access token. Sign in to the Console or configure credentials for this control plane.')
 }
 
 // ── Health check ──
