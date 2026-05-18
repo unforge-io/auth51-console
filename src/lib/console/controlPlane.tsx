@@ -20,14 +20,21 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 export type ControlPlaneContext = {
   name: string
   endpoint: string
-  /** OAuth client_credentials inputs */
-  clientId?: string
-  clientSecret?: string
-  /** What audience to request when minting tokens (e.g. "idp.localhost") */
+  /** What audience to request when exchanging tokens (e.g. "idp.localhost") */
   audience?: string
   /** Default app to query for agents/workflows (e.g. "Patchet") */
   appId?: string
-  /** Legacy field — still kept for transitional users who paste bare tokens */
+  /**
+   * Token-exchange-issued access token, cached client-side.
+   * NOTE: stored in localStorage with short TTL. Re-issued via
+   * /api/cp/exchange when expired. NOT a long-lived credential.
+   */
+  accessToken?: string
+  /** Epoch ms when accessToken expires (used by the API client) */
+  accessTokenExpiresAt?: number
+  /** ─── Legacy / dev-only fallbacks ─── */
+  clientId?: string
+  clientSecret?: string
   apiKey?: string
   /** When the user added it */
   addedAt: number
