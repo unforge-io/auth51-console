@@ -210,6 +210,63 @@ export async function listAgents(
   return []
 }
 
+// ── Workflows ──
+
+export type WorkflowStepWire = {
+  agent: string
+  action: string
+  scopes?: string[]
+  dependencies?: string[]
+  required?: boolean
+  approval_gate?: boolean
+  requires_approval?: boolean
+}
+
+export type WorkflowDefinitionWire = {
+  workflow_id: string
+  workflow_type?: 'dag' | string
+  steps: Record<string, WorkflowStepWire>
+}
+
+/**
+ * List registered workflows for an app.
+ *
+ * Expected IDP endpoint shape: `GET /intent/workflows/{app_id}` returning
+ *   `{ "<app_id>": [WorkflowDefinition, ...] }`
+ * (same envelope pattern as /intent/agents/{app_id}).
+ *
+ * If the endpoint returns 404 the Authority hasn't shipped this yet —
+ * the caller surfaces a friendly "coming online" placeholder rather than
+ * a hard error.
+ */
+export async function listRegisteredWorkflows(
+  ctx: ControlPlaneContext,
+  appId?: string,
+): Promise<WorkflowDefinitionWire[]> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/workflows/${encodeURIComponent(app)}`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (res.status === 404) {
+    throw new AuthorityError('endpoint_not_supported', 404)
+  }
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Workflows fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  const data = await res.json()
+  if (Array.isArray(data)) return data as WorkflowDefinitionWire[]
+  if (data && typeof data === 'object') {
+    const values = Object.values(data) as WorkflowDefinitionWire[][]
+    return values.flat()
+  }
+  return []
+}
+
 export async function getAgent(
   ctx: ControlPlaneContext,
   agentId: string,

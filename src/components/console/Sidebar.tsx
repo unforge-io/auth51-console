@@ -55,7 +55,8 @@ const SECTIONS: NavSection[] = [
   {
     heading: 'Workflows',
     items: [
-      { label: 'Definitions', href: '/console/workflows', indent: true },
+      { label: 'Inferred',   href: '/console/workflows/inferred',   indent: true },
+      { label: 'Registered', href: '/console/workflows/registered', indent: true },
     ],
   },
   {
