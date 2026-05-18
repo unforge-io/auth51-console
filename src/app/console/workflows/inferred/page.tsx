@@ -17,6 +17,8 @@ import {
 } from '@/lib/workflow-graph'
 import { WorkflowTree } from '@/components/console/WorkflowTree'
 import { WorkflowDiagram } from '@/components/console/WorkflowDiagram'
+import { LiveIndicator } from '@/components/console/LiveIndicator'
+import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
 import { cn } from '@/lib/utils'
 
 type ClassifiedRegistration = Registration & { classification: AgentClassification }
@@ -58,7 +60,12 @@ export default function InferredWorkflowsPage() {
     }
   }, [currentContext])
 
-  useEffect(() => { load() }, [load])
+  // Live polling — 5s while tab is visible
+  const { lastUpdatedAt, tickedAt } = useAutoRefresh({
+    intervalMs: 5000,
+    fetcher: load,
+    enabled: !!currentContext,
+  })
 
   const classified = useMemo(
     () => classifyAgents(agents) as ClassifiedRegistration[],
@@ -183,10 +190,12 @@ export default function InferredWorkflowsPage() {
                 </button>
               ))}
             </div>
-            <button onClick={load} disabled={loading}
-              className="text-[11.5px] text-c-text-2 hover:text-c-text px-2.5 py-1.5 rounded border border-c-border hover:border-c-border-2 transition-colors disabled:opacity-50">
-              {loading ? 'Refreshing…' : '↻ Refresh'}
-            </button>
+            <LiveIndicator
+              lastUpdatedAt={lastUpdatedAt}
+              tick={tickedAt}
+              loading={loading}
+              onRefresh={load}
+            />
           </div>
         </div>
 

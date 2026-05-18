@@ -15,6 +15,8 @@ import {
   type WorkflowGraphNode,
 } from '@/lib/workflow-graph'
 import { WorkflowTree } from '@/components/console/WorkflowTree'
+import { LiveIndicator } from '@/components/console/LiveIndicator'
+import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
 import { cn } from '@/lib/utils'
 
 /**
@@ -66,7 +68,12 @@ export default function RegisteredWorkflowsPage() {
     }
   }, [currentContext])
 
-  useEffect(() => { load() }, [load])
+  // Live polling — 5s while tab is visible
+  const { lastUpdatedAt, tickedAt } = useAutoRefresh({
+    intervalMs: 5000,
+    fetcher: load,
+    enabled: !!currentContext,
+  })
 
   const classified = useMemo(() => classifyAgents(agents), [agents])
   const classificationByAgent = useMemo(() => {
@@ -175,10 +182,12 @@ export default function RegisteredWorkflowsPage() {
               Registered with the Authority
             </p>
           </div>
-          <button onClick={load} disabled={loading}
-            className="text-[11.5px] text-c-text-2 hover:text-c-text px-2.5 py-1.5 rounded border border-c-border hover:border-c-border-2 transition-colors disabled:opacity-50">
-            {loading ? 'Refreshing…' : '↻ Refresh'}
-          </button>
+          <LiveIndicator
+            lastUpdatedAt={lastUpdatedAt}
+            tick={tickedAt}
+            loading={loading}
+            onRefresh={load}
+          />
         </div>
 
         {error && (
