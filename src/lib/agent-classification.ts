@@ -456,3 +456,144 @@ function provenanceLabel(p: { provenance: Provenance; scenarioId?: string; scena
   }
   return 'Unknown'
 }
+
+// ─── Implicit workflow derivation from the agent-to-agent tool graph ────────
+//
+// Until the Authority exposes registered WorkflowDefinitions via a GET
+// endpoint, we infer the workflow structure from the tool graph: every
+// time an agent has another agent as a tool (is_agent: true), that's a
+// delegation edge. The graph rooted at any orchestrator without a parent
+// is an "implicit workflow".
+
+export type ImplicitWorkflowNode = {
+  agentId: string
+  role: AgentRole
+  reasoning: ReasoningPattern
+  autonomy: AutonomyLevel
+  provenance: Provenance
+  scenarioId?: string
+  scenarioActorKind?: AgentClassification['scenarioActorKind']
+  depth: number                  // 0 for root
+  toolCount: number              // total tool count on this agent
+  subAgentCount: number
+  classification: AgentClassification
+}
+
+export type ImplicitWorkflowEdge = {
+  /** Parent agent (delegates work) */
+  from: string
+  /** Child agent (receives delegation) */
+  to: string
+  /** Tool description / signature on the parent that exposes this child */
+  toolDescription?: string
+}
+
+export type ImplicitWorkflow = {
+  /** Stable id derived from the root agent */
+  id: string
+  rootAgentId: string
+  /** All agents reachable from the root via delegation edges, BFS order */
+  nodes: ImplicitWorkflowNode[]
+  edges: ImplicitWorkflowEdge[]
+  /** Hierarchy depth (1 = single-level, 2 = nested orchestrators, …) */
+  depth: number
+  /** Total agents involved (root inclusive) */
+  agentCount: number
+  /** Whether any node in this workflow is human-in-loop */
+  hasApprovalGates: boolean
+  /** Provenance bucket (mostly determined by the root agent) */
+  provenance: Provenance
+  scenarioId?: string
+}
+
+/**
+ * Build the set of distinct implicit workflows from a population of agents.
+ * Roots are agents with no parent in the tool graph (they're not used AS a
+ * tool of another agent) AND that orchestrate at least one sub-agent.
+ *
+ * For the demo where we have one Supervisor with no parents and 3 children,
+ * this returns one ImplicitWorkflow containing Supervisor + 3 specialists.
+ * For each T*Supervisor scenario, this returns a separate workflow.
+ */
+export function buildImplicitWorkflows(
+  classifiedAgents: Array<ClassifierAgent & { classification: AgentClassification }>,
+): ImplicitWorkflow[] {
+  // Index by agent_id (within app boundary — assumes one app at a time)
+  const byId = new Map<string, ClassifierAgent & { classification: AgentClassification }>()
+  for (const a of classifiedAgents) byId.set(a.agent_id, a)
+
+  // A workflow root: orchestrator that is NOT a tool of any other agent.
+  const roots = classifiedAgents.filter(
+    (a) => a.classification.isOrchestrator && !a.classification.isToolOfOtherAgent,
+  )
+
+  const workflows: ImplicitWorkflow[] = []
+  for (const root of roots) {
+    const nodes: ImplicitWorkflowNode[] = []
+    const edges: ImplicitWorkflowEdge[] = []
+    const visited = new Set<string>()
+    let maxDepth = 0
+    let hasApproval = false
+
+    const queue: Array<{ agent: typeof root; depth: number }> = [{ agent: root, depth: 0 }]
+
+    while (queue.length) {
+      const { agent, depth } = queue.shift()!
+      if (visited.has(agent.agent_id)) continue
+      visited.add(agent.agent_id)
+      maxDepth = Math.max(maxDepth, depth)
+      if (agent.classification.autonomy === 'human-in-loop') hasApproval = true
+
+      nodes.push({
+        agentId: agent.agent_id,
+        role: agent.classification.role,
+        reasoning: agent.classification.reasoning,
+        autonomy: agent.classification.autonomy,
+        provenance: agent.classification.provenance,
+        scenarioId: agent.classification.scenarioId,
+        scenarioActorKind: agent.classification.scenarioActorKind,
+        depth,
+        toolCount: agent.tools.length,
+        subAgentCount: agent.classification.subAgentCount,
+        classification: agent.classification,
+      })
+
+      // Walk children — tools that reference other agents
+      for (const tool of agent.tools) {
+        if (!tool.is_agent) continue
+        const child = byId.get(tool.name)
+        if (!child) continue // referenced agent not in this population
+        edges.push({
+          from: agent.agent_id,
+          to: tool.name,
+          toolDescription: tool.description?.trim().split('\n')[0],
+        })
+        queue.push({ agent: child, depth: depth + 1 })
+      }
+    }
+
+    workflows.push({
+      id: `wf-${root.agent_id}`,
+      rootAgentId: root.agent_id,
+      nodes,
+      edges,
+      depth: maxDepth,
+      agentCount: nodes.length,
+      hasApprovalGates: hasApproval,
+      provenance: root.classification.provenance,
+      scenarioId: root.classification.scenarioId,
+    })
+  }
+
+  // Sort: production workflows first, then by node count desc, then by id
+  workflows.sort((a, b) => {
+    if (a.provenance !== b.provenance) {
+      if (a.provenance === 'production') return -1
+      if (b.provenance === 'production') return 1
+    }
+    if (a.agentCount !== b.agentCount) return b.agentCount - a.agentCount
+    return a.id.localeCompare(b.id)
+  })
+
+  return workflows
+}

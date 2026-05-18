@@ -17,6 +17,17 @@ type ClassifiedRegistration = Registration & { classification: AgentClassificati
  */
 export default function RegisteredAgentsPage() {
   const { currentContext } = useControlPlane()
+  const [deepLinkAgent, setDeepLinkAgent] = useState<string | null>(null)
+  // Read ?agent=<id> on mount and on hash changes (client-only)
+  useEffect(() => {
+    const read = () => {
+      const params = new URLSearchParams(window.location.search)
+      setDeepLinkAgent(params.get('agent'))
+    }
+    read()
+    window.addEventListener('popstate', read)
+    return () => window.removeEventListener('popstate', read)
+  }, [])
   const [agents, setAgents] = useState<Registration[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +60,14 @@ export default function RegisteredAgentsPage() {
     () => classifyAgents(agents) as ClassifiedRegistration[],
     [agents],
   )
+
+  // Honor deep-link ?agent=<id> — auto-open that agent's detail panel
+  useEffect(() => {
+    if (!deepLinkAgent || classified.length === 0) return
+    if (selected?.agent_id === deepLinkAgent) return
+    const found = classified.find((a) => a.agent_id === deepLinkAgent)
+    if (found) setSelected(found)
+  }, [deepLinkAgent, classified, selected])
 
   // Filter + scope
   const filtered = useMemo(() => {
