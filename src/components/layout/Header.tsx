@@ -2,57 +2,80 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Logo } from '@/components/ui/Logo'
+import { useEffect, useState } from 'react'
 import { Container } from '@/components/ui/Container'
-import { Button } from '@/components/ui/Button'
 
+/**
+ * Marketing site header. Dark, sticky, with a translucent blur backdrop
+ * that picks up depth as the user scrolls past the hero.
+ *
+ * Hidden entirely on /console — the Console renders its own chrome.
+ */
 const NAV_ITEMS = [
-  { label: 'Walkthrough', href: '/walkthrough' },
-  { label: 'Protocol', href: '/protocol' },
+  { label: 'Walkthrough',  href: '/walkthrough' },
+  { label: 'Protocol',     href: '/protocol' },
   { label: 'Architecture', href: '/architecture' },
-  { label: 'Deploy', href: '/deploy/enterprise' },
 ] as const
 
 export function Header() {
   const pathname = usePathname()
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   if (pathname?.startsWith('/console')) return null
+
   return (
-    <>
-      {/* Header background — sits below the globe */}
-      <div className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-stone-200/60" />
+    <header
+      className={[
+        'fixed top-0 left-0 right-0 z-50 transition-colors duration-200',
+        scrolled
+          ? 'bg-[rgb(10_11_13_/_0.78)] backdrop-blur-md border-b border-[rgb(46_48_54_/_0.6)]'
+          : 'bg-transparent border-b border-transparent',
+      ].join(' ')}
+    >
+      <Container>
+        <div className="flex h-14 items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="no-underline flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#6366f1] text-white text-[11px] font-bold">A</span>
+              <span className="text-[14px] font-semibold tracking-tight text-white">Auth51</span>
+            </Link>
 
-      {/* Header content — sits above the globe */}
-      <header className="fixed top-0 left-0 right-0 z-[60]">
-        <Container>
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-10">
-              <Link href="/" className="no-underline hover:no-underline">
-                <Logo className="text-[18px]" />
-              </Link>
-
-              <nav className="hidden md:flex items-center gap-7">
-                {NAV_ITEMS.map(({ label, href }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="text-[15px] font-medium text-[#425466] no-underline hover:text-[#0a2540] transition-colors"
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Link href="/console" className="hidden sm:block no-underline">
-                <Button variant="primary" size="sm">
-                  Open Console →
-                </Button>
-              </Link>
-            </div>
+            <nav className="hidden md:flex items-center gap-6">
+              {NAV_ITEMS.map(({ label, href }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="text-[13px] font-medium text-[#b6bbc5] no-underline hover:text-white transition-colors"
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
           </div>
-        </Container>
-      </header>
-    </>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/sign-in"
+              className="hidden sm:block text-[13px] text-[#b6bbc5] no-underline hover:text-white transition-colors"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/console"
+              className="inline-flex items-center justify-center rounded-full bg-[#6366f1] hover:bg-[#818cf8] text-white text-[13px] font-medium px-4 py-1.5 no-underline transition-colors"
+            >
+              Open Console →
+            </Link>
+          </div>
+        </div>
+      </Container>
+    </header>
   )
 }
