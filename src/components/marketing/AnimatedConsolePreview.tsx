@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { classifyAgents, type AgentClassification } from '@/lib/agent-classification'
-import { shortChecksum, formatRegisteredAt, type Registration } from '@/lib/console/api'
+import { formatRegisteredAt, type Registration } from '@/lib/console/api'
 import { DEMO_AGENTS } from '@/lib/marketing/demoSnapshot'
 import { cn } from '@/lib/utils'
 
@@ -32,14 +32,16 @@ export function AnimatedConsolePreview() {
     return () => clearInterval(id)
   }, [])
 
-  // Cycle through highlighted rows
+  // Cycle through highlighted rows. Each cycle picks a new row and the
+  // right-hand detail panel re-renders to that agent's details.
   const [activeIdx, setActiveIdx] = useState(0)
   useEffect(() => {
     const id = setInterval(() => {
-      setActiveIdx((i) => (i + 1) % Math.min(classified.length, 9))
-    }, 4500)
+      setActiveIdx((i) => (i + 1) % Math.min(classified.length, 12))
+    }, 5200)
     return () => clearInterval(id)
   }, [classified.length])
+  const activeAgent = classified[activeIdx]
 
   return (
     <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-[#0a0b0d]">
@@ -58,7 +60,7 @@ export function AnimatedConsolePreview() {
         <span className="text-[10px] text-[#5c6168] font-mono">v0.1</span>
       </div>
 
-      <div className="flex" style={{ minHeight: 740 }}>
+      <div className="flex" style={{ minHeight: 660 }}>
         {/* Sidebar */}
         <div className="w-[210px] shrink-0 border-r border-[#1f2127] bg-[#0a0b0d] py-3">
           <div className="px-3 flex items-center gap-2 mb-3 pb-3 border-b border-[#1f2127]">
@@ -145,22 +147,28 @@ export function AnimatedConsolePreview() {
             </div>
           </div>
 
-          {/* Table */}
+          {/* Table — narrowed to 5 columns; full per-agent detail
+              lives in the right-hand panel. */}
           <div>
-            <table className="w-full text-[11px]">
+            <table className="w-full text-[11px] table-fixed">
+              <colgroup>
+                <col style={{ width: '30%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '12%' }} />
+              </colgroup>
               <thead className="bg-[#0a0b0d] border-b border-[#1f2127]">
                 <tr>
                   <Th>Agent ID</Th>
                   <Th>Role</Th>
                   <Th>Reasoning</Th>
-                  <Th>Autonomy</Th>
                   <Th>Provenance</Th>
-                  <Th>Checksum</Th>
                   <Th>Registered</Th>
                 </tr>
               </thead>
               <tbody>
-                {classified.slice(0, 9).map((a, idx) => {
+                {classified.slice(0, 12).map((a, idx) => {
                   const c = a.classification
                   const active = activeIdx === idx
                   return (
@@ -172,11 +180,11 @@ export function AnimatedConsolePreview() {
                       )}
                     >
                       <Td>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <RoleDot role={c.role} />
-                          <span className={cn('font-mono', active ? 'text-white' : 'text-white/95')}>{a.agent_id}</span>
+                          <span className={cn('font-mono truncate', active ? 'text-white' : 'text-white/95')}>{a.agent_id}</span>
                           {active && (
-                            <span className="text-[8.5px] font-mono px-1 py-0.5 rounded bg-[#6366f1] text-white animate-pulse">live</span>
+                            <span className="text-[8.5px] font-mono px-1 py-0.5 rounded bg-[#6366f1] text-white animate-pulse shrink-0">live</span>
                           )}
                         </div>
                       </Td>
@@ -184,11 +192,9 @@ export function AnimatedConsolePreview() {
                         <RoleLabel role={c.role} subAgents={c.subAgentCount} parents={c.parentAgentIds.length} />
                       </Td>
                       <Td><span className="text-[#b6bbc5]">{reasoningLabel(c.reasoning)}</span></Td>
-                      <Td><span className="text-[#b6bbc5]">Autonomous</span></Td>
                       <Td><ProvenanceChip c={c} /></Td>
-                      <Td><span className="font-mono text-[#8a8f98] text-[10px]">{shortChecksum(a.checksum, 10)}…</span></Td>
                       <Td>
-                        <span className={cn(active ? 'text-[#a5b4fc] font-medium' : 'text-[#b6bbc5]')}>
+                        <span className={cn('text-[10px]', active ? 'text-[#a5b4fc] font-medium' : 'text-[#b6bbc5]')}>
                           {active ? 'just now' : formatRegisteredAt(a.registered_at)}
                         </span>
                       </Td>
@@ -199,9 +205,128 @@ export function AnimatedConsolePreview() {
             </table>
           </div>
         </div>
+
+        {/* ── Right-side detail panel ─────────────────────────────────
+            Mirrors the real Console's behaviour when an agent row is
+            "selected": shows checksum, prompt, and tool inventory for
+            the active agent. Re-renders every ~5s as the row cycles. */}
+        <DetailPanel agent={activeAgent} />
       </div>
+      <style jsx>{`
+        @keyframes detail-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        :global(.detail-anim) {
+          animation: detail-in 380ms ease-out;
+        }
+      `}</style>
     </div>
   )
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────
+
+function DetailPanel({
+  agent,
+}: {
+  agent: Registration & { classification: AgentClassification }
+}) {
+  const c = agent.classification
+  return (
+    <aside
+      key={agent.agent_id}
+      className="w-[340px] shrink-0 border-l border-[#1f2127] bg-[#0a0b0d] flex flex-col detail-anim"
+    >
+      {/* Panel header */}
+      <div className="px-4 py-3 border-b border-[#1f2127] flex items-center gap-2">
+        <span className="text-[9.5px] font-mono uppercase tracking-wider text-[#5c6168]">Selected</span>
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[10px]">
+          <span className="relative inline-flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[#6366f1] animate-ping opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#6366f1]" />
+          </span>
+          <span className="text-[#a5b4fc] font-medium">live</span>
+        </span>
+      </div>
+
+      {/* Title block */}
+      <div className="px-4 pt-4 pb-3 border-b border-[#1f2127]">
+        <div className="flex items-center gap-2 mb-2">
+          <RoleDot role={c.role} />
+          <h3 className="text-[14px] font-semibold text-white font-mono tracking-tight">{agent.agent_id}</h3>
+        </div>
+        <p className="text-[10.5px] text-[#8a8f98] font-mono break-all">{agent.registration_id}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <Pill>{roleLabel(c.role)}</Pill>
+          <Pill>{reasoningLabel(c.reasoning)}</Pill>
+          <Pill>Autonomous</Pill>
+        </div>
+      </div>
+
+      {/* Checksum */}
+      <Section title="Checksum">
+        <p className="font-mono text-[10px] text-[#b6bbc5] break-all leading-relaxed">
+          {agent.checksum.slice(0, 32)}
+          <span className="text-[#5c6168]">{agent.checksum.slice(32)}</span>
+        </p>
+      </Section>
+
+      {/* Prompt */}
+      <Section title="Prompt">
+        <p className="text-[11px] text-[#b6bbc5] leading-relaxed">
+          {agent.prompt}
+        </p>
+      </Section>
+
+      {/* Tools */}
+      <Section title={`Tools · ${agent.tools.length}`}>
+        <ul className="space-y-2">
+          {agent.tools.map((t) => (
+            <li key={t.name} className="flex items-start gap-2 text-[10.5px] leading-snug">
+              <span className={cn('mt-0.5 inline-flex h-1.5 w-1.5 rounded-full shrink-0', t.is_agent ? 'bg-[#818cf8]' : 'bg-[#8a8f98]')} />
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-white truncate">{t.name}</div>
+                <div className="font-mono text-[#5c6168] text-[9.5px] truncate">{t.signature}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      {/* Footer */}
+      <div className="mt-auto px-4 py-2.5 border-t border-[#1f2127] flex items-center gap-2 text-[10px] font-mono text-[#5c6168]">
+        <span>v{agent.version}</span>
+        <span className="text-[#2c2e34]">·</span>
+        <span className="truncate">app: {agent.app_id}</span>
+      </div>
+    </aside>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="px-4 py-3 border-b border-[#1f2127]">
+      <h4 className="text-[9px] font-mono uppercase tracking-wider text-[#5c6168] mb-2">{title}</h4>
+      {children}
+    </div>
+  )
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-[#1f2127] bg-[#131418] text-[9.5px] text-[#b6bbc5]">
+      {children}
+    </span>
+  )
+}
+
+function roleLabel(role: AgentClassification['role']): string {
+  return role === 'orchestrator' ? 'Orchestrator'
+    : role === 'tool-agent'   ? 'Tool-agent'
+    : role === 'worker'       ? 'Worker'
+    : role === 'hybrid'       ? 'Hybrid'
+    : '—'
 }
 
 // ── Atoms ─────────────────────────────────────────────────────────────────
