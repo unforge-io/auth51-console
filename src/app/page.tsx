@@ -44,16 +44,52 @@ function Hero() {
       </div>
 
       {/* ──────────── 3D Floor ────────────
-          A horizontal "stage" that sits behind the lower half of the
-          screenshot and below it. It's a hair lighter than the background
-          and fades back to bg at top and bottom, creating the illusion of
-          the screenshot resting on a softly lit plane.            */}
-      <div className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none" aria-hidden="true">
-        {/* The floor itself */}
-        <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-b from-transparent via-[rgb(16_18_26)] to-[rgb(20_22_30)]" />
-        {/* Horizon line — the seam where the floor meets the back wall */}
-        <div className="absolute inset-x-0 top-[30%] h-px bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.35)] to-transparent" />
-        <div className="absolute inset-x-0 top-[30%] h-[1px] blur-sm bg-gradient-to-r from-transparent via-[rgb(129_140_248_/_0.5)] to-transparent" />
+          A perspective-projected grid plane that recedes from the bottom
+          of the hero toward a vanishing point near the horizon. Sits
+          behind the screenshot. Above the grid is a strong horizon glow;
+          the floor itself is a clearly lighter band so it actually reads
+          as a separate plane. */}
+      <div className="absolute inset-x-0 bottom-0 h-[62%] pointer-events-none overflow-hidden" aria-hidden="true">
+        {/* Lighter floor plane fading into the back wall */}
+        <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-b from-transparent from-0% via-[rgb(22_24_34)] via-45% to-[rgb(30_32_44)] to-100%" />
+
+        {/* Perspective grid — the synthwave-style floor. A flat grid
+            painted on a div that's rotated about its NEAR edge (bottom)
+            so the FAR edge tilts back into the distance and the lines
+            converge toward a vanishing point on the horizon. */}
+        <div
+          className="absolute left-1/2 bottom-0"
+          style={{
+            width: '260%',
+            height: '900px',
+            marginLeft: '-130%',
+            transform: 'perspective(700px) rotateX(60deg)',
+            transformOrigin: '50% 100%',
+            backgroundImage: `
+              linear-gradient(to right, rgba(165,180,252,0.22) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(165,180,252,0.26) 1px, transparent 1px)
+            `,
+            backgroundSize: '80px 80px',
+            maskImage:
+              'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.2) 60%, transparent 90%)',
+            WebkitMaskImage:
+              'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.2) 60%, transparent 90%)',
+          }}
+        />
+
+        {/* Strong horizon glow — a wide warm bloom right at the seam */}
+        <div
+          className="absolute inset-x-0 top-0 h-[200px]"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 100% at 50% 0%, rgba(129,140,248,0.55) 0%, rgba(99,102,241,0.28) 25%, rgba(99,102,241,0.10) 50%, transparent 80%)',
+            filter: 'blur(8px)',
+          }}
+        />
+
+        {/* The horizon line itself — bright filament */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(199_210_254)] to-transparent opacity-70" />
+        <div className="absolute inset-x-0 top-0 h-[2px] blur-md bg-gradient-to-r from-transparent via-[rgb(165_180_252)] to-transparent opacity-80" />
       </div>
 
       <Container>
