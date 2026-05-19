@@ -55,20 +55,20 @@ function Hero() {
        */}
       <div className="absolute inset-x-0 bottom-0 h-[75%] pointer-events-none overflow-hidden" aria-hidden="true">
         {/* 1. Floor plane — long multi-stop fade, neutral cool grey.
-              Brighter terminal stop (~15% white) so the floor reads as
-              clearly lit at the viewer's feet. */}
+              Climbs to ~24% white at the viewer's feet so the floor
+              reads as a clearly lit surface (not just darker bg). */}
         <div
           className="absolute inset-x-0 bottom-0 h-full"
           style={{
             background: `
               linear-gradient(to bottom,
                 rgba(255,255,255,0) 0%,
-                rgba(255,255,255,0.008) 18%,
-                rgba(255,255,255,0.028) 36%,
-                rgba(255,255,255,0.058) 56%,
-                rgba(255,255,255,0.098) 76%,
-                rgba(255,255,255,0.135) 92%,
-                rgba(255,255,255,0.155) 100%
+                rgba(255,255,255,0.012) 16%,
+                rgba(255,255,255,0.038) 34%,
+                rgba(255,255,255,0.078) 52%,
+                rgba(255,255,255,0.135) 72%,
+                rgba(255,255,255,0.195) 88%,
+                rgba(255,255,255,0.240) 100%
               )`,
           }}
         />
@@ -153,9 +153,27 @@ function Hero() {
                   almost not blurred. This is the "object on a table"
                   shadow that sells it. */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-px w-[78%] h-[28px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,1),rgba(0,0,0,0.7)_30%,transparent_72%)]
-                blur-md"
+              className="absolute left-1/2 -translate-x-1/2 -bottom-px w-[88%] h-[34px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,1),rgba(0,0,0,0.85)_28%,rgba(0,0,0,0.35)_60%,transparent_82%)]
+                blur-[6px]"
+              aria-hidden="true"
+            />
+
+            {/* (d) Side-hugging shadows — at each bottom corner, a
+                  vertical ellipse climbing ~180px up along the side
+                  edges. Solid black at the base, fading as it rises.
+                  This is what makes the side-edges look anchored to
+                  the floor instead of floating away. */}
+            <div
+              className="absolute -left-3 -bottom-3 w-[90px] h-[220px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,1),rgba(0,0,0,0.7)_28%,rgba(0,0,0,0.25)_60%,transparent_82%)]
+                blur-xl"
+              aria-hidden="true"
+            />
+            <div
+              className="absolute -right-3 -bottom-3 w-[90px] h-[220px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,1),rgba(0,0,0,0.7)_28%,rgba(0,0,0,0.25)_60%,transparent_82%)]
+                blur-xl"
               aria-hidden="true"
             />
 
