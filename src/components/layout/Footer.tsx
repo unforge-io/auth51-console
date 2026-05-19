@@ -2,31 +2,26 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Logo } from '@/components/ui/Logo'
 import { Container } from '@/components/ui/Container'
-
-/**
- * Footer — Stripe-style. Dark navy bg, light text, clean columns.
- */
 
 const FOOTER_LINKS = {
   Product: [
+    { label: 'Console',     href: '/console' },
     { label: 'Walkthrough', href: '/walkthrough' },
-    { label: 'Protocol', href: '/protocol' },
     { label: 'Architecture', href: '/architecture' },
   ],
   Deploy: [
-    { label: 'Enterprise', href: '/deploy/enterprise' },
-    { label: 'Cloud', href: '/deploy/cloud' },
+    { label: 'Enterprise',  href: '/deploy/enterprise' },
+    { label: 'Cloud',       href: '/deploy/cloud' },
   ],
   Resources: [
-    { label: 'IETF Draft', href: '#' },
-    { label: 'GitHub', href: '#' },
-    { label: 'Documentation', href: '#' },
+    { label: 'IETF Draft (Agentic JWT)', href: '#' },
+    { label: 'Protocol Spec',            href: '/protocol' },
+    { label: 'GitHub',                   href: '#' },
   ],
   Company: [
-    { label: 'Unforge', href: '#' },
-    { label: 'Contact', href: '#' },
+    { label: 'Unforge',  href: '#' },
+    { label: 'Contact',  href: '#' },
   ],
 } as const
 
@@ -34,14 +29,13 @@ export function Footer() {
   const pathname = usePathname()
   if (pathname?.startsWith('/console')) return null
   return (
-    <footer className="bg-[#0a2540] text-white">
+    <footer className="bg-[rgb(8_9_11)] text-white border-t border-[rgb(38_39_43)]">
       <Container>
         <div className="py-14 sm:py-20">
-          {/* Link columns */}
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {Object.entries(FOOTER_LINKS).map(([category, links]) => (
               <div key={category}>
-                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#8898aa] mb-4">
+                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[#5c6168] mb-4">
                   {category}
                 </h4>
                 <ul className="space-y-2.5">
@@ -49,7 +43,7 @@ export function Footer() {
                     <li key={label}>
                       <Link
                         href={href}
-                        className="text-[14px] text-[#adbdcc] no-underline hover:text-white transition-colors"
+                        className="text-[13.5px] text-[#b6bbc5] no-underline hover:text-white transition-colors"
                       >
                         {label}
                       </Link>
@@ -60,11 +54,13 @@ export function Footer() {
             ))}
           </div>
 
-          {/* Bottom strip */}
-          <div className="mt-14 flex flex-col items-start gap-4 border-t border-white/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
-            <Logo className="text-[16px] !text-white" wordmarkOnly />
-            <p className="text-[13px] text-[#8898aa]">
-              Part of the Auth51 platform. Built by Unforge.
+          <div className="mt-14 flex flex-col items-start gap-4 border-t border-[rgb(38_39_43)] pt-8 sm:flex-row sm:items-center sm:justify-between">
+            <span className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#6366f1] text-white text-[11px] font-bold">A</span>
+              <span className="text-[15px] font-semibold tracking-tight text-white">Auth51</span>
+            </span>
+            <p className="text-[12.5px] text-[#5c6168]">
+              The control plane for AI agents. Built by Unforge.
             </p>
           </div>
         </div>

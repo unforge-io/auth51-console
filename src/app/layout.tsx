@@ -73,7 +73,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} dark`}>
         <body className="min-h-screen flex flex-col">
           <LayoutShell>{children}</LayoutShell>
         </body>

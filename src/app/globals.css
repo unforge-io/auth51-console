@@ -88,10 +88,15 @@
   html {
     font-feature-settings: 'cv11', 'ss01', 'kern';
     -webkit-text-size-adjust: 100%;
+    /* Site-wide dark surface — marketing + console share the same canvas */
+    background: rgb(var(--c-bg));
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-bg text-ink antialiased font-sans;
+    @apply antialiased font-sans;
+    background: rgb(var(--c-bg));
+    color: rgb(var(--c-text));
     /* Tabular figures by default — tables, timestamps, latencies all align cleanly */
     font-variant-numeric: tabular-nums;
   }
