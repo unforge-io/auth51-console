@@ -58,7 +58,7 @@ export function AnimatedConsolePreview() {
         <span className="text-[10px] text-[#5c6168] font-mono">v0.1</span>
       </div>
 
-      <div className="flex" style={{ minHeight: 680 }}>
+      <div className="flex" style={{ minHeight: 740 }}>
         {/* Sidebar */}
         <div className="w-[210px] shrink-0 border-r border-[#1f2127] bg-[#0a0b0d] py-3">
           <div className="px-3 flex items-center gap-2 mb-3 pb-3 border-b border-[#1f2127]">
