@@ -36,7 +36,7 @@ export function AnimatedConsolePreview() {
   const [activeIdx, setActiveIdx] = useState(0)
   useEffect(() => {
     const id = setInterval(() => {
-      setActiveIdx((i) => (i + 1) % Math.min(classified.length, 6))
+      setActiveIdx((i) => (i + 1) % Math.min(classified.length, 9))
     }, 4500)
     return () => clearInterval(id)
   }, [classified.length])
@@ -58,9 +58,9 @@ export function AnimatedConsolePreview() {
         <span className="text-[10px] text-[#5c6168] font-mono">v0.1</span>
       </div>
 
-      <div className="flex" style={{ minHeight: 520 }}>
+      <div className="flex" style={{ minHeight: 680 }}>
         {/* Sidebar */}
-        <div className="w-[200px] shrink-0 border-r border-[#1f2127] bg-[#0a0b0d] py-3">
+        <div className="w-[210px] shrink-0 border-r border-[#1f2127] bg-[#0a0b0d] py-3">
           <div className="px-3 flex items-center gap-2 mb-3 pb-3 border-b border-[#1f2127]">
             <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-[#6366f1] text-white text-[10px] font-bold">A</span>
             <span className="text-[12px] font-semibold text-white tracking-tight">Auth51</span>
@@ -74,10 +74,18 @@ export function AnimatedConsolePreview() {
             <SidebarHeading>Workflows</SidebarHeading>
             <SidebarItem indent>Inferred</SidebarItem>
             <SidebarItem indent>Registered</SidebarItem>
+            <SidebarItem indent>Runtime <Soon /></SidebarItem>
             <SidebarHeading>Security</SidebarHeading>
             <SidebarItem indent>Threats</SidebarItem>
+            <SidebarItem indent>Policies <Soon /></SidebarItem>
+            <SidebarHeading>Audit</SidebarHeading>
+            <SidebarItem indent>Events <Soon /></SidebarItem>
+            <SidebarItem indent>Mints <Soon /></SidebarItem>
             <SidebarHeading>Infrastructure</SidebarHeading>
             <SidebarItem indent>Resources</SidebarItem>
+            <SidebarItem indent>Authorities</SidebarItem>
+            <SidebarHeading>Settings</SidebarHeading>
+            <SidebarItem indent>Identity <Soon /></SidebarItem>
           </div>
         </div>
 
@@ -152,7 +160,7 @@ export function AnimatedConsolePreview() {
                 </tr>
               </thead>
               <tbody>
-                {classified.slice(0, 6).map((a, idx) => {
+                {classified.slice(0, 9).map((a, idx) => {
                   const c = a.classification
                   const active = activeIdx === idx
                   return (
