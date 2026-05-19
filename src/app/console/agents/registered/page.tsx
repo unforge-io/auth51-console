@@ -5,6 +5,7 @@ import { useControlPlane } from '@/lib/console/controlPlane'
 import { listAgents, formatRegisteredAt, shortChecksum, type Registration, AuthorityError } from '@/lib/console/api'
 import { classifyAgents, type AgentClassification } from '@/lib/agent-classification'
 import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
+import { useRefreshInterval } from '@/lib/console/useRefreshInterval'
 import { LiveIndicator } from '@/components/console/LiveIndicator'
 import { cn } from '@/lib/utils'
 
@@ -55,9 +56,10 @@ export default function RegisteredAgentsPage() {
     }
   }, [currentContext])
 
-  // Live polling — refreshes every 5s while the tab is visible
+  // Live polling — interval is a user-configurable global preference
+  const { intervalMs, setIntervalMs } = useRefreshInterval()
   const { lastUpdatedAt, tickedAt } = useAutoRefresh({
-    intervalMs: 5000,
+    intervalMs,
     fetcher: load,
     enabled: !!currentContext,
   })
@@ -119,6 +121,8 @@ export default function RegisteredAgentsPage() {
           loading={loading}
           lastUpdatedAt={lastUpdatedAt}
           tickedAt={tickedAt}
+          intervalMs={intervalMs}
+          onIntervalChange={setIntervalMs}
         />
 
         {error && <ErrorBanner message={error} onRetry={load} />}
@@ -152,7 +156,7 @@ type Scope = 'all' | 'orchestrators' | 'workers' | 'scenarios'
 
 function PageHeader({
   appId, agentCount, filteredCount, filter, setFilter, scope, setScope, onRefresh, loading,
-  lastUpdatedAt, tickedAt,
+  lastUpdatedAt, tickedAt, intervalMs, onIntervalChange,
 }: {
   appId: string
   agentCount: number
@@ -165,6 +169,8 @@ function PageHeader({
   loading: boolean
   lastUpdatedAt: number | null
   tickedAt: number
+  intervalMs: number
+  onIntervalChange: (ms: number) => void
 }) {
   return (
     <div className="border-b border-c-border px-6 py-4">
@@ -183,6 +189,8 @@ function PageHeader({
           tick={tickedAt}
           loading={loading}
           onRefresh={onRefresh}
+          intervalMs={intervalMs}
+          onIntervalChange={onIntervalChange}
         />
       </div>
 

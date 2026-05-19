@@ -44,15 +44,22 @@ export function useAutoRefresh({
     }
   }, [])
 
-  // Periodic refresh, paused while tab hidden
+  // Fire once on mount immediately — users shouldn't see an empty state
+  // for the first `intervalMs` before any data arrives.
   useEffect(() => {
-    if (!enabled) return
+    if (enabled) run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled])
+
+  // Periodic refresh, paused while tab hidden (or when interval is 0).
+  // `intervalMs <= 0` disables polling — the user can still hit Refresh manually.
+  useEffect(() => {
+    if (!enabled || intervalMs <= 0) return
     let timer: ReturnType<typeof setInterval> | null = null
     const onVisibility = () => {
       if (document.hidden) {
         if (timer) { clearInterval(timer); timer = null }
       } else if (!timer) {
-        // Resume — fire immediately so the tab is fresh on focus
         run()
         timer = setInterval(run, intervalMs)
       }

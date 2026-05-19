@@ -17,6 +17,7 @@ import {
 import { WorkflowTree } from '@/components/console/WorkflowTree'
 import { LiveIndicator } from '@/components/console/LiveIndicator'
 import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
+import { useRefreshInterval } from '@/lib/console/useRefreshInterval'
 import { cn } from '@/lib/utils'
 
 /**
@@ -68,9 +69,10 @@ export default function RegisteredWorkflowsPage() {
     }
   }, [currentContext])
 
-  // Live polling — 5s while tab is visible
+  // Live polling — user-configurable interval, persists across views
+  const { intervalMs, setIntervalMs } = useRefreshInterval()
   const { lastUpdatedAt, tickedAt } = useAutoRefresh({
-    intervalMs: 5000,
+    intervalMs,
     fetcher: load,
     enabled: !!currentContext,
   })
@@ -187,6 +189,8 @@ export default function RegisteredWorkflowsPage() {
             tick={tickedAt}
             loading={loading}
             onRefresh={load}
+            intervalMs={intervalMs}
+            onIntervalChange={setIntervalMs}
           />
         </div>
 
