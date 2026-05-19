@@ -55,20 +55,21 @@ function Hero() {
        */}
       <div className="absolute inset-x-0 bottom-0 h-[75%] pointer-events-none overflow-hidden" aria-hidden="true">
         {/* 1. Floor plane — long multi-stop fade, neutral cool grey.
-              Climbs to ~24% white at the viewer's feet so the floor
-              reads as a clearly lit surface (not just darker bg). */}
+              Climbs to ~32% white at the viewer's feet. Almost very
+              light grey at the bottom so the floor reads as a clearly
+              lit surface, not just darker bg. */}
         <div
           className="absolute inset-x-0 bottom-0 h-full"
           style={{
             background: `
               linear-gradient(to bottom,
                 rgba(255,255,255,0) 0%,
-                rgba(255,255,255,0.012) 16%,
-                rgba(255,255,255,0.038) 34%,
-                rgba(255,255,255,0.078) 52%,
-                rgba(255,255,255,0.135) 72%,
-                rgba(255,255,255,0.195) 88%,
-                rgba(255,255,255,0.240) 100%
+                rgba(255,255,255,0.018) 14%,
+                rgba(255,255,255,0.048) 30%,
+                rgba(255,255,255,0.105) 48%,
+                rgba(255,255,255,0.180) 66%,
+                rgba(255,255,255,0.265) 84%,
+                rgba(255,255,255,0.320) 100%
               )`,
           }}
         />
@@ -127,58 +128,61 @@ function Hero() {
           </div>
 
           {/* ──────────── The screenshot, placed on the floor ────────
-              Three contact-shadow layers anchor it where it touches the
-              ground, plus a wide ambient drop shadow for body weight,
-              plus a faint ground reflection beneath. */}
+              Linear-style ambient occlusion: the floor is LIT in front
+              of the screen (no shadow in the center) and DARK only at
+              the two bottom corners, where it both extends outward
+              along the floor and climbs briefly up the side edges. */}
           <div
             className="relative mt-20 sm:mt-24"
             style={{ perspective: '2400px' }}
           >
-            {/* (a) Wide ambient — soft body shadow spreading outward */}
+            {/* (1) Center light spill — the floor directly in front of
+                  the screen is BRIGHTER than the rest. Replaces the
+                  old dark-under-the-screen ellipse. */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-20 w-[110%] h-[300px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.85),rgba(0,0,0,0.35)_40%,transparent_78%)]
-                blur-3xl"
-              aria-hidden="true"
-            />
-            {/* (b) Medium — softer, narrower band right under */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-4 w-[92%] h-[140px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.95),rgba(0,0,0,0.45)_45%,transparent_78%)]
+              className="absolute left-1/2 -translate-x-1/2 -bottom-10 w-[62%] h-[180px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.13),rgba(255,255,255,0.05)_45%,transparent_78%)]
                 blur-2xl"
               aria-hidden="true"
             />
-            {/* (c) Razor contact line — the thing that anchors it. A
-                  very tight ellipse hugging the base edge, FULL black,
-                  almost not blurred. This is the "object on a table"
-                  shadow that sells it. */}
+
+            {/* (2) LEFT CORNER ambient-occlusion L
+                  ─ A flat dark patch on the floor extending LEFT
+                    from the screen's lower-left corner.
+                  ─ A small vertical climb up the screen's left edge
+                    (~25 px), the height the user asked for. */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-px w-[88%] h-[34px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,1),rgba(0,0,0,0.85)_28%,rgba(0,0,0,0.35)_60%,transparent_82%)]
-                blur-[6px]"
+              className="absolute -left-[140px] -bottom-1 w-[260px] h-[42px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_right,rgba(0,0,0,0.95),rgba(0,0,0,0.55)_30%,rgba(0,0,0,0.18)_60%,transparent_82%)]
+                blur-[10px]"
+              aria-hidden="true"
+            />
+            <div
+              className="absolute -left-[6px] -bottom-1 w-[28px] h-[64px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,0.95),rgba(0,0,0,0.55)_28%,rgba(0,0,0,0.18)_60%,transparent_82%)]
+                blur-md"
               aria-hidden="true"
             />
 
-            {/* (d) Side-hugging shadows — at each bottom corner, a
-                  vertical ellipse climbing ~180px up along the side
-                  edges. Solid black at the base, fading as it rises.
-                  This is what makes the side-edges look anchored to
-                  the floor instead of floating away. */}
+            {/* (3) RIGHT CORNER ambient-occlusion L — mirror of (2) */}
             <div
-              className="absolute -left-3 -bottom-3 w-[90px] h-[220px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,1),rgba(0,0,0,0.7)_28%,rgba(0,0,0,0.25)_60%,transparent_82%)]
-                blur-xl"
+              className="absolute -right-[140px] -bottom-1 w-[260px] h-[42px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_left,rgba(0,0,0,0.95),rgba(0,0,0,0.55)_30%,rgba(0,0,0,0.18)_60%,transparent_82%)]
+                blur-[10px]"
               aria-hidden="true"
             />
             <div
-              className="absolute -right-3 -bottom-3 w-[90px] h-[220px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,1),rgba(0,0,0,0.7)_28%,rgba(0,0,0,0.25)_60%,transparent_82%)]
-                blur-xl"
+              className="absolute -right-[6px] -bottom-1 w-[28px] h-[64px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,0.95),rgba(0,0,0,0.55)_28%,rgba(0,0,0,0.18)_60%,transparent_82%)]
+                blur-md"
               aria-hidden="true"
             />
 
-            {/* The frame — slight backward tilt for 3D, multi-layer
-                neutral shadow, top-edge highlight for ambient light */}
+            {/* The frame — slight backward tilt for 3D. We deliberately
+                avoid a deep y-offset drop shadow because that would
+                throw a halo onto the lit floor in front of the screen.
+                Body weight + corner anchoring is done by the L-shaped
+                shadows above. Only inset highlights here. */}
             <div
               className="relative rounded-2xl overflow-hidden
                 border border-[rgb(56_58_66)]
@@ -187,8 +191,7 @@ function Hero() {
                   0_2px_0_0_rgba(255,255,255,0.07)_inset,
                   0_-1px_0_0_rgba(0,0,0,0.5)_inset,
                   0_0_0_1px_rgba(255,255,255,0.04)_inset,
-                  0_70px_160px_-30px_rgba(0,0,0,0.95),
-                  0_30px_80px_-25px_rgba(0,0,0,0.8)
+                  0_10px_30px_-15px_rgba(0,0,0,0.5)
                 ]"
               style={{
                 transform: 'rotateX(2.5deg)',
@@ -200,15 +203,12 @@ function Hero() {
               <AnimatedConsolePreview />
             </div>
 
-            {/* Faint reflection on the floor — a darkened, gradient-faded
-                copy of the bottom strip of the screenshot's surface,
-                mirrored. We can't easily mirror a live React component,
-                so simulate the effect with a soft warm-white horizontal
-                band that reads as floor catching the screen's light. */}
+            {/* Extra reflection bloom further down the floor —
+                continues the lit-area illusion away from the screen */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-24 w-[80%] h-[160px] pointer-events-none rounded-[40%]
-                bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.05),rgba(255,255,255,0.02)_40%,transparent_75%)]
-                blur-2xl"
+              className="absolute left-1/2 -translate-x-1/2 -bottom-32 w-[78%] h-[180px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08),rgba(255,255,255,0.03)_45%,transparent_78%)]
+                blur-3xl"
               aria-hidden="true"
             />
           </div>
