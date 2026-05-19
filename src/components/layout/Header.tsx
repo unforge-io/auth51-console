@@ -44,9 +44,9 @@ export function Header() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Link href="/walkthrough" className="hidden sm:block no-underline">
+              <Link href="/console" className="hidden sm:block no-underline">
                 <Button variant="primary" size="sm">
-                  Get started →
+                  Open Console →
                 </Button>
               </Link>
             </div>
