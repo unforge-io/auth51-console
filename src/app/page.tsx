@@ -37,59 +37,54 @@ export default function Home() {
 function Hero() {
   return (
     <section className="relative overflow-hidden bg-[rgb(10_11_13)]">
-      {/* Ambient glow above */}
+      {/* Ambient glow above — neutral cool-white, just enough to lift the
+          area behind the headline above pure black. No saturated color
+          (saturated bloom on black reads as artificial). */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-[-25%] left-1/2 -translate-x-1/2 w-[1200px] h-[900px] bg-[radial-gradient(closest-side,rgba(99,102,241,0.22),rgba(99,102,241,0.06)_45%,transparent_70%)] rounded-full blur-2xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(99,102,241,0.06)_1px,transparent_1px)] [background-size:32px_32px] opacity-30" />
+        <div className="absolute top-[-30%] left-1/2 -translate-x-1/2 w-[1300px] h-[900px] bg-[radial-gradient(closest-side,rgba(255,255,255,0.06),rgba(255,255,255,0.02)_45%,transparent_75%)] rounded-full blur-2xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:32px_32px] opacity-30" />
       </div>
 
-      {/* ──────────── 3D Floor ────────────
-          A perspective-projected grid plane that recedes from the bottom
-          of the hero toward a vanishing point near the horizon. Sits
-          behind the screenshot. Above the grid is a strong horizon glow;
-          the floor itself is a clearly lighter band so it actually reads
-          as a separate plane. */}
-      <div className="absolute inset-x-0 bottom-0 h-[62%] pointer-events-none overflow-hidden" aria-hidden="true">
-        {/* Lighter floor plane fading into the back wall */}
-        <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-b from-transparent from-0% via-[rgb(22_24_34)] via-45% to-[rgb(30_32_44)] to-100%" />
+      {/* ──────────── Floor ────────────
+          A pure neutral gradient. The base is rgb(10,11,13) — almost
+          black. As the eye moves down the hero, the surface gradually
+          lifts to a charcoal grey (rgb 24,26,30). No seam, no horizon
+          line, no colored bloom — black-to-purple looks artificial.
+          The depth comes from a very faint receding grid in the same
+          neutral grey, just enough to feel like a surface. */}
+      <div className="absolute inset-x-0 bottom-0 h-[70%] pointer-events-none overflow-hidden" aria-hidden="true">
+        {/* Lighter floor plane — long, smooth fade from bg to a slightly
+            lighter charcoal. The change happens over the full height so
+            it reads as gradient, not partition. */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-full"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.012) 30%, rgba(255,255,255,0.028) 60%, rgba(255,255,255,0.045) 100%)',
+          }}
+        />
 
-        {/* Perspective grid — the synthwave-style floor. A flat grid
-            painted on a div that's rotated about its NEAR edge (bottom)
-            so the FAR edge tilts back into the distance and the lines
-            converge toward a vanishing point on the horizon. */}
+        {/* Receding grid — neutral grey, very low contrast. Just enough
+            to suggest a surface beneath the screenshot. */}
         <div
           className="absolute left-1/2 bottom-0"
           style={{
             width: '260%',
-            height: '900px',
+            height: '1000px',
             marginLeft: '-130%',
-            transform: 'perspective(700px) rotateX(60deg)',
+            transform: 'perspective(800px) rotateX(62deg)',
             transformOrigin: '50% 100%',
             backgroundImage: `
-              linear-gradient(to right, rgba(165,180,252,0.22) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(165,180,252,0.26) 1px, transparent 1px)
+              linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.07) 1px, transparent 1px)
             `,
-            backgroundSize: '80px 80px',
+            backgroundSize: '90px 90px',
             maskImage:
-              'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.2) 60%, transparent 90%)',
+              'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 35%, transparent 80%)',
             WebkitMaskImage:
-              'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.2) 60%, transparent 90%)',
+              'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 35%, transparent 80%)',
           }}
         />
-
-        {/* Strong horizon glow — a wide warm bloom right at the seam */}
-        <div
-          className="absolute inset-x-0 top-0 h-[200px]"
-          style={{
-            background:
-              'radial-gradient(ellipse 60% 100% at 50% 0%, rgba(129,140,248,0.55) 0%, rgba(99,102,241,0.28) 25%, rgba(99,102,241,0.10) 50%, transparent 80%)',
-            filter: 'blur(8px)',
-          }}
-        />
-
-        {/* The horizon line itself — bright filament */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(199_210_254)] to-transparent opacity-70" />
-        <div className="absolute inset-x-0 top-0 h-[2px] blur-md bg-gradient-to-r from-transparent via-[rgb(165_180_252)] to-transparent opacity-80" />
       </div>
 
       <Container>
@@ -134,30 +129,23 @@ function Hero() {
 
           {/* ──────────── The screenshot on its stage ──────────── */}
           <div className="relative mt-20 sm:mt-24">
-            {/* Soft top spotlight that lights the screenshot from above */}
+            {/* Wide soft drop shadow — gives the frame its weight. Pure
+                neutral; no colored bloom (would read as artificial). */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -top-32 w-[80%] h-[260px] pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(165,180,252,0.18),transparent_60%)] blur-2xl"
-              aria-hidden="true"
-            />
-
-            {/* Pool of light / contact shadow beneath the screenshot —
-                this is what makes it look "placed" on a floor instead of
-                floating against the wall. */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-12 w-[85%] h-[140px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.35),rgba(99,102,241,0.10)_45%,transparent_75%)]
+              className="absolute left-1/2 -translate-x-1/2 -bottom-10 w-[90%] h-[180px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.65),rgba(0,0,0,0.25)_40%,transparent_75%)]
                 blur-2xl"
               aria-hidden="true"
             />
-            {/* Tight contact shadow right under the screen — gives it weight */}
+            {/* Tight contact shadow right under the bottom edge */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-[75%] h-[60px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.7),transparent_70%)] blur-xl"
+              className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-[75%] h-[50px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.75),transparent_70%)] blur-xl"
               aria-hidden="true"
             />
 
-            {/* The frame — multi-layer shadow, inner highlight on top edge,
-                slightly lighter top-stripe to simulate ambient light. */}
+            {/* The frame — multi-layer neutral shadow, inner highlight on
+                the top edge for ambient light catching the bezel. */}
             <div
               className="relative rounded-2xl overflow-hidden
                 border border-[rgb(56_58_66)]
@@ -166,13 +154,12 @@ function Hero() {
                   0_2px_0_0_rgba(255,255,255,0.06)_inset,
                   0_-1px_0_0_rgba(0,0,0,0.5)_inset,
                   0_0_0_1px_rgba(255,255,255,0.04)_inset,
-                  0_50px_120px_-30px_rgba(0,0,0,0.95),
-                  0_30px_80px_-20px_rgba(99,102,241,0.40),
-                  0_80px_140px_-40px_rgba(99,102,241,0.25)
+                  0_60px_140px_-30px_rgba(0,0,0,0.95),
+                  0_30px_80px_-30px_rgba(0,0,0,0.7)
                 ]"
             >
-              {/* Subtle top highlight strip — ambient light catching the bezel */}
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(165_180_252_/_0.6)] to-transparent" />
+              {/* Subtle top highlight strip — ambient light on the bezel */}
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(255_255_255_/_0.12)] to-transparent" />
               <AnimatedConsolePreview />
             </div>
           </div>
