@@ -22,9 +22,12 @@ function SectionFrame({
   id?: string
 }) {
   return (
-    <section id={id} className={cn('relative border-t border-[rgb(38_39_43_/_0.6)]', className)}>
+    <section id={id} className={cn('relative', className)}>
+      {/* Hairline divider with a subtle accent glow at the seam */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.45)] to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-[rgb(38_39_43_/_0.7)]" />
       {/* Soft gradient at top of section */}
-      <div className="absolute inset-x-0 top-0 h-32 pointer-events-none bg-gradient-to-b from-[rgb(99_102_241_/_0.05)] to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-40 pointer-events-none bg-gradient-to-b from-[rgb(99_102_241_/_0.06)] to-transparent" />
       <Container>
         <div className="relative py-20 sm:py-28">
           {(eyebrow || title) && (
@@ -74,11 +77,12 @@ export function ControlPlaneSection() {
       kicker="Authority at the top, Runtimes embedded in your agents, Verifiers at every resource boundary, Console and CLI as your view. If you can deploy a Kubernetes cluster, you already know how to deploy Auth51."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10 items-start">
-        <div className="rounded-2xl border border-[rgb(38_39_43)] bg-[rgb(10_11_13)] p-6 sm:p-8">
+        <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] p-6 sm:p-8 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.35),0_0_0_1px_rgba(99,102,241,0.05)_inset]">
+          <div className="absolute inset-x-0 top-0 h-px rounded-t-2xl bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.5)] to-transparent" />
           <ControlPlaneDiagram />
         </div>
 
-        <div className="rounded-2xl border border-[rgb(38_39_43)] bg-[rgb(19_20_26)] overflow-hidden">
+        <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(22_23_28)] to-[rgb(16_17_22)] overflow-hidden shadow-[0_20px_60px_-30px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
           <div className="px-5 py-3 border-b border-[rgb(38_39_43)]">
             <p className="text-[10.5px] font-mono uppercase tracking-wider text-[#5c6168]">If you know K8s</p>
             <p className="text-[13px] text-white mt-0.5">Translation table</p>
@@ -118,7 +122,8 @@ export function LiveRegistrySection() {
       kicker="The Auth51 Console gives you a real-time view of every agent registered with the Authority — fingerprinted at runtime, classified by behaviour, observable from one pane."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-        <div className="rounded-xl border border-[rgb(38_39_43)] bg-[rgb(10_11_13)] overflow-hidden shadow-2xl">
+        <div className="relative rounded-xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] overflow-hidden shadow-[0_30px_70px_-25px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.45)] to-transparent" />
           <div className="px-3.5 py-2.5 border-b border-[rgb(38_39_43)] flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[#5c6168]">/console/agents/registered</span>
             <span className="inline-flex items-center gap-1 text-[10px] text-[#5c6168]">
@@ -185,7 +190,8 @@ export function DiscoverySection() {
       kicker="The Runtime watches every host it's installed on. Any unfamiliar process that loads the shim shows up in your Discovered inbox — before it can mint a single token."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10 items-start">
-        <div className="rounded-xl border border-[rgb(38_39_43)] bg-[rgb(10_11_13)] overflow-hidden shadow-2xl">
+        <div className="relative rounded-xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] overflow-hidden shadow-[0_30px_70px_-25px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(250_204_21_/_0.45)] to-transparent" />
           <div className="px-4 py-2.5 border-b border-[rgb(38_39_43)] flex items-center justify-between">
             <span className="text-[10.5px] font-mono uppercase tracking-wider text-[#5c6168]">/console/agents/discovered</span>
             <span className="inline-flex items-center gap-2 text-[10.5px] text-[#facc15]">
@@ -264,7 +270,8 @@ export function WorkflowsSection() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-[rgb(38_39_43)] bg-[rgb(10_11_13)] overflow-hidden">
+      <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] overflow-hidden shadow-[0_30px_80px_-30px_rgba(99,102,241,0.3),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.45)] to-transparent" />
         {tab === 'inferred' && <InferredPanel />}
         {tab === 'registered' && <RegisteredPanel />}
         {tab === 'runtime' && <RuntimePanel />}
@@ -389,7 +396,7 @@ export function ThreatsSection() {
         {THREATS.map((t) => (
           <div
             key={t.id}
-            className="rounded-xl border border-[rgb(38_39_43)] bg-[rgb(19_20_26)] px-4 py-3.5 hover:border-[#6366f1]/50 transition-colors"
+            className="group relative rounded-xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(22_23_28)] to-[rgb(16_17_22)] px-4 py-3.5 hover:border-[#6366f1]/60 transition-all duration-200 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.03)_inset] hover:shadow-[0_20px_50px_-15px_rgba(99,102,241,0.25),0_0_0_1px_rgba(99,102,241,0.15)_inset] hover:-translate-y-0.5"
           >
             <div className="flex items-center gap-2 mb-2">
               <span className={cn(
@@ -435,7 +442,7 @@ function Mini({ eyebrow, value, tag, tone }: { eyebrow: string; value: string; t
     tone === 'danger'  ? 'text-[#f87171]' :
                          'text-white'
   return (
-    <div className="rounded-xl border border-[rgb(38_39_43)] px-3 py-3 text-center bg-[rgb(19_20_26)]">
+    <div className="rounded-xl border border-[rgb(46_48_54)] px-3 py-3 text-center bg-gradient-to-b from-[rgb(22_23_28)] to-[rgb(16_17_22)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
       <div className="text-[10px] font-mono tracking-wider uppercase text-[#5c6168]">{eyebrow}</div>
       <div className={cn('text-[22px] font-semibold tracking-tight mt-1', color)}>{value}</div>
       <div className="text-[10px] text-[#8a8f98] mt-0.5">{tag}</div>
@@ -456,7 +463,8 @@ export function FederationSection() {
       kicker="The Console signs short-lived JWTs asserting who you are. Each Authority verifies them and issues its own tokens, bound to your user. Your browser never holds client_secrets, refresh tokens, or anything else dangerous. Built on RFC 8693 Token Exchange."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-10">
-        <div className="rounded-2xl border border-[rgb(38_39_43)] bg-[rgb(10_11_13)] p-6 sm:p-8">
+        <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] p-6 sm:p-8 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.35),0_0_0_1px_rgba(99,102,241,0.05)_inset]">
+          <div className="absolute inset-x-0 top-0 h-px rounded-t-2xl bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.5)] to-transparent" />
           <FederationFlow />
         </div>
         <ul className="space-y-5">
@@ -477,63 +485,139 @@ export function FederationSection() {
 
 function FederationFlow() {
   return (
-    <svg viewBox="0 0 640 280" className="w-full h-auto">
+    <svg viewBox="0 0 820 440" className="w-full h-auto">
       <defs>
-        <linearGradient id="fed-edge" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="rgba(165,180,252,0.7)" />
-          <stop offset="100%" stopColor="rgba(99,102,241,0.2)" />
+        <linearGradient id="fed-edge-h" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="rgba(165,180,252,0.85)" />
+          <stop offset="100%" stopColor="rgba(129,140,248,0.55)" />
         </linearGradient>
-        <marker id="fed-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M0,0 L10,5 L0,10 z" fill="rgba(165,180,252,0.7)" />
+        <linearGradient id="fed-edge-v" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(165,180,252,0.85)" />
+          <stop offset="100%" stopColor="rgba(99,102,241,0.45)" />
+        </linearGradient>
+        <linearGradient id="fed-box-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(99,102,241,0.22)" />
+          <stop offset="100%" stopColor="rgba(99,102,241,0.04)" />
+        </linearGradient>
+        <marker
+          id="fed-arr"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path d="M0,0 L10,5 L0,10 z" fill="rgba(165,180,252,0.95)" />
         </marker>
+        <filter id="fed-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="6" />
+          <feOffset dx="0" dy="4" result="off" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.55" />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
+      {/* Backdrop grid */}
+      <g opacity="0.14">
+        {Array.from({ length: 18 }, (_, i) => (
+          <line key={`fv${i}`} x1={i * 48} y1="0" x2={i * 48} y2="440" stroke="#2e3036" strokeWidth="0.5" />
+        ))}
+        {Array.from({ length: 10 }, (_, i) => (
+          <line key={`fh${i}`} x1="0" y1={i * 48} x2="820" y2={i * 48} stroke="#2e3036" strokeWidth="0.5" />
+        ))}
+      </g>
+
+      {/*
+        Layout (orthogonal, sharp corners):
+        - Browser   (40, 180, w=180, h=80)
+        - Console   (320, 40,  w=180, h=80)
+        - Authority (320, 320, w=180, h=80)
+        - Resource  (600, 180, w=180, h=80)
+      */}
+
+      {/* Edges first */}
+      {/* 1: Browser → Console — up-right L */}
+      <FEdge points={[[130, 180], [130, 80], [320, 80]]} variant="v" />
+      <FLabel x={225} y={64} text="1. subject_token (signed JWT)" />
+
+      {/* 2: Console → Authority — vertical, right of column center */}
+      <FEdge points={[[440, 120], [440, 320]]} variant="v" />
+      <FLabel x={552} y={220} text="2. RFC 8693 token exchange" />
+
+      {/* 3: Authority → Browser — left then up L */}
+      <FEdge points={[[320, 360], [130, 360], [130, 260]]} variant="v" />
+      <FLabel x={225} y={376} text="3. access_token (issued by Authority)" />
+
+      {/* 4: Browser → Resource — straight horizontal */}
+      <FEdge points={[[220, 220], [600, 220]]} variant="h" />
+      <FLabel x={410} y={204} text="4. direct API call · Bearer …" />
+
       {/* Boxes */}
-      <FBox x={20}  y={110} w={150} h={60} title="Browser" sub="Clerk session" />
-      <FBox x={245} y={20}  w={150} h={60} title="Console" sub="server-side" />
-      <FBox x={245} y={200} w={150} h={60} title="Authority" sub="customer-owned" />
-      <FBox x={470} y={110} w={150} h={60} title="Resource" sub="OpenAI / GitHub / API" />
-
-      {/* Edges */}
-      {/* 1: Browser → Console (signed user session) */}
-      <path d="M 170 130 Q 200 130, 245 60"  fill="none" stroke="url(#fed-edge)" strokeWidth="1.6" strokeDasharray="5 5" markerEnd="url(#fed-arr)" className="fed-edge" />
-      {/* 2: Console → Authority (RFC 8693 exchange) */}
-      <path d="M 320 80  Q 320 140, 320 200"  fill="none" stroke="url(#fed-edge)" strokeWidth="1.6" strokeDasharray="5 5" markerEnd="url(#fed-arr)" className="fed-edge" />
-      {/* 3: Authority → Browser (issued token) */}
-      <path d="M 245 230 Q 170 230, 130 170" fill="none" stroke="url(#fed-edge)" strokeWidth="1.6" strokeDasharray="5 5" markerEnd="url(#fed-arr)" className="fed-edge" />
-      {/* 4: Browser → Resource (direct call) */}
-      <path d="M 170 150 Q 320 280, 470 150" fill="none" stroke="url(#fed-edge)" strokeWidth="1.6" strokeDasharray="5 5" markerEnd="url(#fed-arr)" className="fed-edge" />
-
-      <FLabel x={210} y={88}  text="1. subject_token" />
-      <FLabel x={345} y={138} text="2. token exchange" />
-      <FLabel x={194} y={210} text="3. access_token" />
-      <FLabel x={350} y={260} text="4. direct API call · Bearer ..." />
+      <FBox x={40}  y={180} w={180} h={80} title="Browser"   sub="Clerk session" />
+      <FBox x={320} y={40}  w={180} h={80} title="Console"   sub="server-side" />
+      <FBox x={320} y={320} w={180} h={80} title="Authority" sub="customer-owned" />
+      <FBox x={600} y={180} w={180} h={80} title="Resource"  sub="OpenAI · GitHub · API" />
 
       <style jsx>{`
-        @keyframes fedflow { to { stroke-dashoffset: -16; } }
-        :global(.fed-edge) { animation: fedflow 1.8s linear infinite; }
+        @keyframes fedflow { to { stroke-dashoffset: -18; } }
+        :global(.fed-edge) {
+          stroke-dasharray: 6 6;
+          animation: fedflow 2s linear infinite;
+        }
       `}</style>
     </svg>
   )
 }
 
+function FEdge({ points, variant }: { points: Array<[number, number]>; variant: 'h' | 'v' }) {
+  const d = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke={variant === 'h' ? 'url(#fed-edge-h)' : 'url(#fed-edge-v)'}
+      strokeWidth="1.75"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      markerEnd="url(#fed-arr)"
+      className="fed-edge"
+    />
+  )
+}
+
 function FBox({ x, y, w, h, title, sub }: { x: number; y: number; w: number; h: number; title: string; sub: string }) {
   return (
-    <g>
-      <rect x={x} y={y} width={w} height={h} rx={8}
-            fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)" strokeWidth="1" />
-      <text x={x + 14} y={y + 24} fill="#ffffff" fontSize="13" fontWeight="600" fontFamily="Inter, sans-serif">{title}</text>
-      <text x={x + 14} y={y + 42} fill="#b6bbc5" fontSize="10" fontFamily="Inter, sans-serif">{sub}</text>
+    <g filter="url(#fed-shadow)">
+      <rect x={x} y={y} width={w} height={h} rx={12}
+            fill="url(#fed-box-fill)" stroke="rgba(99,102,241,0.4)" strokeWidth="1" />
+      <rect x={x + 0.5} y={y + 0.5} width={w - 1} height={h - 1} rx={11.5}
+            fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+      <text x={x + 16} y={y + 32} fill="#ffffff" fontSize="15" fontWeight="600" fontFamily="Inter, sans-serif">
+        {title}
+      </text>
+      <text x={x + 16} y={y + 54} fill="#b6bbc5" fontSize="11.5" fontFamily="Inter, sans-serif">
+        {sub}
+      </text>
     </g>
   )
 }
 
 function FLabel({ x, y, text }: { x: number; y: number; text: string }) {
+  const w = text.length * 6.4 + 14
   return (
     <g>
-      <rect x={x - text.length * 3 - 4} y={y - 9} width={text.length * 6 + 8} height="14" rx="3"
-            fill="rgba(10,11,13,0.85)" stroke="rgba(46,48,54,0.8)" strokeWidth="0.5" />
-      <text x={x} y={y + 1.5} textAnchor="middle" fill="#a5b4fc" fontSize="9" fontFamily="ui-monospace, monospace">{text}</text>
+      <rect x={x - w / 2} y={y - 10} width={w} height="18" rx="4"
+            fill="rgba(14,15,18,0.92)" stroke="rgba(99,102,241,0.35)" strokeWidth="0.75" />
+      <text x={x} y={y + 3} textAnchor="middle" fill="#c7d2fe" fontSize="10"
+            fontFamily="ui-monospace, monospace" letterSpacing="0.5">
+        {text}
+      </text>
     </g>
   )
 }
@@ -609,7 +693,8 @@ running T7 cross-agent privilege escalation…
 
 function CodeBlock({ label, children }: { label: string; children: string }) {
   return (
-    <div className="rounded-2xl border border-[rgb(38_39_43)] bg-[rgb(10_11_13)] overflow-hidden">
+    <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] overflow-hidden shadow-[0_20px_60px_-25px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.4)] to-transparent" />
       <div className="px-4 py-2.5 border-b border-[rgb(38_39_43)] flex items-center justify-between">
         <span className="text-[10.5px] font-mono uppercase tracking-wider text-[#5c6168]">{label}</span>
       </div>
@@ -626,8 +711,11 @@ function CodeBlock({ label, children }: { label: string; children: string }) {
 
 export function CtaSection() {
   return (
-    <section className="relative border-t border-[rgb(38_39_43_/_0.6)]">
-      <div className="absolute inset-x-0 top-0 h-32 pointer-events-none bg-gradient-to-b from-[rgb(99_102_241_/_0.08)] to-transparent" />
+    <section className="relative">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgb(99_102_241_/_0.5)] to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-[rgb(38_39_43_/_0.7)]" />
+      <div className="absolute inset-x-0 top-0 h-48 pointer-events-none bg-gradient-to-b from-[rgb(99_102_241_/_0.10)] to-transparent" />
+      <div className="absolute left-1/2 -translate-x-1/2 top-0 w-[800px] h-[400px] pointer-events-none bg-[radial-gradient(closest-side,rgba(99,102,241,0.15),transparent)]" />
       <Container>
         <div className="py-24 sm:py-32 text-center max-w-[640px] mx-auto">
           <h2 className="text-[36px] sm:text-[44px] font-semibold text-white tracking-tight leading-[1.06]">
