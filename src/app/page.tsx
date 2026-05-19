@@ -46,86 +46,51 @@ function Hero() {
       </div>
 
       {/* ──────────── Floor ────────────
-          Layered, photo-real. Built bottom-up:
-            1. Floor plane — multi-stop neutral cool-grey gradient.
-               Long curve, no seam, no chromatic bloom.
-            2. Atmospheric haze band — a hint of fog where the floor
-               meets the wall, kills the hard line entirely.
-            3. Perspective grid — neutral grey, recedes with mask fade.
-            4. Spotlight on the floor — a wide soft ellipse of warm
-               white right where the screen sits, like the screen
-               itself is illuminating the floor in front of it.
+          No grid, no perspective tricks. The floor is established by:
+            1. A long, smooth color fade — bg through ~9% white over the
+               bottom 75% of the hero. Continuous contrast, no seam.
+            2. A wide soft spotlight on the floor where the screen sits,
+               reading as the screen casting light forward onto the
+               ground in front of it.
        */}
-      <div className="absolute inset-x-0 bottom-0 h-[72%] pointer-events-none overflow-hidden" aria-hidden="true">
-        {/* 1. Floor plane — smooth multi-stop fade, neutral cool grey */}
+      <div className="absolute inset-x-0 bottom-0 h-[75%] pointer-events-none overflow-hidden" aria-hidden="true">
+        {/* 1. Floor plane — long multi-stop fade, neutral cool grey */}
         <div
           className="absolute inset-x-0 bottom-0 h-full"
           style={{
             background: `
               linear-gradient(to bottom,
                 rgba(255,255,255,0) 0%,
-                rgba(255,255,255,0.005) 18%,
-                rgba(255,255,255,0.018) 38%,
-                rgba(255,255,255,0.038) 60%,
-                rgba(255,255,255,0.062) 82%,
-                rgba(255,255,255,0.082) 100%
+                rgba(255,255,255,0.006) 20%,
+                rgba(255,255,255,0.020) 40%,
+                rgba(255,255,255,0.042) 62%,
+                rgba(255,255,255,0.068) 82%,
+                rgba(255,255,255,0.090) 100%
               )`,
           }}
         />
 
-        {/* 2. Atmospheric haze — a fat soft band where the floor meets
-              the wall. Removes any hard transition. */}
-        <div
-          className="absolute inset-x-0 top-[20%] h-[140px]"
-          style={{
-            background:
-              'radial-gradient(ellipse 80% 100% at 50% 50%, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.02) 35%, transparent 75%)',
-            filter: 'blur(20px)',
-          }}
-        />
-
-        {/* 3. Perspective grid — neutral, double-mask so it fades in
-              from the near edge AND fades out before the horizon */}
-        <div
-          className="absolute left-1/2 bottom-0"
-          style={{
-            width: '280%',
-            height: '1100px',
-            marginLeft: '-140%',
-            transform: 'perspective(900px) rotateX(64deg)',
-            transformOrigin: '50% 100%',
-            backgroundImage: `
-              linear-gradient(to right, rgba(255,255,255,0.07) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)
-            `,
-            backgroundSize: '92px 92px',
-            maskImage:
-              'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.7) 18%, rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.2) 65%, transparent 85%)',
-            WebkitMaskImage:
-              'linear-gradient(to top, transparent 0%, rgba(0,0,0,0.7) 18%, rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.2) 65%, transparent 85%)',
-          }}
-        />
-
-        {/* 4. Spotlight on the floor — the screen casting light onto
+        {/* 2. Spotlight on the floor — the screen casting light onto
               the ground in front of it. Warm-white, very wide, blurred. */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 top-[12%] w-[70%] h-[450px]"
+          className="absolute left-1/2 -translate-x-1/2 top-[40%] w-[78%] h-[520px]"
           style={{
             background:
-              'radial-gradient(ellipse 55% 60% at 50% 0%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.035) 35%, transparent 70%)',
-            filter: 'blur(24px)',
+              'radial-gradient(ellipse 55% 60% at 50% 0%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 35%, transparent 72%)',
+            filter: 'blur(28px)',
           }}
         />
       </div>
 
       <Container>
         <div className="relative pt-32 sm:pt-40 lg:pt-48 pb-32 sm:pb-44">
-          {/* Headline — centered, above the screenshot */}
-          <div className="mx-auto max-w-[860px] text-center">
+          {/* Headline — centered, above the screenshot. Wide enough that
+              the headline breaks into 2 lines at lg, not 3. */}
+          <div className="mx-auto max-w-[1120px] text-center">
             <p className="font-mono text-[11px] font-semibold tracking-[0.18em] text-[#818cf8] uppercase mb-6">
               Identity · Intent · Audit · for AI agents
             </p>
-            <h1 className="text-[44px] sm:text-[60px] lg:text-[72px] font-semibold text-white leading-[1.02] tracking-tight text-balance">
+            <h1 className="text-[44px] sm:text-[60px] lg:text-[72px] font-semibold text-white leading-[1.04] tracking-tight text-balance">
               The control plane your AI agents need before production.
             </h1>
             <p className="mt-7 text-[17px] sm:text-[20px] text-[#b6bbc5] leading-relaxed text-pretty max-w-[680px] mx-auto">
