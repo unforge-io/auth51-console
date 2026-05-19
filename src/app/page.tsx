@@ -54,18 +54,21 @@ function Hero() {
                ground in front of it.
        */}
       <div className="absolute inset-x-0 bottom-0 h-[75%] pointer-events-none overflow-hidden" aria-hidden="true">
-        {/* 1. Floor plane — long multi-stop fade, neutral cool grey */}
+        {/* 1. Floor plane — long multi-stop fade, neutral cool grey.
+              Brighter terminal stop (~15% white) so the floor reads as
+              clearly lit at the viewer's feet. */}
         <div
           className="absolute inset-x-0 bottom-0 h-full"
           style={{
             background: `
               linear-gradient(to bottom,
                 rgba(255,255,255,0) 0%,
-                rgba(255,255,255,0.006) 20%,
-                rgba(255,255,255,0.020) 40%,
-                rgba(255,255,255,0.042) 62%,
-                rgba(255,255,255,0.068) 82%,
-                rgba(255,255,255,0.090) 100%
+                rgba(255,255,255,0.008) 18%,
+                rgba(255,255,255,0.028) 36%,
+                rgba(255,255,255,0.058) 56%,
+                rgba(255,255,255,0.098) 76%,
+                rgba(255,255,255,0.135) 92%,
+                rgba(255,255,255,0.155) 100%
               )`,
           }}
         />
@@ -133,25 +136,25 @@ function Hero() {
           >
             {/* (a) Wide ambient — soft body shadow spreading outward */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-16 w-[105%] h-[260px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.55),rgba(0,0,0,0.22)_40%,transparent_75%)]
+              className="absolute left-1/2 -translate-x-1/2 -bottom-20 w-[110%] h-[300px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.85),rgba(0,0,0,0.35)_40%,transparent_78%)]
                 blur-3xl"
               aria-hidden="true"
             />
             {/* (b) Medium — softer, narrower band right under */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-4 w-[88%] h-[120px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.75),rgba(0,0,0,0.30)_45%,transparent_75%)]
+              className="absolute left-1/2 -translate-x-1/2 -bottom-4 w-[92%] h-[140px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.95),rgba(0,0,0,0.45)_45%,transparent_78%)]
                 blur-2xl"
               aria-hidden="true"
             />
             {/* (c) Razor contact line — the thing that anchors it. A
-                  very tight ellipse hugging the base edge, mostly black,
+                  very tight ellipse hugging the base edge, FULL black,
                   almost not blurred. This is the "object on a table"
                   shadow that sells it. */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 -bottom-px w-[70%] h-[22px] pointer-events-none
-                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.9),rgba(0,0,0,0.5)_30%,transparent_70%)]
+              className="absolute left-1/2 -translate-x-1/2 -bottom-px w-[78%] h-[28px] pointer-events-none
+                bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,1),rgba(0,0,0,0.7)_30%,transparent_72%)]
                 blur-md"
               aria-hidden="true"
             />

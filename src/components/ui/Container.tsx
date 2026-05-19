@@ -26,7 +26,7 @@ export function Container({
       <div
         className={cn(
           'mx-auto w-full',
-          width === 'default' && 'max-w-[1200px]',
+          width === 'default' && 'max-w-[1360px]',
           width === 'prose' && 'max-w-prose',
           width === 'narrative' && 'max-w-narrative',
           width === 'content' && 'max-w-content',
