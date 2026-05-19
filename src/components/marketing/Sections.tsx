@@ -485,7 +485,7 @@ export function FederationSection() {
 
 function FederationFlow() {
   return (
-    <svg viewBox="0 0 820 440" className="w-full h-auto">
+    <svg viewBox="0 0 960 480" className="w-full h-auto">
       <defs>
         <linearGradient id="fed-edge-h" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="rgba(165,180,252,0.85)" />
@@ -525,44 +525,44 @@ function FederationFlow() {
 
       {/* Backdrop grid */}
       <g opacity="0.14">
-        {Array.from({ length: 18 }, (_, i) => (
-          <line key={`fv${i}`} x1={i * 48} y1="0" x2={i * 48} y2="440" stroke="#2e3036" strokeWidth="0.5" />
+        {Array.from({ length: 21 }, (_, i) => (
+          <line key={`fv${i}`} x1={i * 48} y1="0" x2={i * 48} y2="480" stroke="#2e3036" strokeWidth="0.5" />
         ))}
-        {Array.from({ length: 10 }, (_, i) => (
-          <line key={`fh${i}`} x1="0" y1={i * 48} x2="820" y2={i * 48} stroke="#2e3036" strokeWidth="0.5" />
+        {Array.from({ length: 11 }, (_, i) => (
+          <line key={`fh${i}`} x1="0" y1={i * 48} x2="960" y2={i * 48} stroke="#2e3036" strokeWidth="0.5" />
         ))}
       </g>
 
       {/*
-        Layout (orthogonal, sharp corners):
-        - Browser   (40, 180, w=180, h=80)
-        - Console   (320, 40,  w=180, h=80)
-        - Authority (320, 320, w=180, h=80)
-        - Resource  (600, 180, w=180, h=80)
+        Layout (orthogonal, sharp corners). Wider canvas so labels never
+        bump into boxes or each other.
+          Browser   (40, 200, w=180, h=80)   → right edge x=220
+          Console   (380, 40, w=200, h=80)   → bottom y=120
+          Authority (380, 360, w=200, h=80)  → top y=360
+          Resource  (740, 200, w=180, h=80)  → left edge x=740
       */}
 
-      {/* Edges first */}
-      {/* 1: Browser → Console — up-right L */}
-      <FEdge points={[[130, 180], [130, 80], [320, 80]]} variant="v" />
-      <FLabel x={225} y={64} text="1. subject_token (signed JWT)" />
-
-      {/* 2: Console → Authority — vertical, right of column center */}
-      <FEdge points={[[440, 120], [440, 320]]} variant="v" />
-      <FLabel x={552} y={220} text="2. RFC 8693 token exchange" />
-
+      {/* Edges first (drawn under boxes / labels) */}
+      {/* 1: Browser → Console — up then right L */}
+      <FEdge points={[[130, 200], [130, 80], [376, 80]]} variant="v" />
+      {/* 2: Console → Authority — straight vertical */}
+      <FEdge points={[[480, 124], [480, 356]]} variant="v" />
       {/* 3: Authority → Browser — left then up L */}
-      <FEdge points={[[320, 360], [130, 360], [130, 260]]} variant="v" />
-      <FLabel x={225} y={376} text="3. access_token (issued by Authority)" />
-
+      <FEdge points={[[380, 400], [130, 400], [130, 284]]} variant="v" />
       {/* 4: Browser → Resource — straight horizontal */}
-      <FEdge points={[[220, 220], [600, 220]]} variant="h" />
-      <FLabel x={410} y={204} text="4. direct API call · Bearer …" />
+      <FEdge points={[[224, 240], [736, 240]]} variant="h" />
+
+      {/* Labels — placed in the calm regions so nothing crashes */}
+      <FLabel x={250} y={64}  text="1. subject_token · signed JWT" />
+      <FLabel x={580} y={180} text="2. RFC 8693 token exchange" />
+      <FLabel x={250} y={416} text="3. access_token issued" />
+      <FLabel x={620} y={224} text="4. direct API call · Bearer …" />
 
       {/* Boxes */}
-      <FBox x={40}  y={180} w={180} h={80} title="Browser"   sub="Clerk session" />
-      <FBox x={320} y={40}  w={180} h={80} title="Console"   sub="server-side" />
-      <FBox x={320} y={320} w={180} h={80} title="Authority" sub="customer-owned" />
-      <FBox x={600} y={180} w={180} h={80} title="Resource"  sub="OpenAI · GitHub · API" />
+      <FBox x={40}  y={200} w={180} h={80} title="Browser"   sub="Clerk session" />
+      <FBox x={380} y={40}  w={200} h={80} title="Console"   sub="server-side" />
+      <FBox x={380} y={360} w={200} h={80} title="Authority" sub="customer-owned" />
+      <FBox x={740} y={200} w={180} h={80} title="Resource"  sub="OpenAI · GitHub · API" />
 
       <style jsx>{`
         @keyframes fedflow { to { stroke-dashoffset: -18; } }

@@ -94,25 +94,25 @@ export function ControlPlaneDiagram() {
 
         {/* ───────────────────── Edges (drawn first so boxes sit on top) ───────────────────── */}
 
-        {/* Console → Authority (horizontal, top row) */}
-        <OrthoEdge points={[[220, 130], [320, 130]]} />
-        <EdgeLabel x={270} y={114} text="RFC 8693" />
+        {/* Console → Authority (horizontal, top row) — label above so shaft is unbroken */}
+        <OrthoEdge points={[[224, 130], [316, 130]]} />
+        <EdgeLabel x={270} y={106} text="RFC 8693" />
 
         {/* CLI ← Authority (horizontal, top row) */}
-        <OrthoEdge points={[[660, 130], [560, 130]]} />
-        <EdgeLabel x={610} y={114} text="OAuth" />
+        <OrthoEdge points={[[656, 130], [564, 130]]} />
+        <EdgeLabel x={610} y={106} text="OAuth 2.0" />
 
-        {/* Authority → Runtime (down then left) */}
-        <OrthoEdge points={[[400, 200], [400, 250], [240, 250], [240, 380]]} />
-        <EdgeLabel x={320} y={234} text="register · mint" />
+        {/* Authority → Runtime (down then left) — label sits in the bend's quiet quadrant */}
+        <OrthoEdge points={[[400, 204], [400, 260], [240, 260], [240, 376]]} />
+        <EdgeLabel x={320} y={244} text="register · mint" />
 
         {/* Authority → Verifier (down then right) */}
-        <OrthoEdge points={[[480, 200], [480, 250], [640, 250], [640, 380]]} />
-        <EdgeLabel x={560} y={234} text="verify · enforce" />
+        <OrthoEdge points={[[480, 204], [480, 260], [640, 260], [640, 376]]} />
+        <EdgeLabel x={560} y={244} text="verify · enforce" />
 
-        {/* Runtime → Verifier (horizontal, bottom row) */}
-        <OrthoEdge points={[[340, 440], [540, 440]]} />
-        <EdgeLabel x={440} y={424} text="intent token" />
+        {/* Runtime → Verifier (horizontal, bottom row) — label above the line */}
+        <OrthoEdge points={[[344, 434], [536, 434]]} />
+        <EdgeLabel x={438} y={418} text="intent token" />
 
         {/* ───────────────────── Boxes ───────────────────── */}
 
