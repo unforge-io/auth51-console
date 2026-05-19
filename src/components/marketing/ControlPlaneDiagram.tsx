@@ -28,15 +28,6 @@ export function ControlPlaneDiagram() {
             <stop offset="0%" stopColor="rgba(129, 140, 248, 0.38)" />
             <stop offset="100%" stopColor="rgba(99, 102, 241, 0.08)" />
           </linearGradient>
-          {/* Edge gradients */}
-          <linearGradient id="edgeGradH" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(165, 180, 252, 0.85)" />
-            <stop offset="100%" stopColor="rgba(129, 140, 248, 0.55)" />
-          </linearGradient>
-          <linearGradient id="edgeGradV" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(165, 180, 252, 0.85)" />
-            <stop offset="100%" stopColor="rgba(99, 102, 241, 0.45)" />
-          </linearGradient>
           {/* Arrowhead */}
           <marker
             id="arr"
@@ -239,10 +230,6 @@ function Box({
  */
 function OrthoEdge({ points }: { points: Array<[number, number]> }) {
   if (points.length < 2) return null
-  const last = points[points.length - 1]
-  const prev = points[points.length - 2]
-  const horizontal = prev[1] === last[1]
-  const stroke = horizontal ? 'url(#edgeGradH)' : 'url(#edgeGradV)'
   const d = points
     .map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`)
     .join(' ')
@@ -250,7 +237,7 @@ function OrthoEdge({ points }: { points: Array<[number, number]> }) {
     <path
       d={d}
       fill="none"
-      stroke={stroke}
+      stroke="rgba(165, 180, 252, 0.85)"
       strokeWidth="1.75"
       strokeLinecap="square"
       strokeLinejoin="miter"

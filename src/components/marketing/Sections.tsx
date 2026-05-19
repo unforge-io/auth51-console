@@ -487,14 +487,6 @@ function FederationFlow() {
   return (
     <svg viewBox="0 0 960 480" className="w-full h-auto">
       <defs>
-        <linearGradient id="fed-edge-h" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="rgba(165,180,252,0.85)" />
-          <stop offset="100%" stopColor="rgba(129,140,248,0.55)" />
-        </linearGradient>
-        <linearGradient id="fed-edge-v" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(165,180,252,0.85)" />
-          <stop offset="100%" stopColor="rgba(99,102,241,0.45)" />
-        </linearGradient>
         <linearGradient id="fed-box-fill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(99,102,241,0.22)" />
           <stop offset="100%" stopColor="rgba(99,102,241,0.04)" />
@@ -575,13 +567,13 @@ function FederationFlow() {
   )
 }
 
-function FEdge({ points, variant }: { points: Array<[number, number]>; variant: 'h' | 'v' }) {
+function FEdge({ points }: { points: Array<[number, number]>; variant?: 'h' | 'v' }) {
   const d = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
   return (
     <path
       d={d}
       fill="none"
-      stroke={variant === 'h' ? 'url(#fed-edge-h)' : 'url(#fed-edge-v)'}
+      stroke="rgba(165,180,252,0.85)"
       strokeWidth="1.75"
       strokeLinecap="square"
       strokeLinejoin="miter"
