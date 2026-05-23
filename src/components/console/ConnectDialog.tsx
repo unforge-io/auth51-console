@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 export function ConnectDialog({ onClose, defaultName }: { onClose: () => void; defaultName?: string }) {
   const { addContext, state } = useControlPlane()
   const [name, setName] = useState(defaultName ?? suggestName(state.contexts.map((c) => c.name)))
-  const [endpoint, setEndpoint] = useState('https://idp.auth51.com')
+  const [endpoint, setEndpoint] = useState('https://authority.auth51.com')
   const [audience, setAudience] = useState('idp.localhost')
   const [appId, setAppId] = useState('Patchet')
   const [testing, setTesting] = useState(false)
@@ -81,7 +81,7 @@ export function ConnectDialog({ onClose, defaultName }: { onClose: () => void; d
               className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
           </Field>
           <div className="col-span-2">
-            <Field label="Authority endpoint" hint="https://idp.your-domain.com">
+            <Field label="Authority endpoint" hint="https://authority.your-domain.com">
               <input type="url" value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border border-c-border bg-c-bg text-c-text text-[13px] focus:outline-none focus:border-c-accent font-mono" />
             </Field>
