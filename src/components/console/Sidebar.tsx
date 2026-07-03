@@ -43,6 +43,7 @@ const SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Overview', href: '/console' },
+      { label: 'Get started', href: '/console/onboarding' },
     ],
   },
   {
@@ -50,6 +51,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Discovered', href: '/console/agents/discovered', badge: 'soon', indent: true },
       { label: 'Registered', href: '/console/agents/registered', indent: true },
+      { label: 'Grants',     href: '/console/agents/grants', indent: true },
     ],
   },
   {
@@ -63,7 +65,7 @@ const SECTIONS: NavSection[] = [
     heading: 'Security',
     items: [
       { label: 'Threats',   href: '/console/security/threats',   indent: true },
-      { label: 'Audit log', href: '/console/security/audit',     badge: 'soon', indent: true },
+      { label: 'Audit log', href: '/console/security/audit',     indent: true },
       { label: 'Policies',  href: '/console/security/policies',  badge: 'soon', indent: true },
     ],
   },
@@ -73,6 +75,12 @@ const SECTIONS: NavSection[] = [
       { label: 'Runtimes',  href: '/console/infra/runtimes',  badge: 'soon', indent: true },
       { label: 'Verifiers', href: '/console/infra/verifiers', badge: 'soon', indent: true },
       { label: 'Resources', href: '/console/infra/resources', indent: true },
+    ],
+  },
+  {
+    heading: 'Access',
+    items: [
+      { label: 'API keys', href: '/console/settings/api-keys', indent: true },
     ],
   },
   {
@@ -91,7 +99,7 @@ const SECTIONS: NavSection[] = [
 ]
 
 const FOOTER_ITEMS: NavItem[] = [
-  { label: 'Settings', href: '/console/settings', badge: 'soon' },
+  { label: 'Settings', href: '/console/settings' },
 ]
 
 export function Sidebar() {
