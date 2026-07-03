@@ -77,6 +77,14 @@ export async function signSubjectToken(opts: {
   audience: string
   scopes?: string[]
   ttlSeconds?: number
+  /**
+   * The customer's organization (Clerk org slug/id). The Authority maps this
+   * to an isolated tenant (`org:<org>`), so a customer's agents, grants, API
+   * keys and audit are scoped to their own org. Omit for the single-tenant
+   * demo (the Authority falls back to DEFAULT_FEDERATED_TENANT).
+   */
+  org?: string
+  orgName?: string
 }): Promise<string> {
   const priv = await getPrivateKey()
   const now = Math.floor(Date.now() / 1000)
@@ -85,6 +93,7 @@ export async function signSubjectToken(opts: {
     email: opts.email,
     name: opts.name,
     scope: opts.scopes?.join(' '),
+    ...(opts.org ? { org: opts.org, org_name: opts.orgName ?? opts.org } : {}),
   })
     .setProtectedHeader({ alg: ALG, kid: KID, typ: 'JWT' })
     .setIssuer('https://auth51.com')

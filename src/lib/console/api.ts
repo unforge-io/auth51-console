@@ -289,6 +289,137 @@ export async function getAgent(
   return data as Registration | null
 }
 
+// ── Self-serve API keys (oauth-clients) ──
+
+export type ApiKey = {
+  client_id: string
+  display_name: string
+  allowed_scopes: string[]
+  allowed_audiences: string[]
+  is_active: boolean
+  created_at: number
+}
+
+export type ApiKeyCreated = ApiKey & {
+  /** Returned exactly once, at creation — never retrievable again. */
+  client_secret: string
+}
+
+/**
+ * Create a self-serve API key (OAuth client) in the signed-in customer's org.
+ * Needs `manage:clients` (the console federation carries it). The returned
+ * `client_secret` is shown once — surface it to the user immediately.
+ */
+export async function createApiKey(
+  ctx: ControlPlaneContext,
+  opts: { displayName: string; audiences?: string[]; scopes?: string[] },
+): Promise<ApiKeyCreated> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/oauth-clients`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      display_name: opts.displayName,
+      audiences: opts.audiences ?? [],
+      ...(opts.scopes ? { scopes: opts.scopes } : {}),
+    }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`API key creation failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as ApiKeyCreated
+}
+
+export async function listApiKeys(ctx: ControlPlaneContext): Promise<ApiKey[]> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/oauth-clients`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`API keys fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as ApiKey[]
+}
+
+export async function revokeApiKey(ctx: ControlPlaneContext, clientId: string): Promise<void> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/oauth-clients/${encodeURIComponent(clientId)}`
+  const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`API key revoke failed (HTTP ${res.status})`, res.status, detail)
+  }
+}
+
+// ── Audit (decisions) ──
+
+export type DecisionEvent = {
+  id: number
+  kind: string           // mint | verify | deny | token_exchange | oauth_token | escalate
+  outcome: string        // allow | deny
+  anchor: string | null
+  reason: string | null
+  agent_id: number | null
+  claims: Record<string, unknown> | null
+  created_at: number     // epoch ms
+}
+
+export async function listDecisions(
+  ctx: ControlPlaneContext,
+  opts: { appId?: string; limit?: number; before?: number } = {},
+): Promise<DecisionEvent[]> {
+  const app = opts.appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const params = new URLSearchParams()
+  if (opts.limit) params.set('limit', String(opts.limit))
+  if (opts.before) params.set('before', String(opts.before))
+  const qs = params.toString() ? `?${params.toString()}` : ''
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/decisions/${encodeURIComponent(app)}${qs}`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (res.status === 404) return []  // no such app yet in this org → empty feed
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Audit fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as DecisionEvent[]
+}
+
+// ── Grants ──
+
+export type GrantView = {
+  app_id: string
+  agent_id: string
+  version: number
+  allowed_scopes: string[]
+  step_up_scopes: string[]
+  mode: string           // observe | enforce
+  source: string         // seed | calibration | jit | manual
+  expires_at?: number | null
+}
+
+export async function listGrants(
+  ctx: ControlPlaneContext,
+  appId?: string,
+): Promise<GrantView[]> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/grants/${encodeURIComponent(app)}`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (res.status === 404) return []
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Grants fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as GrantView[]
+}
+
 // ── Utilities ──
 
 /** Group registrations by their `agent_id` prefix (e.g. "T1*" -> threat 1) */

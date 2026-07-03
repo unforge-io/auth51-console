@@ -28,13 +28,19 @@ export const runtime = 'nodejs'
  */
 export async function POST(req: Request) {
   // 1. Identify the user via Clerk session
-  const { userId } = await auth()
+  const { userId, orgId, orgSlug } = await auth()
   if (!userId) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
   }
   const user = await currentUser()
   const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? `${userId}@unknown`
   const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || undefined
+
+  // The customer's org → an isolated Authority tenant. Prefer the Clerk org
+  // (slug is human-readable + stable); fall back to a per-user tenant so even
+  // personal accounts (no org) get their own isolated space rather than sharing
+  // the demo default.
+  const org = orgSlug ?? orgId ?? `user_${userId}`
 
   // 2. Parse body
   let body: { endpoint?: string; audience?: string; scope?: string } = {}
@@ -56,6 +62,8 @@ export async function POST(req: Request) {
       audience,
       scopes: scope.split(' '),
       ttlSeconds: 300,
+      org,
+      orgName: orgSlug ?? undefined,
     })
 
     // 4. Exchange with Authority via RFC 8693
