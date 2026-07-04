@@ -420,6 +420,83 @@ export async function listGrants(
   return await res.json() as GrantView[]
 }
 
+// ── Workload identities (keyless bindings) ──
+
+export type WorkloadBinding = {
+  id: number
+  provider: 'aws' | 'oidc'
+  display_name: string
+  aws_account_id?: string | null
+  aws_role_name?: string | null
+  aws_role_id?: string | null
+  oidc_issuer?: string | null
+  oidc_subject?: string | null
+  allowed_scopes: string[]
+  allowed_audiences: string[]
+  is_active: boolean
+  created_at: number
+}
+
+export async function listWorkloadBindings(ctx: ControlPlaneContext): Promise<WorkloadBinding[]> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/workload-identity`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Workload bindings fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as WorkloadBinding[]
+}
+
+export async function createWorkloadBinding(
+  ctx: ControlPlaneContext,
+  opts: {
+    provider: 'aws' | 'oidc'
+    displayName: string
+    awsAccountId?: string
+    awsRoleName?: string
+    awsRoleId?: string
+    oidcIssuer?: string
+    oidcSubject?: string
+    audiences?: string[]
+  },
+): Promise<WorkloadBinding> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/workload-identity`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: opts.provider,
+      display_name: opts.displayName,
+      aws_account_id: opts.awsAccountId,
+      aws_role_name: opts.awsRoleName,
+      aws_role_id: opts.awsRoleId,
+      oidc_issuer: opts.oidcIssuer,
+      oidc_subject: opts.oidcSubject,
+      audiences: opts.audiences ?? [],
+    }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Workload binding create failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as WorkloadBinding
+}
+
+export async function deleteWorkloadBinding(ctx: ControlPlaneContext, id: number): Promise<void> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/workload-identity/${id}`
+  const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Workload binding delete failed (HTTP ${res.status})`, res.status, detail)
+  }
+}
+
 // ── Utilities ──
 
 /** Group registrations by their `agent_id` prefix (e.g. "T1*" -> threat 1) */

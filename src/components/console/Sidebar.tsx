@@ -81,6 +81,7 @@ const SECTIONS: NavSection[] = [
     heading: 'Access',
     items: [
       { label: 'API keys', href: '/console/settings/api-keys', indent: true },
+      { label: 'Workload identities', href: '/console/settings/workload-identities', indent: true },
     ],
   },
   {
