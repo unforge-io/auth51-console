@@ -60,14 +60,14 @@ function SectionFrame({
 
 export function ControlPlaneSection() {
   const k8sRows = [
-    { k8s: 'API server / etcd',     auth51: 'Auth51 Authority' },
-    { k8s: 'kubelet (per node)',    auth51: 'Auth51 Runtime' },
-    { k8s: 'Admission / sidecar',   auth51: 'Auth51 Verifier' },
-    { k8s: 'K8s Dashboard',         auth51: 'Auth51 Console' },
-    { k8s: 'kubectl',               auth51: 'a51 CLI' },
-    { k8s: 'kubeconfig',            auth51: 'a51 config' },
-    { k8s: 'Workload / Pod',        auth51: 'Agentic application' },
-    { k8s: 'kubectl apply -f',      auth51: 'a51 apply -f' },
+    { k8s: 'API server / etcd', auth51: 'Auth51 Authority' },
+    { k8s: 'kubelet (per node)', auth51: 'Auth51 Runtime' },
+    { k8s: 'Admission / sidecar', auth51: 'Auth51 Verifier' },
+    { k8s: 'K8s Dashboard', auth51: 'Auth51 Console' },
+    { k8s: 'kubectl', auth51: 'a51 CLI' },
+    { k8s: 'kubeconfig', auth51: 'a51 config' },
+    { k8s: 'Workload / Pod', auth51: 'Agentic application' },
+    { k8s: 'kubectl apply -f', auth51: 'a51 apply -f' },
   ]
   return (
     <SectionFrame
@@ -110,9 +110,9 @@ export function ControlPlaneSection() {
 export function LiveRegistrySection() {
   const classified = useMemo(() => classifyAgents(DEMO_AGENTS), [])
   const bullets = [
-    { title: 'Cryptographic fingerprinting',  body: 'Every agent\'s prompt, tools, and configuration are hashed into a checksum at registration. If anything changes, the next token mint fails.' },
+    { title: 'Cryptographic fingerprinting', body: 'Every agent\'s prompt, tools, and configuration are hashed into a checksum at registration. If anything changes, the next token mint fails.' },
     { title: 'Five-dimensional classification', body: 'Role, reasoning pattern, autonomy level, capability surface, provenance — all derived from observable data. The system interprets agents; agents don\'t self-declare.' },
-    { title: 'Live updates',                  body: 'New registrations appear within seconds. Versioning detects drift. Revocation propagates immediately.' },
+    { title: 'Live updates', body: 'New registrations appear within seconds. Versioning detects drift. Revocation propagates immediately.' },
   ]
   return (
     <SectionFrame
@@ -241,9 +241,9 @@ export function DiscoverySection() {
 export function WorkflowsSection() {
   const [tab, setTab] = useState<'inferred' | 'registered' | 'runtime'>('inferred')
   const tabs: Array<{ id: typeof tab; label: string; sub: string }> = [
-    { id: 'inferred',   label: 'Inferred',   sub: 'derived from tool graph' },
+    { id: 'inferred', label: 'Inferred', sub: 'derived from tool graph' },
     { id: 'registered', label: 'Registered', sub: 'declared with Authority' },
-    { id: 'runtime',    label: 'Runtime',    sub: 'actual executions · soon' },
+    { id: 'runtime', label: 'Runtime', sub: 'actual executions · soon' },
   ]
   return (
     <SectionFrame
@@ -286,7 +286,7 @@ function InferredPanel() {
       <div className="border-r border-[rgb(38_39_43)] p-6">
         <div className="font-mono text-[11px] text-[#5c6168] mb-2">/console/workflows/inferred</div>
         <pre className="text-[12px] font-mono text-[#ececed] leading-relaxed">
-{`▾ Supervisor                       Orchestrator · Plan
+          {`▾ Supervisor                       Orchestrator · Plan
   ├ ▸ Planner                      Tool-agent · ReAct
   ├ ▸ Classifier                   Tool-agent · Direct
   └ ▸ Patcher                      Tool-agent · Direct
@@ -317,7 +317,7 @@ function RegisteredPanel() {
       <div className="border-r border-[rgb(38_39_43)] p-6">
         <div className="font-mono text-[11px] text-[#5c6168] mb-2">/console/workflows/registered</div>
         <pre className="text-[12px] font-mono text-[#ececed] leading-relaxed">
-{`▾ secure_deploy_v1.0                       4 steps · HITL
+          {`▾ secure_deploy_v1.0                       4 steps · HITL
   ├ ▸ generate_release                     write:deployment
   ├ ▸ verify_sbom                          read:sbom
   └ ▾ approval_gate                        ⚠ human-in-loop
@@ -348,7 +348,7 @@ function RuntimePanel() {
       <div className="border-r border-[rgb(38_39_43)] p-6">
         <div className="font-mono text-[11px] text-[#5c6168] mb-2">/console/workflows/runtime · coming soon</div>
         <pre className="text-[12px] font-mono text-[#ececed] leading-relaxed opacity-80">
-{`▾ secure_deploy_v1.0  ·  run_a47…   312ms total
+          {`▾ secure_deploy_v1.0  ·  run_a47…   312ms total
   ├ ✓ generate_release                  84ms
   ├ ✓ verify_sbom                      102ms
   ├ ⏸ approval_gate           waiting 4m
@@ -384,11 +384,11 @@ export function ThreatsSection() {
       id="threats"
       eyebrow="Empirical evaluation"
       title={<>12 known agentic attacks. <span className="text-[#34d399]">All 12 blocked.</span></>}
-      kicker="Every threat below is implemented as a runnable scenario, executed against both an OAuth-only baseline and an Auth51-protected configuration. OAuth succeeded on every attack. Auth51 blocked every attack."
+      kicker="Every threat below is implemented as a runnable scenario, executed against both an OAuth-only baseline and an Auth51-protected configuration. OAuth failed to prevent any attacks. Auth51 blocked every attack."
     >
       <div className="grid grid-cols-3 gap-3 mb-8 max-w-[640px]">
-        <Mini eyebrow="OAuth"    value="0/12"   tag="blocked"        tone="danger" />
-        <Mini eyebrow="Auth51"   value="12/12"  tag="blocked"        tone="success" />
+        <Mini eyebrow="OAuth" value="0/12" tag="blocked" tone="danger" />
+        <Mini eyebrow="Auth51" value="12/12" tag="blocked" tone="success" />
         <Mini eyebrow="Overhead" value="+2.1ms" tag="per token mint" tone="neutral" />
       </div>
 
@@ -439,8 +439,8 @@ export function ThreatsSection() {
 function Mini({ eyebrow, value, tag, tone }: { eyebrow: string; value: string; tag: string; tone: 'success' | 'danger' | 'neutral' }) {
   const color =
     tone === 'success' ? 'text-[#34d399]' :
-    tone === 'danger'  ? 'text-[#f87171]' :
-                         'text-white'
+      tone === 'danger' ? 'text-[#f87171]' :
+        'text-white'
   return (
     <div className="rounded-xl border border-[rgb(46_48_54)] px-3 py-3 text-center bg-gradient-to-b from-[rgb(22_23_28)] to-[rgb(16_17_22)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
       <div className="text-[10px] font-mono tracking-wider uppercase text-[#5c6168]">{eyebrow}</div>
@@ -545,16 +545,16 @@ function FederationFlow() {
       <FEdge points={[[224, 240], [736, 240]]} variant="h" />
 
       {/* Labels — placed in the calm regions so nothing crashes */}
-      <FLabel x={250} y={64}  text="1. subject_token · signed JWT" />
+      <FLabel x={250} y={64} text="1. subject_token · signed JWT" />
       <FLabel x={580} y={180} text="2. RFC 8693 token exchange" />
       <FLabel x={250} y={416} text="3. access_token issued" />
       <FLabel x={620} y={224} text="4. direct API call · Bearer …" />
 
       {/* Boxes */}
-      <FBox x={40}  y={200} w={180} h={80} title="Browser"   sub="Clerk session" />
-      <FBox x={380} y={40}  w={200} h={80} title="Console"   sub="server-side" />
+      <FBox x={40} y={200} w={180} h={80} title="Browser" sub="Clerk session" />
+      <FBox x={380} y={40} w={200} h={80} title="Console" sub="server-side" />
       <FBox x={380} y={360} w={200} h={80} title="Authority" sub="customer-owned" />
-      <FBox x={740} y={200} w={180} h={80} title="Resource"  sub="OpenAI · GitHub · API" />
+      <FBox x={740} y={200} w={180} h={80} title="Resource" sub="OpenAI · GitHub · API" />
 
       <style jsx>{`
         @keyframes fedflow { to { stroke-dashoffset: -18; } }
@@ -587,9 +587,9 @@ function FBox({ x, y, w, h, title, sub }: { x: number; y: number; w: number; h: 
   return (
     <g filter="url(#fed-shadow)">
       <rect x={x} y={y} width={w} height={h} rx={12}
-            fill="url(#fed-box-fill)" stroke="rgba(99,102,241,0.4)" strokeWidth="1" />
+        fill="url(#fed-box-fill)" stroke="rgba(99,102,241,0.4)" strokeWidth="1" />
       <rect x={x + 0.5} y={y + 0.5} width={w - 1} height={h - 1} rx={11.5}
-            fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
       <text x={x + 16} y={y + 32} fill="#ffffff" fontSize="15" fontWeight="600" fontFamily="Inter, sans-serif">
         {title}
       </text>
@@ -605,9 +605,9 @@ function FLabel({ x, y, text }: { x: number; y: number; text: string }) {
   return (
     <g>
       <rect x={x - w / 2} y={y - 10} width={w} height="18" rx="4"
-            fill="rgba(14,15,18,0.92)" stroke="rgba(99,102,241,0.35)" strokeWidth="0.75" />
+        fill="rgba(14,15,18,0.92)" stroke="rgba(99,102,241,0.35)" strokeWidth="0.75" />
       <text x={x} y={y + 3} textAnchor="middle" fill="#c7d2fe" fontSize="10"
-            fontFamily="ui-monospace, monospace" letterSpacing="0.5">
+        fontFamily="ui-monospace, monospace" letterSpacing="0.5">
         {text}
       </text>
     </g>
