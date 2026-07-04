@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import { ConnectDialog } from './ConnectDialog'
+import { useControlPlane } from '@/lib/console/controlPlane'
+import { makeManagedContext } from '@/lib/console/managed'
 import { cn } from '@/lib/utils'
 
 /**
@@ -16,6 +20,15 @@ import { cn } from '@/lib/utils'
  */
 export function EmptyState() {
   const [connectOpen, setConnectOpen] = useState(false)
+  const { addContext } = useControlPlane()
+  const { orgSlug } = useAuth()
+  const router = useRouter()
+
+  const startManaged = () => {
+    addContext(makeManagedContext(orgSlug))
+    router.push('/console/onboarding')
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
       <div className="mb-12">
@@ -37,9 +50,9 @@ export function EmptyState() {
           number="1"
           title="Quick start"
           tag="managed"
-          description="We provision an Auth51 Control Plane on auth51 cloud in roughly 30 seconds. Free tier available, scale as you go."
-          cta="Get started"
-          disabled
+          description="Use the managed auth51 cloud authority — no infrastructure to run. We scope everything to your organization automatically."
+          cta="Get started →"
+          onClick={startManaged}
         />
         <Option
           number="2"

@@ -59,6 +59,7 @@ export default function OnboardingPage() {
   if (!currentContext) return <EmptyState />
 
   const endpoint = currentContext.endpoint.replace(/\/$/, '')
+  const appId = currentContext.appId ?? 'default'
   const snippet = key
     ? `pip install auth51
 
@@ -66,6 +67,7 @@ export default function OnboardingPage() {
 import auth51
 auth51.configure(
     authority_url="${endpoint}",
+    app_id="${appId}",                               # your org's app
     client_id="${key.client_id}",
     client_secret="${key.client_secret}",
     audiences={"your-resource-server.example.com"},  # hosts to govern
