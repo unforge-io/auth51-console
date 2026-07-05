@@ -12,6 +12,7 @@ import { Container } from '@/components/ui/Container'
  * Hidden entirely on /console — the Console renders its own chrome.
  */
 const NAV_ITEMS = [
+  { label: 'Docs',         href: '/docs' },
   { label: 'Walkthrough',  href: '/walkthrough' },
   { label: 'Protocol',     href: '/protocol' },
   { label: 'Architecture', href: '/architecture' },

@@ -139,6 +139,11 @@
     @apply text-eyebrow uppercase text-ink-tertiary font-medium;
   }
 
+  /* Inline code token inside body copy (docs, prose). */
+  .code-inline {
+    @apply font-mono text-[0.85em] text-ink bg-bg-subtle border border-line rounded px-1 py-0.5;
+  }
+
   /* Subtle paper-grain texture, used very sparingly on heroes */
   .grain {
     position: relative;

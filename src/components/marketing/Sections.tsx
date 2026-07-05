@@ -639,31 +639,31 @@ export function InstallSection() {
       kicker="Drop the shim into your agent process, point it at an Authority, and every outbound call is identity-bound, intent-bound, and audit-logged. No service to run, no sidecar to deploy."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <CodeBlock label="Python">{`$ pip install auth51-shim
+        <CodeBlock label="Python">{`$ pip install auth51
 
-# In your agent process
-from auth51 import init_security, get_secure_client
+# Once, at process startup.
+import auth51
 
-await init_security(
-    app_id="patchet",
-    idp_url="https://idp.auth51.com",
+auth51.configure(
+    app_id="acme",
+    client_id="a51_live_...",       # from the console
+    client_secret="...",            # shown once
+    audiences={"api.acme.com"},     # hosts to govern
 )
 
-client = get_secure_client()
-
-# Every outbound call now mints a fresh intent token,
-# carries the agent's checksum, and is bound to the
-# current workflow step. PoP signed in-process.
-res = await client.post(
-    "https://api.openai.com/v1/chat/completions",
-    json={...},
-    intent="generate_response",
-)`}</CodeBlock>
+# Bind a run to your registered agent's identity.
+# Inside the context, every outbound call mints a fresh
+# intent token, carries the agent's checksum, and is
+# DPoP-signed in-process. No auth code in your tools.
+with auth51.agent("checkout-bot", checksum=cs,
+                  scope="payment:execute",
+                  audience="api.acme.com"):
+    run_agent()`}</CodeBlock>
 
         <CodeBlock label="a51 CLI · coming soon">{`$ brew install auth51/tap/a51
 
-$ a51 connect https://idp.auth51.com
-✓ Connected to Authority at idp.auth51.com
+$ a51 connect https://authority.auth51.com
+✓ Connected to Authority at authority.auth51.com
 
 $ a51 agents list patchet
 Supervisor   Orchestrator   Plan-and-execute   ↳ 3
