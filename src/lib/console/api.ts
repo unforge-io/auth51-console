@@ -606,6 +606,27 @@ export async function getProposal(
   }
 }
 
+/** Retire a proposal in auth51-discovery once its agent is registered — by
+ * checksum (rename-proof) so it never reappears in the pending list. Best-effort:
+ * registration is the source of truth; if this fails the registered-agent filter
+ * still hides it. */
+export async function consumeProposal(
+  ctx: ControlPlaneContext,
+  checksum: string,
+  appId?: string,
+): Promise<void> {
+  void appId
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${DISCOVERY_URL.replace(/\/$/, '')}/v1/proposals/consume`
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checksum }),
+    })
+  } catch { /* best-effort */ }
+}
+
 /** Approve: register the proposed agent via the Authority's normal registration
  * path. The Authority recomputes checksums and auto-resolves the trigger. */
 export async function registerAgent(
