@@ -497,6 +497,146 @@ export async function deleteWorkloadBinding(ctx: ControlPlaneContext, id: number
   }
 }
 
+// ── Discovered agents (import → run → approve) ──
+// The Authority holds only a REFERENCE trigger (agent_id + checksum) captured at
+// the denied mint; the CONTENT (prompt/tools) lives in the separate
+// auth51-discovery service (DESIGN §5b). The console joins the two by checksum,
+// and Approve fires the normal /intent/register/agent — content's one sanctioned
+// path into the Authority (which then auto-resolves the trigger).
+
+const DISCOVERY_URL =
+  process.env.NEXT_PUBLIC_AUTH51_DISCOVERY_URL ?? 'https://discovery.auth51.com'
+
+export type DiscoveredTrigger = {
+  agent_id: string
+  app_id: string | null
+  checksum: string
+  source: string
+  seen_count: number
+  status: string
+  first_seen_at: number
+  last_seen_at: number | null
+}
+
+export type Proposal = {
+  agent_id: string
+  app_id: string | null
+  checksum: string
+  prompt: string
+  tools: Record<string, unknown>[]
+  configuration: Record<string, unknown>
+  status: string
+  first_seen_at: number
+  last_seen_at: number
+}
+
+export async function listDiscovered(
+  ctx: ControlPlaneContext,
+  appId?: string,
+): Promise<DiscoveredTrigger[]> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/discovered/${encodeURIComponent(app)}`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (res.status === 404) return []
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Discovered fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as DiscoveredTrigger[]
+}
+
+export async function dismissDiscovered(
+  ctx: ControlPlaneContext,
+  agentId: string,
+  appId?: string,
+): Promise<void> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'register:intent')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/discovered/${encodeURIComponent(app)}/${encodeURIComponent(agentId)}`
+  const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Dismiss failed (HTTP ${res.status})`, res.status, detail)
+  }
+}
+
+/** List the org's pending proposals straight from auth51-discovery. This is the
+ * PRIMARY source of "discovered agents": the embed pushes a proposal at the LLM
+ * egress the moment it sees an unregistered agent — no governed call, no
+ * `audiences`, no mint required. (The Authority's reference trigger, from a
+ * denied mint, is a secondary signal we can layer on later.) The exchanged
+ * Authority token authenticates — discovery trusts the Authority's JWKS. */
+export async function listProposals(
+  ctx: ControlPlaneContext,
+  appId?: string,
+): Promise<Proposal[]> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${DISCOVERY_URL.replace(/\/$/, '')}/v1/proposals/${encodeURIComponent(app)}`
+  try {
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+    if (!res.ok) return []
+    return await res.json() as Proposal[]
+  } catch {
+    return [] // discovery unreachable ⇒ empty list, page still renders
+  }
+}
+
+/** Fetch the proposal content for one trigger from auth51-discovery (joined by
+ * checksum). The same exchanged Authority token authenticates — discovery is a
+ * resource server trusting the Authority's JWKS. Null = no content proposed yet
+ * (bare mint sighting; the client hasn't pushed components). */
+export async function getProposal(
+  ctx: ControlPlaneContext,
+  checksum: string,
+  appId?: string,
+): Promise<Proposal | null> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${DISCOVERY_URL.replace(/\/$/, '')}/v1/proposals/${encodeURIComponent(app)}/by-checksum/${encodeURIComponent(checksum)}`
+  try {
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+    if (!res.ok) return null
+    return await res.json() as Proposal
+  } catch {
+    return null // discovery unreachable ⇒ triggers still render, just without content
+  }
+}
+
+/** Approve: register the proposed agent via the Authority's normal registration
+ * path. The Authority recomputes checksums and auto-resolves the trigger. */
+export async function registerAgent(
+  ctx: ControlPlaneContext,
+  proposal: Proposal,
+  appId?: string,
+): Promise<{ agent_id: string; checksum: string }> {
+  const app = proposal.app_id ?? appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'register:intent')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/register/agent`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      app_id: app,
+      agent_components: {
+        agent_id: proposal.agent_id,
+        prompt_template: proposal.prompt,
+        tools: proposal.tools,
+        configuration: proposal.configuration,
+      },
+    }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Registration failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as { agent_id: string; checksum: string }
+}
+
 // ── Utilities ──
 
 /** Group registrations by their `agent_id` prefix (e.g. "T1*" -> threat 1) */

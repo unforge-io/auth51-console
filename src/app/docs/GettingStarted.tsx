@@ -91,175 +91,143 @@ function StatusPill({ status }: { status: 'ready' | 'preview' | 'soon' }) {
 function HasAppLesson() {
   return (
     <div>
-      {/* Hook — lead with the outcome, not the setup. */}
+      {/* Constructive scare — make the invisible risk visible, then the fix. */}
       <p className="text-[17px] text-c-text leading-relaxed">
-        In about five minutes, every call your agent makes to a service you choose
-        will carry its own verifiable identity — scoped to the one thing it&apos;s
-        allowed to do, tied to a key only that process holds, and visible in your
-        console the instant it happens. Your tool code doesn&apos;t change. Let&apos;s wire
-        it up.
+        Right now, when your agent calls a tool or an API, nothing proves{' '}
+        <span className="text-c-text font-medium">which</span> agent made the call,
+        that its instructions weren&apos;t tampered with, or that a leaked token isn&apos;t
+        being replayed by something else. That risk is invisible — until it isn&apos;t.
+        auth51 makes every agent action carry a verifiable identity, and turning it
+        on is a single <code className="code-inline">import</code>.
       </p>
 
       <YouWillLearn items={[
-        <>Why an agent&apos;s identity is a <em>fingerprint</em>, not a password</>,
-        <>How to install the embed and point it at your org</>,
-        <>How to register an agent and govern a real run</>,
+        <>Why an agent&apos;s identity is a <em>fingerprint</em> of what it is, not a password</>,
+        <>How one import makes your agents identify themselves — no code changes</>,
+        <>How an unregistered agent shows up for you to approve</>,
         <>Where to watch it happen, live</>,
       ]} />
 
-      {/* The one idea — teach the mental model before any mechanics. */}
+      {/* The one idea — the mental model before any mechanics. */}
       <SectionHeading>The one idea</SectionHeading>
       <p className="text-body text-c-text-2 leading-relaxed">
         An agent&apos;s identity isn&apos;t a secret it carries — it&apos;s a fingerprint of{' '}
-        <span className="text-c-text">what it is</span>: its prompt and the tools it
-        can call. auth51 hashes that into a <code className="code-inline">checksum</code>.
-        Then, for every outbound call, it mints an <span className="text-c-text">intent
-        token</span> right at the source: good for one action, bound to a key that
-        never leaves the process (DPoP), and written to your audit log. Steal the
-        token and it&apos;s inert — it isn&apos;t the key, and it expires in seconds. That&apos;s
-        the whole model. Everything below is just wiring it in.
+        <span className="text-c-text">what it is</span>: its system prompt and the tools
+        it can call. The auth51 client watches your agent talk to its model, computes
+        that fingerprint (a <code className="code-inline">checksum</code>), and matches it
+        against the agents your org has registered. A match <span className="text-c-text">
+        identifies</span> the agent with no self-declaration; no match means it&apos;s
+        unregistered — a signal in itself. You never tell auth51 which agent is running;
+        it derives it.
       </p>
 
       <BeforeAfter />
 
-      {/* Steps — each opens with WHY, then the code, then what matters in it. */}
-      <SectionHeading>Wire it up</SectionHeading>
+      {/* The zero-config quickstart. */}
+      <SectionHeading>Quickstart</SectionHeading>
 
-      <Step n={1} title="Get credentials that belong to you">
+      <Step n={1} title="Create an API key">
         <p className="text-body text-c-text-2 leading-relaxed">
-          Your agent should authenticate as <span className="text-c-text">your org</span>,
-          not a secret shared across a team. In the{' '}
-          <DocLink href="/console/onboarding">console</DocLink> you get an org
-          automatically; create a key under{' '}
-          <span className="text-c-text font-medium">Settings → API Keys</span>. You&apos;ll
-          get a <code className="code-inline">client_id</code> and a{' '}
-          <code className="code-inline">client_secret</code>.
+          Sign in to the <DocLink href="/console/onboarding">console</DocLink> — you get
+          an org automatically — and create a key under{' '}
+          <span className="text-c-text font-medium">Settings → API Keys</span>. Set it in
+          your agent&apos;s environment; the client reads it on import.
         </p>
+        <CodeBlock label="env">{`export AUTH51_CLIENT_ID=a51_live_...     # Settings → API Keys
+export AUTH51_CLIENT_SECRET=...          # shown once`}</CodeBlock>
         <Callout kind="note">
-          The secret is shown <span className="text-c-text font-medium">once</span>.
-          It&apos;s clamped to your org and to a safe scope envelope
-          (<span className="font-mono text-[12px]">register:intent</span>,{' '}
-          <span className="font-mono text-[12px]">generate:intent-token</span>,{' '}
-          <span className="font-mono text-[12px]">read:agents</span>) — so even if it
-          leaks, it can&apos;t approve escalations or reach another tenant.
+          The key is clamped to your org and a safe scope envelope — even if it leaks it
+          can&apos;t approve escalations or reach another tenant. On AWS you can skip the
+          secret entirely with <DocLink href="/console/settings/workload-identities">keyless
+          workload identity</DocLink> (the agent proves its IAM role).
         </Callout>
       </Step>
 
-      <Step n={2} title="Install the embed and point it at your org">
+      <Step n={2} title="Install and import">
         <p className="text-body text-c-text-2 leading-relaxed mb-3">
-          One import installs egress interception. One{' '}
-          <code className="code-inline">configure()</code> call, at process startup,
-          tells it who you are and which hosts to govern.
+          That&apos;s the whole integration. One import installs egress interception and,
+          on your agent&apos;s first model call, identifies it from the wire. No{' '}
+          <code className="code-inline">configure()</code>, no wrapping your code, no
+          audiences to declare.
         </p>
         <CodeBlock label="shell">{`pip install auth51`}</CodeBlock>
         <div className="h-3" />
-        <CodeBlock label="startup.py">{`import auth51
+        <CodeBlock label="your_app.py">{`import auth51        # ← that's it
 
-auth51.configure(
-    app_id="acme",
-    client_id="a51_live_...",           # Settings → API Keys
-    client_secret="...",                # shown once
-    audiences={"api.acme.com"},         # hosts whose egress to govern
-)`}</CodeBlock>
-        <p className="text-body text-c-text-2 leading-relaxed mt-3">
-          <code className="code-inline">audiences</code> is the list of hosts you want
-          governed — your resource server, an internal API, a payment gateway. Calls to
-          anything else pass through untouched. (<code className="code-inline">authority_url</code>{' '}
-          already defaults to <span className="font-mono text-[12px] text-c-text">https://authority.auth51.com</span>.)
+# ...run your agent exactly as you already do.
+run_your_agent()`}</CodeBlock>
+      </Step>
+
+      <Step n={3} title="Approve it in the console" last>
+        <p className="text-body text-c-text-2 leading-relaxed mb-3">
+          The first time your agent runs, the client sends its observed identity —
+          system prompt, tools, computed checksum — to your org&apos;s discovery inbox. It
+          appears under <DocLink href="/console/agents/discovered">Agents → Discovered</DocLink>.
+          Review what it computed and click <span className="text-c-text font-medium">Register</span>.
+          From the next run on, that agent is recognized and its actions are governed.
         </p>
-        <Callout kind="pitfall">
-          <code className="code-inline">fail_open</code> defaults to{' '}
-          <span className="text-c-text font-medium">False</span>. If the authority is
-          ever unreachable, governed egress is <span className="text-c-text">denied</span>,
-          not waved through. That&apos;s the safe default — just know it&apos;s there before you
-          go to production.
+        <ConsolePreview />
+        <Callout kind="note">
+          The prompt and tools travel only to your discovery inbox for your review — they
+          enter the Authority only when you approve. Nothing an unregistered agent does is
+          silently trusted (fail-closed).
         </Callout>
       </Step>
 
-      <Step n={3} title="Register the agent's identity">
-        <p className="text-body text-c-text-2 leading-relaxed mb-3">
-          Remember the one idea: identity = prompt + tools. Register them once to get
-          the <code className="code-inline">checksum</code> you&apos;ll bind runs to. (The
-          onboarding wizard does this for you interactively — here&apos;s the same call in
-          code.)
-        </p>
-        <CodeBlock label="register.py">{`import httpx
-
-AUTHORITY = "https://authority.auth51.com"
-
-def register_agent(app_id, agent_id, prompt, tools, client_id, client_secret):
-    # Exchange your API key for a short-lived registration token.
-    tok = httpx.post(f"{AUTHORITY}/v1/oauth/token", data={
-        "grant_type": "client_credentials",
-        "client_id": client_id, "client_secret": client_secret,
-        "scope": "register:intent",
-    }).json()["access_token"]
-
-    # Register the agent's prompt + tools → returns its checksum.
-    r = httpx.post(f"{AUTHORITY}/v1/intent/register/agent",
-        headers={"authorization": f"Bearer {tok}"},
-        json={"app_id": app_id, "agent_components": {
-            "agent_id": agent_id,
-            "prompt_template": prompt,
-            "tools": tools,   # [{"name","description","parameters"}, ...]
-        }})
-    r.raise_for_status()
-    return r.json()["checksum"]`}</CodeBlock>
-        <DeepDive summary="What's actually in the checksum?">
-          A SHA3-512 over the agent&apos;s prompt template and the JSON schema of each
-          in-process tool. Change the prompt or add a tool and the checksum changes —
-          which is exactly the point: a tampered or impersonating agent has a{' '}
-          <span className="text-c-text">different identity</span>, so it doesn&apos;t inherit
-          the grants you approved for the real one.
-        </DeepDive>
-      </Step>
-
-      <Step n={4} title="Govern a run" last>
-        <p className="text-body text-c-text-2 leading-relaxed mb-3">
-          Bind a run to that identity. Inside the <code className="code-inline">with</code>{' '}
-          block, every outbound call your agent makes is intercepted, minted, signed,
-          and logged — <span className="text-c-text">your tool code is untouched</span>.
-        </p>
-        <CodeBlock label="run.py">{`cs = register_agent(
-    "acme", "checkout-bot", SYSTEM_PROMPT, TOOLS,
-    client_id="a51_live_...", client_secret="...",
-)
-
-with auth51.agent("checkout-bot", checksum=cs,
-                  scope="payment:execute", audience="api.acme.com"):
-    run_agent()   # every call inside is now governed`}</CodeBlock>
-        <p className="text-body text-c-text-2 leading-relaxed mt-3">
-          <code className="code-inline">scope</code> is the single action this run is
-          allowed to mint for; <code className="code-inline">audience</code> is the host
-          it&apos;s allowed to reach. Ask for anything outside that and the mint is denied
-          before a byte leaves your process.
-        </p>
-      </Step>
-
-      {/* The payoff — SHOW the result, don't just link to it. */}
-      <SectionHeading>See it happen</SectionHeading>
-      <p className="text-body text-c-text-2 leading-relaxed mb-5">
-        Within a second or two of that run, your agent and its calls appear in the
-        console — scoped to your org:
-      </p>
-      <ConsolePreview />
-      <p className="text-[13px] text-c-text-3 leading-relaxed mt-4">
-        Live views:{' '}
-        <DocLink href="/console/agents/registered">Agents</DocLink>,{' '}
-        <DocLink href="/console/agents/grants">Grants</DocLink>, and{' '}
-        <DocLink href="/console/security/audit">Security → Audit</DocLink>.
-      </p>
-
-      {/* Recap — react.dev signature close. */}
+      {/* Recap. */}
       <div className="mt-14 rounded-xl border border-c-border bg-c-surface p-6">
         <p className="text-[13px] font-semibold text-c-text mb-3">Recap</p>
         <ul className="space-y-2">
-          <RecapItem><code className="code-inline">import auth51</code> + <code className="code-inline">configure()</code> turns on egress interception.</RecapItem>
-          <RecapItem>Registering a prompt + tools once gives you a <span className="text-c-text">checksum</span> — the agent&apos;s identity.</RecapItem>
-          <RecapItem><code className="code-inline">with auth51.agent(...)</code> makes a run governed: scoped, key-bound, audited.</RecapItem>
-          <RecapItem>The console is your live proof — no extra instrumentation.</RecapItem>
+          <RecapItem>API key in the environment + <code className="code-inline">import auth51</code> — the entire integration.</RecapItem>
+          <RecapItem>The client derives each agent&apos;s identity from its model call; you don&apos;t declare anything.</RecapItem>
+          <RecapItem>Unregistered agents surface in <span className="text-c-text">Discovered</span> with the identity they computed — approve to register.</RecapItem>
+          <RecapItem>Registered agents are recognized and governed automatically on the next run.</RecapItem>
         </ul>
       </div>
+
+      {/* Advanced — everything the zero-config path hides, for those who need it. */}
+      <SectionHeading>Advanced &amp; self-host</SectionHeading>
+      <p className="text-body text-c-text-2 leading-relaxed mb-4">
+        The defaults above cover the managed (SaaS) path. Reach for these only when you
+        need to.
+      </p>
+
+      <DeepDive summary="Configure in code instead of env (and self-host)">
+        Prefer explicit config, or running your own authority/discovery? Call{' '}
+        <code className="code-inline">configure()</code> once at startup. On-prem, point it
+        at your own servers — it never falls back to the SaaS discovery for a custom
+        authority.
+        <div className="mt-3">
+          <CodeBlock label="startup.py">{`import auth51
+
+auth51.configure(
+    client_id="a51_live_...", client_secret="...",
+    # self-host only — SaaS is the default:
+    authority_url="https://authority.your-co.internal",
+    discovery_url="https://discovery.your-co.internal",
+)`}</CodeBlock>
+        </div>
+      </DeepDive>
+
+      <div className="h-3" />
+      <DeepDive summary="Name an agent explicitly, or register from CI/CD">
+        The client names discovered agents provisionally from their prompt; the console
+        lets you rename on approval. To pin a name yourself, wrap the run in{' '}
+        <code className="code-inline">with auth51.agent(&quot;checkout-bot&quot;): ...</code>.
+        To register agents ahead of time (e.g. a deploy step) rather than discover them at
+        runtime, POST their components to{' '}
+        <code className="code-inline">/v1/intent/register/agent</code> — the same call the
+        Approve button makes.
+      </DeepDive>
+
+      <div className="h-3" />
+      <DeepDive summary="Enforce at your resource servers (audiences)">
+        Discovery and identity need no configuration. To also <em>mint intent tokens</em>{' '}
+        on the calls your agents make to your resource servers, tell the client which
+        hosts are auth51-protected via <code className="code-inline">audiences</code> (or{' '}
+        <code className="code-inline">AUTH51_AUDIENCES</code>) and verify them with the
+        auth51 verifier on those services.
+      </DeepDive>
 
       <SectionHeading>Next steps</SectionHeading>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -49,7 +49,7 @@ const SECTIONS: NavSection[] = [
   {
     heading: 'Agents',
     items: [
-      { label: 'Discovered', href: '/console/agents/discovered', badge: 'soon', indent: true },
+      { label: 'Discovered', href: '/console/agents/discovered', indent: true },
       { label: 'Registered', href: '/console/agents/registered', indent: true },
       { label: 'Grants',     href: '/console/agents/grants', indent: true },
     ],
