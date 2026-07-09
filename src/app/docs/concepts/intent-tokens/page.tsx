@@ -27,9 +27,9 @@ export default function IntentTokens() {
       <P>
         When your agent is about to touch a resource — charge a card, read a repo, delete a
         row — the client mints a token scoped to exactly that: the agent&rsquo;s identity, the
-        single action, and the audience it&rsquo;s for. It&rsquo;s good for seconds, not hours. The
-        resource server verifies it and does the one thing it authorizes. There&rsquo;s no broad
-        session sitting around to steal.
+        single action, and the audience it&rsquo;s for. It&rsquo;s good for minutes, not hours or
+        days. The resource server verifies it and does the one thing it authorizes. There&rsquo;s
+        no broad, long-lived session sitting around to steal.
       </P>
 
       <H2>Bound to a key the agent can&rsquo;t hand over</H2>
@@ -37,7 +37,7 @@ export default function IntentTokens() {
         A stolen token is only useful if you can present it. Each intent token is bound to
         an ephemeral key held inside the agent&rsquo;s process — proof-of-possession, DPoP in the
         spec. To use the token you have to prove you hold that key. Copy the token out of a
-        log and it&rsquo;s inert: you don&rsquo;t have the key, and it expires in seconds anyway.
+        log and it&rsquo;s inert: you don&rsquo;t have the key, and it expires shortly anyway.
       </P>
 
       <InTheWild title="Session-token replay">

@@ -13,13 +13,13 @@ const CONCEPTS = [
     body: 'What makes an agent that agent — and why identity is a fingerprint of the code, not a secret it carries.' },
   { href: '/docs/concepts/intent-tokens', title: 'Intent tokens',
     body: 'One short-lived credential per action, bound to a key the agent can’t hand over. Why a stolen one is inert.' },
-  { title: 'Proof-of-possession (DPoP)',
+  { href: '/docs/concepts/proof-of-possession', title: 'Proof-of-possession (DPoP)',
     body: 'How auth51 binds a token to the process that minted it, so copying it out of a log gets you nowhere.' },
-  { title: 'Non-amplification',
+  { href: '/docs/concepts/non-amplification', title: 'Non-amplification',
     body: 'Why a delegated or fanned-out call can never end up with more authority than the one it came from.' },
-  { title: 'Discovery & the trust boundary',
+  { href: '/docs/concepts/discovery', title: 'Discovery & the trust boundary',
     body: 'How unregistered agents surface for review without their prompts ever entering the authority.' },
-  { title: 'MCP governance',
+  { href: '/docs/concepts/mcp', title: 'MCP governance',
     body: 'Governing what an agent can do through third-party MCP servers, tool call by tool call.' },
 ]
 
