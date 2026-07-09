@@ -22,8 +22,8 @@ export function H2({ id, children }: { id?: string; children: ReactNode }) {
   return <h2 id={id} className="text-[22px] font-semibold text-c-text tracking-tight mt-12 mb-3 scroll-mt-24">{children}</h2>
 }
 
-export function P({ children }: { children: ReactNode }) {
-  return <p className="text-[15px] text-c-text-2 leading-relaxed mb-4">{children}</p>
+export function P({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <p className={`text-[15px] text-c-text-2 leading-relaxed mb-4 ${className}`}>{children}</p>
 }
 
 export function DocLink({ href, children }: { href: string; children: ReactNode }) {
@@ -51,6 +51,67 @@ export function InTheWild({ title, children }: { title: string; children: ReactN
       <p className="text-[14px] font-semibold text-c-text mb-1.5">{title}</p>
       <div className="text-[13.5px] text-c-text-2 leading-relaxed">{children}</div>
     </aside>
+  )
+}
+
+/**
+ * Progressive disclosure. Lean readers skim past a closed <Deep>; readers who
+ * want the mechanism open it. Native <details> — no client JS, server-safe.
+ */
+export function Deep({ title = 'Go deeper', children }: { title?: string; children: ReactNode }) {
+  return (
+    <details className="group my-5 rounded-lg border border-c-border bg-c-surface/60 open:bg-c-surface">
+      <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none list-none text-[13px] font-medium text-c-text-2 hover:text-c-text [&::-webkit-details-marker]:hidden">
+        <span className="text-c-accent-2 text-[11px] transition-transform group-open:rotate-90">▶</span>
+        {title}
+      </summary>
+      <div className="px-4 pb-4 pt-1 border-t border-c-border/60 [&>*:first-child]:mt-3 [&_p]:text-[13.5px]">
+        {children}
+      </div>
+    </details>
+  )
+}
+
+/**
+ * A primer on the underlying technology we build on — OAuth, token exchange,
+ * JWT/JWK, DPoP. Visually distinct from a Callout: this is context, not caution.
+ */
+export function Foundations({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <aside className="my-6 rounded-xl border border-c-border bg-c-surface-2/40 p-5">
+      <p className="text-[10.5px] font-mono uppercase tracking-wider text-c-accent-2 mb-1.5">Background</p>
+      <p className="text-[14px] font-semibold text-c-text mb-2">{title}</p>
+      <div className="text-[13.5px] text-c-text-2 leading-relaxed space-y-3 [&_a]:text-c-accent-2 [&_a:hover]:underline [&_code]:font-mono [&_code]:text-[12.5px]">
+        {children}
+      </div>
+    </aside>
+  )
+}
+
+/** A diagram with a numbered, RFC-style caption. Scrolls horizontally if wide. */
+export function Figure({ n, caption, children }: { n?: number; caption?: ReactNode; children: ReactNode }) {
+  return (
+    <figure className="my-7">
+      <div className="rounded-xl border border-c-border bg-c-surface p-4 overflow-x-auto">{children}</div>
+      {caption && (
+        <figcaption className="mt-2.5 text-[12px] text-c-text-3 leading-relaxed">
+          {n != null && <span className="font-medium text-c-text-2">Figure {n}. </span>}
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  )
+}
+
+/** Inline citation chip pointing at the spec (defaults to the reference hub). */
+export function SpecRef({ href = '/docs/reference', children }: { href?: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="inline-block align-baseline text-[10.5px] font-mono text-c-text-3 border border-c-border rounded px-1 py-px no-underline hover:text-c-text-2 hover:border-c-border-2 transition-colors"
+    >
+      {children}
+    </Link>
   )
 }
 
