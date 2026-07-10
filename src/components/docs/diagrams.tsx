@@ -33,10 +33,14 @@ export function ChecksumDiagram() {
           <rect x="8" y={it.y} width="176" height="44" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
           <text x="20" y={it.y + 20} style={{ fill: ink, font: `600 12px ${sans}` }}>{it.label}</text>
           <text x="20" y={it.y + 35} style={{ fill: ink3, font: `11px ${mono}` }}>{it.sub}</text>
-          {/* connector into the canonicalize box */}
-          <path d={`M184 ${it.y + 22} H236`} style={{ stroke: line }} strokeWidth="1.5" fill="none" />
+          {/* stub from this input out to the merge bus */}
+          <path d={`M184 ${it.y + 22} H212`} style={{ stroke: line }} strokeWidth="1.5" fill="none" />
         </g>
       ))}
+
+      {/* merge bus: the three inputs join, then a single arrow into Canonicalize */}
+      <path d="M212 36 V148" style={{ stroke: line }} strokeWidth="1.5" fill="none" />
+      <path d="M212 87 H236" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#ck-arrow)" />
 
       {/* canonicalize */}
       <rect x="236" y="52" width="150" height="70" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
