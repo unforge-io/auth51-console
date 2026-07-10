@@ -22,7 +22,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <div className="flex gap-10 xl:gap-12">
           {/* left — section navigation */}
           <aside className="hidden lg:block w-56 shrink-0">
-            <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-12">
+            <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto no-scrollbar py-12">
               <DocsSidebar />
             </div>
           </aside>
@@ -34,7 +34,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
           {/* right — on this page */}
           <aside className="hidden xl:block w-56 shrink-0">
-            <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-12">
+            <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto no-scrollbar py-12">
               <OnThisPage />
             </div>
           </aside>

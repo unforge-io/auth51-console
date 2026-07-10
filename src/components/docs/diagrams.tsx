@@ -18,6 +18,120 @@ const accentFaint = 'rgb(var(--c-accent) / 0.10)'
 const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const sans = 'inherit'
 
+/**
+ * System topology. The control-plane calls (mint, propose, fetch keys) are
+ * faint; the single data-plane call (agent → resource) is the accent line. The
+ * checksum engine runs identically on both sides of the trust boundary.
+ */
+export function SystemMapDiagram() {
+  return (
+    <svg viewBox="0 0 720 268" width="100%" role="img" aria-label="auth51 system topology" style={{ maxWidth: 720 }}>
+      {/* agent process with client runtime PEP */}
+      <rect x="8" y="66" width="188" height="96" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
+      <text x="22" y="88" style={{ fill: ink, font: `600 12px ${sans}` }}>Agent process</text>
+      <rect x="22" y="98" width="160" height="22" rx="6" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1" />
+      <text x="30" y="113" style={{ fill: ink2, font: `10px ${mono}` }}>client runtime · PEP</text>
+      <rect x="22" y="126" width="160" height="22" rx="6" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+      <text x="30" y="141" style={{ fill: ink3, font: `10px ${mono}` }}>MCP proxy (optional) · PEP</text>
+
+      {/* authority = trust root / PDP */}
+      <rect x="266" y="16" width="188" height="80" rx="12" style={{ fill: 'none', stroke: accent }} strokeWidth="1.25" strokeDasharray="4 4" />
+      <text x="278" y="34" style={{ fill: accent, font: `600 10px ${mono}`, letterSpacing: '0.05em' }}>TRUST ROOT</text>
+      <rect x="282" y="42" width="156" height="44" rx="8" style={{ fill: surface2, stroke: accent }} strokeWidth="1.25" />
+      <text x="360" y="60" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>Authority</text>
+      <text x="360" y="77" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>PDP · registries · mint · JWKS</text>
+
+      {/* discovery */}
+      <rect x="282" y="176" width="156" height="46" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
+      <text x="360" y="197" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>Discovery</text>
+      <text x="360" y="212" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>staging channel</text>
+
+      {/* resource server with verifier PEP */}
+      <rect x="524" y="66" width="188" height="96" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
+      <text x="538" y="88" style={{ fill: ink, font: `600 12px ${sans}` }}>Resource server</text>
+      <rect x="538" y="98" width="160" height="22" rx="6" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1" />
+      <text x="546" y="113" style={{ fill: ink2, font: `10px ${mono}` }}>verifier · PEP</text>
+      <text x="538" y="140" style={{ fill: ink3, font: `10px ${mono}` }}>protected resource</text>
+
+      {/* control-plane: mint */}
+      <path d="M196 92 C 236 70, 250 60, 282 60" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow)" />
+      <text x="200" y="66" style={{ fill: ink3, font: `10px ${mono}` }}>mint</text>
+      {/* control-plane: propose */}
+      <path d="M196 140 C 236 168, 250 190, 282 194" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow)" />
+      <text x="200" y="186" style={{ fill: ink3, font: `10px ${mono}` }}>propose</text>
+      {/* data-plane: call + token */}
+      <path d="M196 116 H524" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow-a)" />
+      <text x="300" y="110" style={{ fill: ink2, font: `10.5px ${mono}` }}>call + intent token · data plane</text>
+      {/* verifier fetches keys */}
+      <path d="M556 96 C 500 80, 470 70, 438 66" style={{ stroke: line }} strokeWidth="1.25" strokeDasharray="3 3" fill="none" markerEnd="url(#sm-arrow)" />
+      <text x="470" y="58" style={{ fill: ink3, font: `10px ${mono}` }}>JWKS</text>
+
+      {/* checksum engine footnote */}
+      <text x="360" y="248" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>checksum engine — byte-identical on client &amp; authority</text>
+
+      <defs>
+        <marker id="sm-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+        <marker id="sm-arrow-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: accent }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
+/**
+ * Zero-Trust roles (NIST SP 800-207). The Authority is the Policy Decision
+ * Point; the client runtime and the resource-server verifier are Policy
+ * Enforcement Points on either side of the call. Nothing is trusted by position.
+ */
+export function ZeroTrustZonesDiagram() {
+  return (
+    <svg viewBox="0 0 720 214" width="100%" role="img" aria-label="Zero-Trust roles: PDP and PEPs" style={{ maxWidth: 720 }}>
+      {/* trusted core around the authority */}
+      <rect x="286" y="20" width="168" height="96" rx="12" style={{ fill: 'none', stroke: accent }} strokeWidth="1.25" strokeDasharray="4 4" />
+      <text x="298" y="38" style={{ fill: accent, font: `600 10px ${mono}`, letterSpacing: '0.05em' }}>TRUST ROOT</text>
+
+      {/* agent process (untrusted) with client-runtime PEP */}
+      <rect x="8" y="44" width="180" height="72" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
+      <text x="22" y="66" style={{ fill: ink, font: `600 12px ${sans}` }}>Agent process</text>
+      <text x="22" y="83" style={{ fill: ink3, font: `10.5px ${mono}` }}>untrusted zone</text>
+      <rect x="22" y="90" width="152" height="20" rx="6" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1" />
+      <text x="30" y="104" style={{ fill: ink2, font: `10px ${mono}` }}>client runtime · PEP</text>
+
+      {/* authority = PDP */}
+      <rect x="300" y="44" width="140" height="58" rx="8" style={{ fill: surface2, stroke: accent }} strokeWidth="1.25" />
+      <text x="370" y="69" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>Authority</text>
+      <text x="370" y="86" textAnchor="middle" style={{ fill: ink3, font: `10.5px ${mono}` }}>PDP · mints</text>
+
+      {/* resource server (untrusted host) with verifier PEP */}
+      <rect x="532" y="44" width="180" height="72" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
+      <text x="546" y="66" style={{ fill: ink, font: `600 12px ${sans}` }}>Resource server</text>
+      <text x="546" y="83" style={{ fill: ink3, font: `10.5px ${mono}` }}>implicit trust zone</text>
+      <rect x="546" y="90" width="152" height="20" rx="6" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1" />
+      <text x="554" y="104" style={{ fill: ink2, font: `10px ${mono}` }}>verifier · PEP</text>
+
+      {/* flow arrows */}
+      <path d="M188 74 H300" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#zt-arrow)" />
+      <text x="196" y="66" style={{ fill: ink3, font: `10px ${mono}` }}>① request + checksum</text>
+      <path d="M300 96 H188" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#zt-arrow-a)" />
+      <text x="196" y="150" style={{ fill: ink3, font: `10px ${mono}` }}>② intent token</text>
+      <path d="M188 138 H710 V116" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#zt-arrow-a)" />
+      <text x="470" y="132" style={{ fill: ink3, font: `10px ${mono}` }}>③ call + token + DPoP proof</text>
+
+      <defs>
+        <marker id="zt-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+        <marker id="zt-arrow-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: accent }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
 /** Inputs → canonicalize → SHA3-512 → checksum. The identity fingerprint. */
 export function ChecksumDiagram() {
   const inputs = [

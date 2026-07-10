@@ -119,10 +119,18 @@
     @apply outline-none ring-2 ring-brand-accent/40 ring-offset-2 ring-offset-bg;
   }
 
-  /* Selection color */
+  /* Selection color — theme-aware. Uses the brand accent as the highlight and
+     the page background as the text color, so selected text keeps high contrast
+     in both themes (dark text on the lighter dark-mode accent; light text on the
+     darker light-mode accent). The old rule referenced undefined light-only
+     tokens, which left selected text dark-on-dark. */
   ::selection {
-    background: rgb(var(--brand-accent) / 0.18);
-    color: rgb(var(--text-primary));
+    background: rgb(var(--c-accent));
+    color: rgb(var(--c-bg));
+  }
+  ::-moz-selection {
+    background: rgb(var(--c-accent));
+    color: rgb(var(--c-bg));
   }
 }
 
@@ -137,6 +145,16 @@
   /* Editorial eyebrow used above section headings: e.g., "01 — IDENTITY" */
   .eyebrow {
     @apply text-eyebrow uppercase text-ink-tertiary font-medium;
+  }
+
+  /* Scrollable region with no visible scrollbar — used on the docs rails, which
+     must scroll on short viewports but shouldn't show scrollbar chrome. */
+  .no-scrollbar {
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* legacy Edge/IE */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;                  /* Chrome, Safari */
   }
 
   /* Inline code token inside body copy (docs, prose). */
