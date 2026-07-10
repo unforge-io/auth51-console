@@ -186,18 +186,18 @@ export function SystemMapDiagram() {
       <text x="546" y="113" style={{ fill: ink2, font: `10px ${mono}` }}>verifier · PEP</text>
       <text x="538" y="140" style={{ fill: ink3, font: `10px ${mono}` }}>protected resource</text>
 
-      {/* control-plane: mint */}
-      <path d="M196 92 C 236 70, 250 60, 282 60" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow)" />
-      <text x="200" y="66" style={{ fill: ink3, font: `10px ${mono}` }}>mint</text>
-      {/* control-plane: propose */}
-      <path d="M196 140 C 236 168, 250 190, 282 194" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow)" />
-      <text x="200" y="186" style={{ fill: ink3, font: `10px ${mono}` }}>propose</text>
-      {/* data-plane: call + token */}
+      {/* control-plane: mint — orthogonal, sharp turns */}
+      <path d="M196 92 H239 V60 H282" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow)" />
+      <text x="245" y="54" style={{ fill: ink3, font: `10px ${mono}` }}>mint</text>
+      {/* control-plane: propose — orthogonal */}
+      <path d="M196 140 H239 V194 H282" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow)" />
+      <text x="245" y="210" style={{ fill: ink3, font: `10px ${mono}` }}>propose</text>
+      {/* data-plane: call + token (straight) */}
       <path d="M196 116 H524" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#sm-arrow-a)" />
       <text x="300" y="110" style={{ fill: ink2, font: `10.5px ${mono}` }}>call + intent token · data plane</text>
-      {/* verifier fetches keys */}
-      <path d="M556 96 C 500 80, 470 70, 438 66" style={{ stroke: line }} strokeWidth="1.25" strokeDasharray="3 3" fill="none" markerEnd="url(#sm-arrow)" />
-      <text x="470" y="58" style={{ fill: ink3, font: `10px ${mono}` }}>JWKS</text>
+      {/* verifier fetches keys — straight dashed (no turn needed) */}
+      <path d="M524 82 H438" style={{ stroke: line }} strokeWidth="1.25" strokeDasharray="3 3" fill="none" markerEnd="url(#sm-arrow)" />
+      <text x="455" y="74" style={{ fill: ink3, font: `10px ${mono}` }}>JWKS</text>
 
       {/* checksum engine footnote */}
       <text x="360" y="248" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>checksum engine — byte-identical on client &amp; authority</text>
@@ -528,13 +528,13 @@ export function DiscoveryBoundaryDiagram() {
       <text x="446" y="170" style={{ fill: ink, font: `600 12px ${sans}` }}>Authority</text>
       <text x="446" y="187" style={{ fill: ink2, font: `10.5px ${mono}` }}>id + checksum only</text>
 
-      {/* proposal path (full identity) */}
-      <path d="M164 96 C 300 60, 340 48, 430 45" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#disc-arrow)" />
-      <text x="196" y="66" style={{ fill: ink2, font: `10.5px ${mono}` }}>proposal · full identity</text>
+      {/* proposal path (full identity) — orthogonal, sharp turns */}
+      <path d="M164 96 H250 V45 H430" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#disc-arrow)" />
+      <text x="256" y="40" style={{ fill: ink2, font: `10.5px ${mono}` }}>proposal · full identity</text>
 
-      {/* reference path (crosses boundary) */}
-      <path d="M164 120 C 300 150, 340 168, 428 172" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#disc-arrow-a)" />
-      <text x="196" y="146" style={{ fill: ink2, font: `10.5px ${mono}` }}>reference · id + checksum</text>
+      {/* reference path (crosses the boundary) — orthogonal */}
+      <path d="M164 120 H250 V174 H430" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#disc-arrow-a)" />
+      <text x="256" y="192" style={{ fill: ink2, font: `10.5px ${mono}` }}>reference · id + checksum</text>
 
       <defs>
         <marker id="disc-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
