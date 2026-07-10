@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { PageTitle, Lead, H2, P, Deep, Foundations, Figure, SpecRef, InTheWild, Related } from '@/components/docs/prose'
+import { PageTitle, Lead, H2, P, Deep, Foundations, Figure, InTheWild, Related } from '@/components/docs/prose'
 import { McpHopDiagram } from '@/components/docs/diagrams'
 
 export const metadata: Metadata = {
