@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { PageTitle, Lead } from '@/components/docs/prose'
 
 /**
  * Getting Started — written as a *lesson*, not a checklist (react.dev-style):
@@ -28,17 +29,14 @@ export function GettingStarted() {
   const [persona, setPersona] = useState<PersonaId>('has-app')
 
   return (
-    <div className="py-section">
-      <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-c-accent mb-3">Getting started</p>
-      <h1 className="text-display-lg text-c-text text-balance">
-        Give every agent action an identity you can verify
-      </h1>
-      <p className="mt-5 text-body-lg text-c-text-2 leading-relaxed">
+    <div>
+      <PageTitle eyebrow="Get started">Give every agent action an identity you can verify</PageTitle>
+      <Lead>
         auth51 mints a scoped, single-use token for every outbound call your agent
         makes — created at the source, bound to a key that never leaves the process,
         and verified at the resource. No auth code in your tools. Pick where you&apos;re
         starting from.
-      </p>
+      </Lead>
 
       <div className="mt-9 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PERSONAS.map((p) => {

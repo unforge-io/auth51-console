@@ -3,6 +3,16 @@ import type { ReactNode } from 'react'
 
 /** Server-safe prose primitives shared across docs pages. Theme-aware c-* tokens. */
 
+/** Slug for heading anchors — mirrors the id the on-this-page TOC links to. */
+export function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
 export function PageTitle({ eyebrow, children }: { eyebrow?: string; children: ReactNode }) {
   return (
     <header className="mb-8">
@@ -19,7 +29,8 @@ export function Lead({ children }: { children: ReactNode }) {
 }
 
 export function H2({ id, children }: { id?: string; children: ReactNode }) {
-  return <h2 id={id} className="text-[22px] font-semibold text-c-text tracking-tight mt-12 mb-3 scroll-mt-24">{children}</h2>
+  const headingId = id ?? (typeof children === 'string' ? slugify(children) : undefined)
+  return <h2 id={headingId} className="text-[22px] font-semibold text-c-text tracking-tight mt-12 mb-3 scroll-mt-24">{children}</h2>
 }
 
 export function P({ children, className = '' }: { children: ReactNode; className?: string }) {
