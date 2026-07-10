@@ -19,6 +19,59 @@ const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const sans = 'inherit'
 
 /**
+ * Registration as a sequence: the client shim registers the client, then each
+ * agent (with its checksum and PoP public key), then any workflows. The Authority
+ * stores a mapping and returns ids (draft §6.2 / paper Figs 2–3).
+ */
+export function RegistrationFlowDiagram() {
+  const actors = [
+    { x: 40, w: 150, label: 'Client shim', sub: 'at deploy / CI' },
+    { x: 530, w: 150, label: 'Authority', sub: 'registries' },
+  ]
+  const lx = 115 // client lifeline
+  const rx = 605 // authority lifeline
+  const msgs: { y: number; dir: 1 | -1; label: string }[] = [
+    { y: 96, dir: 1, label: 'register client · checksum' },
+    { y: 124, dir: -1, label: '201 · client_id' },
+    { y: 164, dir: 1, label: 'register agent · checksum + PoP public key' },
+    { y: 192, dir: -1, label: '201 · registration_id' },
+    { y: 232, dir: 1, label: 'register workflow · steps' },
+    { y: 260, dir: -1, label: '201' },
+  ]
+  return (
+    <svg viewBox="0 0 720 288" width="100%" role="img" aria-label="Registration sequence" style={{ maxWidth: 720 }}>
+      {actors.map((a) => (
+        <g key={a.label}>
+          <rect x={a.x} y="14" width={a.w} height="48" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+          <text x={a.x + a.w / 2} y="36" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>{a.label}</text>
+          <text x={a.x + a.w / 2} y="51" textAnchor="middle" style={{ fill: ink3, font: `10.5px ${mono}` }}>{a.sub}</text>
+          <line x1={a.x + a.w / 2} y1="62" x2={a.x + a.w / 2} y2="278" style={{ stroke: line }} strokeWidth="1" strokeDasharray="3 4" />
+        </g>
+      ))}
+      {msgs.map((m) => {
+        const x1 = m.dir === 1 ? lx : rx
+        const x2 = m.dir === 1 ? rx : lx
+        const req = m.dir === 1
+        return (
+          <g key={m.label}>
+            <path d={`M${x1} ${m.y} H${x2}`} style={{ stroke: req ? accent : line }} strokeWidth="1.5" fill="none" strokeDasharray={req ? undefined : '5 3'} markerEnd={`url(#rf-${req ? 'a' : 'b'})`} />
+            <text x={lx + 8} y={m.y - 6} style={{ fill: ink2, font: `10.5px ${mono}` }}>{m.label}</text>
+          </g>
+        )
+      })}
+      <defs>
+        <marker id="rf-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: accent }} />
+        </marker>
+        <marker id="rf-b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
+/**
  * A registered workflow as an ordered set of steps with a scope per step and an
  * approval gate before a privileged one. The authority checks the step, its
  * prerequisites, and the gate before it will mint (draft §4.3.3 / §9.3).

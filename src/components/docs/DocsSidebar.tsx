@@ -63,6 +63,25 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    heading: 'Protocol flows',
+    items: [
+      { label: 'Overview', href: '/docs/flows' },
+      { label: 'Registration', href: '/docs/flows/registration' },
+      { label: 'Token minting', href: '/docs/flows/minting' },
+      { label: 'Workflow tracking', href: '/docs/flows/workflow-tracking' },
+      { label: 'Multi-agent delegation', href: '/docs/flows/multi-agent' },
+    ],
+  },
+  {
+    heading: 'Security model',
+    items: [
+      { label: 'Overview', href: '/docs/security' },
+      { label: 'Threat model', href: '/docs/security/threat-model' },
+      { label: 'Security anchors', href: '/docs/security/security-anchors' },
+      { label: 'Zero-Trust enforcement zones', href: '/docs/security/enforcement-zones' },
+    ],
+  },
+  {
     heading: 'Guides',
     items: [
       { label: 'Keyless on AWS' },
