@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { PageTitle, Lead, H2, P, InTheWild, Related } from '@/components/docs/prose'
+import { PageTitle, Lead, H2, P, Deep, Foundations, Figure, SpecRef, InTheWild, Related } from '@/components/docs/prose'
+import { McpHopDiagram } from '@/components/docs/diagrams'
 
 export const metadata: Metadata = {
   title: 'MCP governance',
@@ -18,6 +19,24 @@ export default function McpGovernance() {
         the agent&rsquo;s behalf. Governing the agent&rsquo;s own egress isn&rsquo;t enough anymore; you have to
         govern what it asks an MCP server to do, one tool call at a time.
       </Lead>
+
+      <Foundations title="What MCP is, and why a header won&rsquo;t do">
+        <p>
+          The <strong>Model Context Protocol</strong>{' '}
+          (<a href="https://modelcontextprotocol.io" target="_blank" rel="noreferrer">MCP</a>) is an open
+          standard for connecting agents to tools and data. An agent talks to an MCP server over{' '}
+          <strong>JSON-RPC 2.0</strong> — structured request/response messages, not HTTP requests with
+          headers you can stamp a token onto. So the usual place to carry an{' '}
+          <code>Authorization</code> header simply isn&rsquo;t there.
+        </p>
+        <p>
+          MCP does define a reserved <code>_meta</code> field on messages for exactly this kind of
+          out-of-band data. auth51 carries the intent token there, so authorization travels <em>with</em>{' '}
+          the specific tool call. And because the downstream call is a fresh mint, the second hop is an
+          ordinary <a href="/docs/reference">OAuth Token Exchange (RFC&nbsp;8693)</a> — the same machinery
+          as everywhere else in auth51.
+        </p>
+      </Foundations>
 
       <H2>The token rides in the call, not a header</H2>
       <P>
@@ -47,6 +66,27 @@ export default function McpGovernance() {
         what the other was allowed.
       </P>
 
+      <Figure n={1} caption={<>The intent token rides in the JSON-RPC <code>_meta</code> on Hop A (a delegation subject, no <code>cnf</code>). The MCP server mints a fresh Hop-B token, bound to its own key, for the real downstream call.</>}>
+        <McpHopDiagram />
+      </Figure>
+
+      <Deep title="What&rsquo;s in the _meta envelope">
+        <P>
+          MCP reserves <code className="code-inline">_meta</code> on requests for implementation-defined
+          data, namespaced by key. auth51 uses the key{' '}
+          <code className="code-inline">io.auth51/intent</code> and places the intent token there,
+          alongside the tool name and arguments already in the JSON-RPC{' '}
+          <code className="code-inline">params</code>.
+        </P>
+        <P className="!mb-0">
+          Because the token sits in the message body rather than a transport header, it survives every
+          hop the message takes — stdio, HTTP+SSE, a relay — and it can be checked against the exact
+          <code className="code-inline"> tool</code> and arguments it authorizes, not just the connection
+          it arrived on. A token minted for <code className="code-inline">read_file</code> can&rsquo;t be
+          reused to justify a <code className="code-inline">delete_file</code> in the same session.
+        </P>
+      </Deep>
+
       <H2>The proxy: governance without changing the server</H2>
       <P>
         You usually don&rsquo;t control the MCP servers your agents use. So auth51 ships a small,
@@ -55,6 +95,20 @@ export default function McpGovernance() {
         reaches the server. The agent and the server are unchanged; the proxy is the enforcement
         point in between.
       </P>
+
+      <Deep title="Why an inline proxy, not a library">
+        <P>
+          A library would mean modifying every agent and trusting each one to call it. The proxy
+          inverts that: it&rsquo;s a mandatory chokepoint the tool call <em>must</em> pass through, so
+          governance doesn&rsquo;t depend on the agent&rsquo;s cooperation — which matters precisely when a
+          prompt-injected agent is trying to misbehave.
+        </P>
+        <P className="!mb-0">
+          The proxy is where policy and mint happen together: it evaluates the tool and arguments
+          against your grant, and only if the call is allowed does it produce the Hop-A intent token.
+          A denied call never gets a token, so the MCP server never sees an authorized request for it.
+        </P>
+      </Deep>
 
       <InTheWild title="A tool result that tells the agent to misbehave">
         Prompt injection through a tool: a document or a web page the agent reads contains

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { PageTitle, Lead, H2, P, Callout, InTheWild, Related } from '@/components/docs/prose'
+import { PageTitle, Lead, H2, P, Deep, Foundations, Figure, SpecRef, Callout, InTheWild, Related } from '@/components/docs/prose'
+import { NonAmplificationDiagram } from '@/components/docs/diagrams'
 
 export const metadata: Metadata = {
   title: 'Non-amplification',
@@ -18,6 +19,23 @@ export default function NonAmplification() {
         way — the worker ends up able to do more than the planner was ever allowed to. auth51&rsquo;s
         answer is a rule with a plain name: authority can go down a chain, never up.
       </Lead>
+
+      <Foundations title="The old problem this is a new name for">
+        <p>
+          This is the <strong>confused deputy</strong>, a failure mode identified in access-control
+          research decades ago: a program with real privileges is tricked by a less-privileged caller
+          into using those privileges on the caller&rsquo;s behalf. The authority that gets used is the
+          deputy&rsquo;s, not the caller&rsquo;s — so privilege is effectively laundered upward.
+        </p>
+        <p>
+          The classic mitigation is <em>least privilege</em> plus <em>attenuation</em>: authority may
+          only ever be narrowed as it&rsquo;s passed along, never broadened. OAuth already has the mechanism
+          for the narrowing half — <a href="/docs/reference">Token Exchange (RFC&nbsp;8693)</a> lets a
+          holder trade a token for a <em>more constrained</em> one. auth51 makes attenuation the only
+          direction that exists: every mint is checked against a ceiling, so a hop can shrink authority
+          but never grow it.
+        </p>
+      </Foundations>
 
       <H2>The grant is the ceiling</H2>
       <P>
@@ -46,6 +64,29 @@ export default function NonAmplification() {
         approval gates — before it mints. A step can&rsquo;t claim scopes the workflow didn&rsquo;t give
         it, and it can&rsquo;t run before the steps it depends on have completed.
       </P>
+
+      <Figure n={1} caption={<>Down a delegation chain, each agent mints against its own grant and the authority only narrows. The token that reaches a resource is a subset of every grant above it — never a superset.</>}>
+        <NonAmplificationDiagram />
+      </Figure>
+
+      <Deep title="What the authority actually checks at each mint">
+        <P>
+          When a request carries a <code className="code-inline">delegation_context</code>, the authority
+          validates the chain before it mints: every agent named in the chain is registered, the chain is
+          a path each parent actually authorized, and the requesting agent is the last link.{' '}
+          <SpecRef>draft-goswami-agentic-jwt §4.3.4</SpecRef>
+        </P>
+        <P>
+          For a workflow run it adds step checks: prerequisite steps must be complete, approval gates for
+          high-privilege steps must have been passed, and a step can only claim the scopes its workflow
+          definition granted it — no skipping ahead, no widening.
+        </P>
+        <P className="!mb-0">
+          Delegation depth is bounded to stop runaway chains, and if a parent agent is found compromised,
+          the whole delegation chain beneath it can be revoked at once.{' '}
+          <SpecRef>draft-goswami-agentic-jwt §9.3</SpecRef>
+        </P>
+      </Deep>
 
       <InTheWild title="The confused deputy">
         The classic failure: a low-privilege caller gets a high-privilege component to act for

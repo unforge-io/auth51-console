@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { PageTitle, Lead, H2, P, Callout, InTheWild, Related } from '@/components/docs/prose'
+import { PageTitle, Lead, H2, P, Deep, Foundations, Figure, Callout, InTheWild, Related } from '@/components/docs/prose'
+import { DiscoveryBoundaryDiagram } from '@/components/docs/diagrams'
 
 export const metadata: Metadata = {
   title: 'Discovery & the trust boundary',
@@ -18,6 +19,23 @@ export default function Discovery() {
         you haven&rsquo;t approved and put them in front of you — without quietly trusting them, and
         without your prompts ending up somewhere they shouldn&rsquo;t.
       </Lead>
+
+      <Foundations title="Why the authority is kept blind on purpose">
+        <p>
+          It&rsquo;s a long-standing security principle — <em>data minimization</em>, and least privilege
+          applied to components: the part of a system that holds the keys and mints the credentials
+          should see as little as it can get away with. In auth51 that part is the{' '}
+          <strong>authority</strong>. An agent&rsquo;s system prompt is often its most sensitive asset, so
+          the authority is designed never to receive one for an agent you haven&rsquo;t approved.
+        </p>
+        <p>
+          There&rsquo;s an OAuth parallel. Just as a client formally enters an authorization server through
+          <a href="https://www.rfc-editor.org/rfc/rfc7591" target="_blank" rel="noreferrer"> Dynamic Client
+          Registration (RFC&nbsp;7591)</a> — a deliberate, sanctioned step — an agent&rsquo;s identity enters
+          the trusted core only through registration. Discovery is what happens <em>before</em> that
+          step: visibility without trust.
+        </p>
+      </Foundations>
 
       <H2>What happens when an unknown agent runs</H2>
       <P>
@@ -47,12 +65,33 @@ export default function Discovery() {
         content lives in the discovery service, a separate component, and stays there for your
         review.
       </P>
+
+      <Figure n={1} caption={<>An unregistered agent&rsquo;s full identity goes only to the discovery service. Only a reference — id and checksum — crosses into the trusted core, so the authority never holds a prompt you haven&rsquo;t approved.</>}>
+        <DiscoveryBoundaryDiagram />
+      </Figure>
+
       <P>
         Approval is the one path that moves content into the authority, and it&rsquo;s a deliberate
         human action: clicking Register runs the normal registration, which is the sanctioned
         way for a prompt and tool set to enter the trusted core. Nothing an unregistered agent
         emitted gets there on its own.
       </P>
+
+      <Deep title="Why a checksum is enough to join the two halves">
+        <P>
+          The two paths never share the prompt, yet the console still lines them up. That works because
+          the checksum is a deterministic fingerprint of the agent&rsquo;s identity (see agent identity): the
+          client computes the same value the authority recorded as a reference, and the discovery service
+          stores the full identity under that same value.
+        </P>
+        <P className="!mb-0">
+          So the join key is a hash both sides arrive at independently — not a shared copy of the
+          sensitive content. The authority learns &ldquo;an unregistered agent with checksum{' '}
+          <code className="code-inline">a7f3…</code> tried to act,&rdquo; and the console can show you what
+          that checksum <em>is</em> by looking it up in discovery — without the prompt ever passing
+          through the authority.
+        </P>
+      </Deep>
 
       <Callout kind="warning">
         Discovery is not permission. An unregistered agent&rsquo;s governed calls are denied the

@@ -202,6 +202,140 @@ export function IntentTokenAnatomy() {
   )
 }
 
+/**
+ * MCP two-hop governance. Hop A carries the agent's intent token inside the
+ * JSON-RPC _meta (delegation subject, no cnf). The MCP server mints a fresh
+ * Hop-B token bound to its own key for the real downstream call.
+ */
+export function McpHopDiagram() {
+  const nodes = [
+    { x: 8, w: 132, label: 'Agent', sub: 'asks for a tool' },
+    { x: 180, w: 132, label: 'auth51 proxy', sub: 'policy + mint' },
+    { x: 352, w: 132, label: 'MCP server', sub: 'mints Hop-B' },
+    { x: 560, w: 152, label: 'Downstream API', sub: 'the real system' },
+  ]
+  return (
+    <svg viewBox="0 0 720 172" width="100%" role="img" aria-label="MCP two-hop governance" style={{ maxWidth: 720 }}>
+      {/* hop spans */}
+      <text x="150" y="34" style={{ fill: ink3, font: `600 10.5px ${mono}` }}>HOP A · token in _meta · no cnf</text>
+      <text x="486" y="34" style={{ fill: accent, font: `600 10.5px ${mono}` }}>HOP B · bound to server key</text>
+
+      {nodes.map((n) => (
+        <g key={n.label}>
+          <rect x={n.x} y="48" width={n.w} height="56" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+          <text x={n.x + n.w / 2} y="72" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>{n.label}</text>
+          <text x={n.x + n.w / 2} y="89" textAnchor="middle" style={{ fill: ink3, font: `10.5px ${mono}` }}>{n.sub}</text>
+        </g>
+      ))}
+
+      {/* hop-A arrows (delegation) */}
+      <path d="M140 76 H180" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#mcp-arrow)" />
+      <path d="M312 76 H352" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#mcp-arrow)" />
+      {/* hop-B arrow (PoP) */}
+      <path d="M484 76 H560" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#mcp-arrow-a)" />
+
+      {/* spans underline */}
+      <path d="M8 128 H484" style={{ stroke: line }} strokeWidth="1" strokeDasharray="2 4" fill="none" />
+      <path d="M352 140 H712" style={{ stroke: accent, opacity: 0.5 }} strokeWidth="1" strokeDasharray="2 4" fill="none" />
+      <text x="8" y="124" style={{ fill: ink3, font: `10px ${mono}` }}>agent asked · server relays</text>
+      <text x="560" y="156" textAnchor="end" style={{ fill: ink3, font: `10px ${mono}` }}>server acts · proof-of-possession</text>
+
+      <defs>
+        <marker id="mcp-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+        <marker id="mcp-arrow-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: accent }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
+/**
+ * The discovery trust boundary. An unregistered agent's full identity (prompt,
+ * tools, checksum) goes only to the discovery service; only a reference (id +
+ * checksum) crosses into the trusted core where the authority mints and holds keys.
+ */
+export function DiscoveryBoundaryDiagram() {
+  return (
+    <svg viewBox="0 0 720 216" width="100%" role="img" aria-label="Discovery trust boundary" style={{ maxWidth: 720 }}>
+      {/* client */}
+      <rect x="8" y="78" width="156" height="60" rx="8" style={{ fill: surface, stroke: line }} strokeWidth="1" />
+      <text x="86" y="102" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>Client</text>
+      <text x="86" y="119" textAnchor="middle" style={{ fill: ink3, font: `10.5px ${mono}` }}>sees prompt + tools</text>
+
+      {/* discovery service (outside the boundary) */}
+      <rect x="430" y="16" width="282" height="58" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+      <text x="446" y="39" style={{ fill: ink, font: `600 12px ${sans}` }}>Discovery service</text>
+      <text x="446" y="57" style={{ fill: ink3, font: `10.5px ${mono}` }}>prompt · tools · checksum</text>
+
+      {/* trusted core */}
+      <rect x="406" y="128" width="306" height="76" rx="12" style={{ fill: 'none', stroke: accent }} strokeWidth="1.25" strokeDasharray="4 4" />
+      <text x="418" y="146" style={{ fill: accent, font: `600 10px ${mono}`, letterSpacing: '0.05em' }}>TRUSTED CORE</text>
+      <rect x="430" y="152" width="262" height="44" rx="8" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1" />
+      <text x="446" y="170" style={{ fill: ink, font: `600 12px ${sans}` }}>Authority</text>
+      <text x="446" y="187" style={{ fill: ink2, font: `10.5px ${mono}` }}>id + checksum only</text>
+
+      {/* proposal path (full identity) */}
+      <path d="M164 96 C 300 60, 340 48, 430 45" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#disc-arrow)" />
+      <text x="196" y="66" style={{ fill: ink2, font: `10.5px ${mono}` }}>proposal · full identity</text>
+
+      {/* reference path (crosses boundary) */}
+      <path d="M164 120 C 300 150, 340 168, 428 172" style={{ stroke: accent }} strokeWidth="1.5" fill="none" markerEnd="url(#disc-arrow-a)" />
+      <text x="196" y="146" style={{ fill: ink2, font: `10.5px ${mono}` }}>reference · id + checksum</text>
+
+      <defs>
+        <marker id="disc-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+        <marker id="disc-arrow-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: accent }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
+/**
+ * Non-amplification. Down a delegation chain each agent mints against its own
+ * grant, and the authority narrows — never widens — the authority at every mint.
+ * Bar width encodes how much scope each hop carries.
+ */
+export function NonAmplificationDiagram() {
+  const rows = [
+    { y: 44, label: 'supervisor', w: 520, scope: 'repo:*   deploy:*' },
+    { y: 96, label: 'planner', w: 360, scope: 'repo:write' },
+    { y: 148, label: 'patcher', w: 208, scope: 'repo:write · 1 file' },
+  ]
+  return (
+    <svg viewBox="0 0 720 196" width="100%" role="img" aria-label="Non-amplification down a delegation chain" style={{ maxWidth: 720 }}>
+      <text x="8" y="20" style={{ fill: ink3, font: `600 10.5px ${mono}` }}>AUTHORITY ONLY NARROWS — EACH HOP ⊆ THE LAST</text>
+
+      {rows.map((r, i) => (
+        <g key={r.label}>
+          <text x="8" y={r.y + 20} style={{ fill: ink, font: `600 12px ${sans}` }}>{r.label}</text>
+          <rect x="150" y={r.y} width={r.w} height="32" rx="7"
+            style={{ fill: i === rows.length - 1 ? accentFaint : surface2, stroke: i === rows.length - 1 ? accent : line }} strokeWidth="1" />
+          <text x="166" y={r.y + 21} style={{ fill: ink2, font: `11.5px ${mono}` }}>{r.scope}</text>
+          {i < rows.length - 1 && (
+            <>
+              <path d={`M90 ${r.y + 32} V ${r.y + 52}`} style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#na-arrow)" />
+              <text x="150" y={r.y + 48} style={{ fill: ink3, font: `13px ${sans}` }}>⊇</text>
+            </>
+          )}
+        </g>
+      ))}
+
+      <defs>
+        <marker id="na-arrow" viewBox="0 0 10 10" refX="5" refY="8" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0 L10 0 L5 10 z" style={{ fill: line }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
 /** The A–F abstract protocol flow (draft §3.2), redrawn cleanly and theme-aware. */
 export function ProtocolFlowDiagram() {
   const actors = [
