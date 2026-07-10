@@ -19,6 +19,86 @@ const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const sans = 'inherit'
 
 /**
+ * A registered workflow as an ordered set of steps with a scope per step and an
+ * approval gate before a privileged one. The authority checks the step, its
+ * prerequisites, and the gate before it will mint (draft §4.3.3 / §9.3).
+ */
+export function WorkflowStepsDiagram() {
+  return (
+    <svg viewBox="0 0 720 132" width="100%" role="img" aria-label="Workflow steps with an approval gate" style={{ maxWidth: 720 }}>
+      {/* step 1 */}
+      <rect x="8" y="40" width="150" height="52" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+      <text x="83" y="63" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>step_1 · analyze</text>
+      <text x="83" y="80" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>repo:read</text>
+      <path d="M158 66 H200" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#wf-arrow)" />
+
+      {/* step 2 */}
+      <rect x="200" y="40" width="150" height="52" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+      <text x="275" y="63" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>step_2 · plan</text>
+      <text x="275" y="80" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>repo:read</text>
+      <path d="M350 66 H392" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#wf-arrow)" />
+
+      {/* approval gate */}
+      <rect x="392" y="48" width="96" height="36" rx="18" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1.25" />
+      <text x="440" y="70" textAnchor="middle" style={{ fill: ink, font: `600 11px ${mono}` }}>approval</text>
+      <path d="M488 66 H530" style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#wf-arrow)" />
+
+      {/* step 3 (privileged) */}
+      <rect x="530" y="40" width="182" height="52" rx="8" style={{ fill: surface, stroke: accent }} strokeWidth="1.25" />
+      <text x="621" y="63" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>step_3 · patch</text>
+      <text x="621" y="80" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>repo:write · step-up</text>
+
+      <text x="8" y="24" style={{ fill: ink3, font: `600 10.5px ${mono}` }}>PREREQUISITES ENFORCED · NO STEP SKIPPED · GATE MUST PASS</text>
+
+      <defs>
+        <marker id="wf-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
+/**
+ * A delegation path hashed into the token. Each hop is a registered agent; the
+ * ordered chain is hashed (SHA-256, truncated) so a resource server can detect a
+ * tampered path without calling back (draft §4.4.4).
+ */
+export function DelegationChainDiagram() {
+  const hops = [
+    { x: 8, label: 'supervisor' },
+    { x: 270, label: 'planner' },
+    { x: 532, label: 'patcher' },
+  ]
+  return (
+    <svg viewBox="0 0 720 138" width="100%" role="img" aria-label="Delegation chain hashed into the token" style={{ maxWidth: 720 }}>
+      {hops.map((h, i) => (
+        <g key={h.label}>
+          <rect x={h.x} y="20" width="180" height="48" rx="8" style={{ fill: surface2, stroke: line }} strokeWidth="1" />
+          <text x={h.x + 90} y="49" textAnchor="middle" style={{ fill: ink, font: `600 12px ${sans}` }}>{h.label}</text>
+          {i < hops.length - 1 && (
+            <>
+              <path d={`M${h.x + 180} 44 H${hops[i + 1].x}`} style={{ stroke: line }} strokeWidth="1.5" fill="none" markerEnd="url(#dc-arrow)" />
+              <text x={h.x + 180 + 41} y="36" textAnchor="middle" style={{ fill: ink3, font: `10px ${mono}` }}>delegates</text>
+            </>
+          )}
+        </g>
+      ))}
+
+      {/* hashed chain chip */}
+      <rect x="8" y="92" width="704" height="34" rx="8" style={{ fill: accentFaint, stroke: accent }} strokeWidth="1" />
+      <text x="24" y="113" style={{ fill: ink2, font: `11px ${mono}` }}>delegation_chain = SHA-256(&quot;supervisor|planner|patcher&quot;)[:16] = f3e8d9c7b2a41a3c</text>
+
+      <defs>
+        <marker id="dc-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style={{ fill: line }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+}
+
+/**
  * System topology. The control-plane calls (mint, propose, fetch keys) are
  * faint; the single data-plane call (agent → resource) is the accent line. The
  * checksum engine runs identically on both sides of the trust boundary.
