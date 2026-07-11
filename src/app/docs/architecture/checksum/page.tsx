@@ -15,9 +15,11 @@ export default function ChecksumEngine() {
 
       <Lead>
         The checksum engine isn&rsquo;t a service — it&rsquo;s the one piece of code that has to run identically
-        everywhere. The client computes an agent&rsquo;s fingerprint at runtime; the Authority computed it
-        at registration and recomputes it at mint. Because both sides run the same bytes, a client can
-        prove &ldquo;this is the registered, unmodified agent&rdquo; without the agent ever declaring who it is.
+        everywhere. The client computes an agent&rsquo;s fingerprint at runtime; the Authority independently
+        recomputes it <em>at registration</em> (rejecting a submitted checksum that doesn&rsquo;t match) and,
+        at mint, checks the presented fingerprint against that stored value. Because both sides run the
+        same bytes, a client can prove &ldquo;this is the registered, unmodified agent&rdquo; without the agent
+        ever declaring who it is.
       </Lead>
 
       <H2>What it hashes</H2>
@@ -85,7 +87,7 @@ export default function ChecksumEngine() {
 
       <Related items={[
         { href: '/docs/concepts/agent-identity', label: 'Concept — agent identity' },
-        { href: '/docs/architecture/authority', label: 'Authority — recomputes it at mint' },
+        { href: '/docs/architecture/authority', label: 'Authority — recomputes at registration, verifies at mint' },
         { href: '/docs/architecture/client-runtime', label: 'Client runtime — recomputes it at runtime' },
       ]} />
     </article>
