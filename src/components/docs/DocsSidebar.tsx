@@ -19,7 +19,7 @@ const SECTIONS: Section[] = [
     items: [
       { label: 'Overview', href: '/docs' },
       { label: 'Quickstart', href: '/docs/start' },
-      { label: 'Threat lab' }, // soon
+      { label: 'Threat lab', href: '/docs/threat-lab' },
     ],
   },
   {
