@@ -22,11 +22,13 @@ export default function GrantsAndScopes() {
 
       <H2>Scopes: one permission each</H2>
       <P>
-        A scope is the familiar OAuth unit — <code className="code-inline">repo:write</code>,
-        <code className="code-inline"> vulnerability:read</code>, <code className="code-inline">payment:charge</code>{' '}
-        — naming one capability against one audience. auth51 doesn&rsquo;t change what a scope <em>is</em>;
-        it changes how tightly a token is held to one. An intent token is minted for exactly the
-        scope its single action needs, drawn from what the grant allows.
+        A scope is the familiar OAuth unit — naming one capability. auth51 doesn&rsquo;t change what a
+        scope <em>is</em>; it changes how tightly a token is held to one. An intent token is minted for
+        exactly the scope its single action needs, drawn from what the grant allows. Scopes come in two
+        namespaces — <code className="code-inline">mcp:tool:*</code> for &ldquo;may this agent invoke this
+        tool&rdquo; and <code className="code-inline">a51:rs:*</code> for &ldquo;may this token perform this
+        resource operation&rdquo; — assembled from your{' '}
+        <a href="/docs/concepts/capabilities">capability surface</a>. A grant draws on both.
       </P>
 
       <H2>The grant: base and step-up</H2>
@@ -36,6 +38,39 @@ export default function GrantsAndScopes() {
         escalation — the higher-privilege actions you want gated behind an approval rather than
         available by default. Ask for a base scope and the mint proceeds if it&rsquo;s in the grant; ask
         for a step-up scope without an approved escalation and the mint is refused.
+      </P>
+
+      <H2>How a grant is derived</H2>
+      <P>
+        You don&rsquo;t write a grant by hand. When an agent registers, the Authority derives one from
+        its declared surface — the tools it ships with and the servers it&rsquo;s pointed at — and tiers
+        every scope by risk. Three things happen:
+      </P>
+      <ul className="my-5 space-y-3 text-[14px] text-c-text-2">
+        <li>
+          <strong className="text-c-text">In-process tools are auto-granted.</strong> A function the
+          agent ships with is part of its <a href="/docs/concepts/agent-identity">identity</a>, so its
+          tool scope goes straight into the grant.
+        </li>
+        <li>
+          <strong className="text-c-text">MCP tools are inferred, not assumed.</strong> A rented tool
+          isn&rsquo;t granted just because it&rsquo;s installed. auth51 reads the agent&rsquo;s system prompt and
+          admits the tools its stated purpose actually implies (a deterministic match — no model in the
+          loop), leaving the rest for later. You can switch this to grant nothing by default and let the
+          grant grow only through escalation.
+        </li>
+        <li>
+          <strong className="text-c-text">Endpoint scopes ride along.</strong> For the tools that made
+          it into the envelope, the resource-endpoint (<code className="code-inline">a51:rs:*</code>)
+          scopes they map to are unioned in too — so the grant bounds the <em>effects</em>, not just the
+          tool calls.
+        </li>
+      </ul>
+      <P>
+        Each scope then lands in a tier by its risk: reversible operations become base scopes; a
+        destructive one — a delete, a payment, a drop — becomes a step-up scope, gated behind approval.
+        Later, a <strong>just-in-time escalation</strong> can add a scope to the envelope for a bounded
+        window and then expire, so a one-off need doesn&rsquo;t permanently widen the grant.
       </P>
 
       <Figure n={1} caption={<>A grant is a ceiling. Down a delegation chain each agent mints against its own grant, and authority only ever narrows — a derived token is a subset, never a superset.</>}>
@@ -76,6 +111,7 @@ export default function GrantsAndScopes() {
       </Deep>
 
       <Related items={[
+        { href: '/docs/concepts/capabilities', label: 'Capabilities & the surface' },
         { href: '/docs/concepts/workflows', label: 'Workflows & steps' },
         { href: '/docs/concepts/non-amplification', label: 'Non-amplification' },
         { href: '/docs/concepts/intent-tokens', label: 'Intent tokens' },

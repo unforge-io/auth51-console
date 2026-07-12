@@ -54,6 +54,7 @@ const SECTIONS: Section[] = [
       { label: 'Agent identity', href: '/docs/concepts/agent-identity' },
       { label: 'Intent tokens', href: '/docs/concepts/intent-tokens' },
       { label: 'Proof-of-possession', href: '/docs/concepts/proof-of-possession' },
+      { label: 'Capabilities & the surface', href: '/docs/concepts/capabilities' },
       { label: 'Grants & scopes', href: '/docs/concepts/grants-and-scopes' },
       { label: 'Workflows & steps', href: '/docs/concepts/workflows' },
       { label: 'Delegation & chains', href: '/docs/concepts/delegation' },
