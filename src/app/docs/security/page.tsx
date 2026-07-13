@@ -5,14 +5,14 @@ import { PageTitle, Lead, P } from '@/components/docs/prose'
 export const metadata: Metadata = {
   title: 'Security model',
   description:
-    "The threats auth51 is built to stop, the design anchors that stop them, and where each check is enforced — the Zero-Trust reasoning behind the protocol.",
+    'The threats auth51 is built to stop, the design anchors that stop them, and where each check is enforced. The Zero-Trust reasoning behind the protocol.',
 }
 
 const PAGES = [
   { href: '/docs/security/threat-model', title: 'Threat model', n: '1',
-    body: 'The agent-specific attacks — spoofed identities, replayed tokens, runtime tampering, privilege escalation across agents — organized by STRIDE, with the real-world precedents behind each.' },
+    body: 'The agent-specific attacks (spoofed identities, replayed tokens, runtime tampering, privilege escalation across agents), organized by STRIDE, with the real-world precedents behind each.' },
   { href: '/docs/security/security-anchors', title: 'Security anchors', n: '2',
-    body: 'The design principles that mitigate the threats: checksum verification, PoP key binding, scope and step authorization, delegation and intent binding, input hygiene — and which threats each one closes.' },
+    body: 'The design principles that mitigate the threats: checksum verification, PoP key binding, scope and step authorization, delegation and intent binding, input hygiene. Plus which threats each one closes.' },
   { href: '/docs/security/enforcement-zones', title: 'Zero-Trust enforcement zones', n: '3',
     body: 'Where the checks actually run: the Authority as the decision point, the client runtime and resource verifier as enforcement points, and why nothing is trusted by location.' },
 ]
@@ -27,7 +27,7 @@ export default function SecurityIndex() {
         the threats, the anchors that mitigate them, and where enforcement lives.
       </Lead>
       <P>
-        The analysis here is re-derived from the protocol&rsquo;s threat model — a STRIDE enumeration of
+        The analysis here is re-derived from the protocol&rsquo;s threat model: a STRIDE enumeration of
         the attacks that become possible once the client is a non-deterministic agent, and the
         mechanisms the protocol introduces to answer each one.
       </P>

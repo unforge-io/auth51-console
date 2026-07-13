@@ -6,18 +6,18 @@ import { SystemMapDiagram } from '@/components/docs/diagrams'
 export const metadata: Metadata = {
   title: 'Architecture',
   description:
-    'The auth51 system as a set of components — Authority, client runtime, MCP proxy, discovery, verifier, checksum, contracts — and how they map onto Zero-Trust roles.',
+    'The auth51 system as a set of components (Authority, client runtime, MCP proxy, discovery, verifier, checksum, contracts) and how they map onto Zero-Trust roles.',
 }
 
 const COMPONENTS = [
   { href: '/docs/architecture/authority', title: 'Authority', role: 'PDP · trust root',
     body: 'The adaptive IDP. Holds the agent and workflow registries, mints intent tokens, publishes keys, and re-verifies every checksum at mint.' },
   { href: '/docs/architecture/client-runtime', title: 'Client runtime', role: 'PEP · in-process',
-    body: 'The embedded enforcement point. Sees all agent egress, derives identity, mints and attaches the intent token — the durable, unbypassable path.' },
+    body: 'The embedded enforcement point. Sees all agent egress, derives identity, mints and attaches the intent token. This is the durable path an agent cannot route around.' },
   { href: '/docs/architecture/mcp-proxy', title: 'MCP proxy', role: 'PEP · tool boundary',
     body: 'Drops in front of any MCP server. Inspects every tool call, blocks out-of-scope or destructive actions, and writes an append-only audit trail.' },
   { href: '/docs/architecture/discovery', title: 'Discovery service', role: 'staging',
-    body: 'The staging channel for unregistered agents. Holds observed prompt + tools so the console can review and approve — keeping content out of the Authority.' },
+    body: 'The staging channel for unregistered agents. Holds observed prompt + tools so the console can review and approve, keeping content out of the Authority.' },
   { href: '/docs/architecture/verifier', title: 'Verifier', role: 'PEP · resource side',
     body: 'Resource-server middleware. Verifies the token signature and DPoP binding statelessly, backward-compatible with plain OAuth resource servers.' },
   { href: '/docs/architecture/checksum', title: 'Checksum engine', role: 'shared library',
@@ -36,7 +36,7 @@ export default function ArchitectureIndex() {
         This page is the map; each component below has its own page with the detail.
       </Lead>
 
-      <Figure n={1} caption={<>The runtime topology. Control-plane calls (mint, propose, fetch keys) are faint; the single data-plane call — agent to resource, carrying the intent token — is the accent line. The checksum engine runs identically on both sides.</>}>
+      <Figure n={1} caption={<>The runtime topology. Control-plane calls (mint, propose, fetch keys) are faint. The single data-plane call, agent to resource carrying the intent token, is the accent line. The checksum engine runs identically on both sides.</>}>
         <SystemMapDiagram />
       </Figure>
 
@@ -45,7 +45,7 @@ export default function ArchitectureIndex() {
         Read the diagram as two planes. The <strong>control plane</strong> is everything that
         decides: the client runtime asking the Authority to mint, an unregistered agent&rsquo;s content
         going to discovery, a resource server fetching keys. The <strong>data plane</strong> is the
-        one call that does real work — the agent hitting a resource with an intent token. The
+        one call that does real work: the agent hitting a resource with an intent token. The
         Authority (the trust root) makes decisions but never sits on the data path, so it can&rsquo;t
         become a bottleneck or a single point of interception.
       </P>
@@ -56,8 +56,8 @@ export default function ArchitectureIndex() {
         is the Policy Decision Point. The{' '}
         <Link href="/docs/architecture/client-runtime" className="text-c-accent-2 hover:underline">client runtime</Link>{' '}
         and the <Link href="/docs/architecture/verifier" className="text-c-accent-2 hover:underline">verifier</Link>{' '}
-        are Policy Enforcement Points on opposite sides of the call — one proves identity and intent
-        at the source, the other re-verifies independently at the resource. The{' '}
+        are Policy Enforcement Points on opposite sides of the call. One proves identity and intent
+        at the source; the other re-verifies independently at the resource. The{' '}
         <Link href="/docs/architecture/mcp-proxy" className="text-c-accent-2 hover:underline">MCP proxy</Link>{' '}
         is a third enforcement point for the tool boundary.
       </P>
@@ -66,13 +66,13 @@ export default function ArchitectureIndex() {
         <P>
           Only three components touch a live request: the client runtime (or MCP proxy) at the
           source, and the verifier at the resource. The Authority is consulted at mint time, not on
-          every downstream hop. Discovery is off the request path entirely — it only ever sees an
+          every downstream hop. Discovery is off the request path entirely. It only ever sees an
           unregistered agent&rsquo;s content, out of band.
         </P>
         <P className="!mb-0">
           The <Link href="/docs/architecture/checksum" className="text-c-accent-2 hover:underline">checksum engine</Link>{' '}
           and <Link href="/docs/architecture/contracts" className="text-c-accent-2 hover:underline">contracts</Link>{' '}
-          aren&rsquo;t services at all — they&rsquo;re shared code. The checksum engine guarantees both sides
+          aren&rsquo;t services at all. They are shared code. The checksum engine guarantees both sides
           compute identity identically; contracts guarantee every client&rsquo;s types match what the
           Authority actually serves.
         </P>
@@ -93,9 +93,9 @@ export default function ArchitectureIndex() {
       </ul>
 
       <Related items={[
-        { href: '/docs/foundations/zero-trust', label: 'Foundations — Zero-Trust alignment' },
-        { href: '/docs/concepts', label: 'Concepts — the objects these components move' },
-        { href: '/docs/reference', label: 'Reference — standards & spec' },
+        { href: '/docs/foundations/zero-trust', label: 'Foundations: Zero-Trust alignment' },
+        { href: '/docs/concepts', label: 'Concepts: the objects these components move' },
+        { href: '/docs/reference', label: 'Reference: standards & spec' },
       ]} />
     </div>
   )

@@ -5,14 +5,14 @@ import Link from 'next/link'
 import { PageTitle, Lead } from '@/components/docs/prose'
 
 /**
- * Getting Started — written as a *lesson*, not a checklist (react.dev-style):
+ * Getting Started, written as a *lesson* (react.dev-style):
  * hook with the outcome → teach the one mental model → motivate each step
  * before its code → interleave prose/code with Note/Pitfall/Deep-dive callouts
  * → show the result → recap + next steps.
  *
  * IMPORTANT (theming): this page lives on the dark marketing canvas. The
  * editorial `text-ink` / `bg-bg-subtle` tokens are LIGHT-mode values that the
- * `.dark` class never overrides — using them here renders dark-on-dark. We use
+ * `.dark` class never overrides, so using them here renders dark-on-dark. We use
  * the theme-aware `--c-*` console tokens (text-c-text / c-text-2 / c-text-3,
  * bg-c-surface, border-c-border, text-c-accent) which are tuned for contrast.
  */
@@ -20,7 +20,7 @@ import { PageTitle, Lead } from '@/components/docs/prose'
 type PersonaId = 'has-app' | 'mcp' | 'no-app'
 
 const PERSONAS: { id: PersonaId; label: string; blurb: string; status: 'ready' | 'preview' | 'soon' }[] = [
-  { id: 'has-app', label: 'I have an agent app', blurb: 'A Python agent making outbound calls — LangGraph, CrewAI, or your own', status: 'ready' },
+  { id: 'has-app', label: 'I have an agent app', blurb: 'A Python agent making outbound calls: LangGraph, CrewAI, or your own', status: 'ready' },
   { id: 'mcp',     label: 'I call MCP servers',  blurb: 'Govern what your agents can do through third-party MCP tools', status: 'preview' },
   { id: 'no-app',  label: "I'm just exploring",  blurb: 'See it work end to end before you write any code', status: 'soon' },
 ]
@@ -33,7 +33,7 @@ export function GettingStarted() {
       <PageTitle eyebrow="Get started">Give every agent action an identity you can verify</PageTitle>
       <Lead>
         auth51 mints a scoped, single-use token for every outbound call your agent
-        makes — created at the source, bound to a key that never leaves the process,
+        makes. It&apos;s created at the source, bound to a key that never leaves the process,
         and verified at the resource. No auth code in your tools. Pick where you&apos;re
         starting from.
       </Lead>
@@ -89,33 +89,33 @@ function StatusPill({ status }: { status: 'ready' | 'preview' | 'soon' }) {
 function HasAppLesson() {
   return (
     <div>
-      {/* Constructive scare — make the invisible risk visible, then the fix. */}
+      {/* Constructive scare: make the invisible risk visible, then the fix. */}
       <p className="text-[17px] text-c-text leading-relaxed">
         Right now, when your agent calls a tool or an API, nothing proves{' '}
         <span className="text-c-text font-medium">which</span> agent made the call,
         that its instructions weren&apos;t tampered with, or that a leaked token isn&apos;t
-        being replayed by something else. That risk is invisible — until it isn&apos;t.
+        being replayed by something else. That risk is invisible until it isn&apos;t.
         auth51 makes every agent action carry a verifiable identity, and turning it
         on is a single <code className="code-inline">import</code>.
       </p>
 
       <YouWillLearn items={[
         <>Why an agent&apos;s identity is a <em>fingerprint</em> of what it is, not a password</>,
-        <>How one import makes your agents identify themselves — no code changes</>,
+        <>How one import makes your agents identify themselves, with no code changes</>,
         <>How an unregistered agent shows up for you to approve</>,
         <>Where to watch it happen, live</>,
       ]} />
 
-      {/* The one idea — the mental model before any mechanics. */}
+      {/* The one idea: the mental model before any mechanics. */}
       <SectionHeading>The one idea</SectionHeading>
       <p className="text-body text-c-text-2 leading-relaxed">
-        An agent&apos;s identity isn&apos;t a secret it carries — it&apos;s a fingerprint of{' '}
+        An agent&apos;s identity is a fingerprint of{' '}
         <span className="text-c-text">what it is</span>: its system prompt and the tools
-        it can call. The auth51 client watches your agent talk to its model, computes
+        it can call, not a secret it carries. The auth51 client watches your agent talk to its model, computes
         that fingerprint (a <code className="code-inline">checksum</code>), and matches it
         against the agents your org has registered. A match <span className="text-c-text">
         identifies</span> the agent with no self-declaration; no match means it&apos;s
-        unregistered — a signal in itself. You never tell auth51 which agent is running;
+        unregistered, a signal in itself. You never tell auth51 which agent is running;
         it derives it.
       </p>
 
@@ -126,15 +126,15 @@ function HasAppLesson() {
 
       <Step n={1} title="Create an API key">
         <p className="text-body text-c-text-2 leading-relaxed">
-          Sign in to the <DocLink href="/console/onboarding">console</DocLink> — you get
-          an org automatically — and create a key under{' '}
+          Sign in to the <DocLink href="/console/onboarding">console</DocLink> (you get
+          an org automatically) and create a key under{' '}
           <span className="text-c-text font-medium">Settings → API Keys</span>. Set it in
           your agent&apos;s environment; the client reads it on import.
         </p>
         <CodeBlock label="env">{`export AUTH51_CLIENT_ID=a51_live_...     # Settings → API Keys
 export AUTH51_CLIENT_SECRET=...          # shown once`}</CodeBlock>
         <Callout kind="note">
-          The key is clamped to your org and a safe scope envelope — even if it leaks it
+          The key is clamped to your org and a safe scope envelope, so even if it leaks it
           can&apos;t approve escalations or reach another tenant. On AWS you can skip the
           secret entirely with <DocLink href="/console/settings/workload-identities">keyless
           workload identity</DocLink> (the agent proves its IAM role).
@@ -158,15 +158,15 @@ run_your_agent()`}</CodeBlock>
 
       <Step n={3} title="Approve it in the console" last>
         <p className="text-body text-c-text-2 leading-relaxed mb-3">
-          The first time your agent runs, the client sends its observed identity —
-          system prompt, tools, computed checksum — to your org&apos;s discovery inbox. It
+          The first time your agent runs, the client sends its observed identity
+          (system prompt, tools, computed checksum) to your org&apos;s discovery inbox. It
           appears under <DocLink href="/console/agents/discovered">Agents → Discovered</DocLink>.
           Review what it computed and click <span className="text-c-text font-medium">Register</span>.
           From the next run on, that agent is recognized and its actions are governed.
         </p>
         <ConsolePreview />
         <Callout kind="note">
-          The prompt and tools travel only to your discovery inbox for your review — they
+          The prompt and tools travel only to your discovery inbox for your review. They
           enter the Authority only when you approve. Nothing an unregistered agent does is
           silently trusted (fail-closed).
         </Callout>
@@ -176,14 +176,14 @@ run_your_agent()`}</CodeBlock>
       <div className="mt-14 rounded-xl border border-c-border bg-c-surface p-6">
         <p className="text-[13px] font-semibold text-c-text mb-3">Recap</p>
         <ul className="space-y-2">
-          <RecapItem>API key in the environment + <code className="code-inline">import auth51</code> — the entire integration.</RecapItem>
+          <RecapItem>API key in the environment plus <code className="code-inline">import auth51</code>: the entire integration.</RecapItem>
           <RecapItem>The client derives each agent&apos;s identity from its model call; you don&apos;t declare anything.</RecapItem>
-          <RecapItem>Unregistered agents surface in <span className="text-c-text">Discovered</span> with the identity they computed — approve to register.</RecapItem>
+          <RecapItem>Unregistered agents surface in <span className="text-c-text">Discovered</span> with the identity they computed. Approve to register.</RecapItem>
           <RecapItem>Registered agents are recognized and governed automatically on the next run.</RecapItem>
         </ul>
       </div>
 
-      {/* Advanced — everything the zero-config path hides, for those who need it. */}
+      {/* Advanced: everything the zero-config path hides, for those who need it. */}
       <SectionHeading>Advanced &amp; self-host</SectionHeading>
       <p className="text-body text-c-text-2 leading-relaxed mb-4">
         The defaults above cover the managed (SaaS) path. Reach for these only when you
@@ -193,7 +193,7 @@ run_your_agent()`}</CodeBlock>
       <DeepDive summary="Configure in code instead of env (and self-host)">
         Prefer explicit config, or running your own authority/discovery? Call{' '}
         <code className="code-inline">configure()</code> once at startup. On-prem, point it
-        at your own servers — it never falls back to the SaaS discovery for a custom
+        at your own servers. It never falls back to the SaaS discovery for a custom
         authority.
         <div className="mt-3">
           <CodeBlock label="startup.py">{`import auth51
@@ -214,7 +214,7 @@ auth51.configure(
         <code className="code-inline">with auth51.agent(&quot;checkout-bot&quot;): ...</code>.
         To register agents ahead of time (e.g. a deploy step) rather than discover them at
         runtime, POST their components to{' '}
-        <code className="code-inline">/v1/intent/register/agent</code> — the same call the
+        <code className="code-inline">/v1/intent/register/agent</code>, the same call the
         Approve button makes.
       </DeepDive>
 
@@ -229,8 +229,8 @@ auth51.configure(
 
       <SectionHeading>Next steps</SectionHeading>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <NextCard href="/protocol" title="How it works" body="The intent token, DPoP binding, and non-amplification — the model underneath." />
-        <NextCard href="/console/settings/workload-identities" title="Go keyless" body="On AWS, agents authenticate by their IAM role — no client_secret at all." />
+        <NextCard href="/protocol" title="How it works" body="The intent token, DPoP binding, and non-amplification: the model underneath." />
+        <NextCard href="/console/settings/workload-identities" title="Go keyless" body="On AWS, agents authenticate by their IAM role, with no client_secret at all." />
         <NextCard href="/walkthrough" title="See an attack blocked" body="A real run and the exact call auth51 refuses to mint." />
       </div>
     </div>
@@ -252,7 +252,7 @@ function BeforeAfter() {
       <div className="rounded-xl border border-c-accent/30 bg-c-accent/[0.06] p-5">
         <p className="text-[11px] font-mono uppercase tracking-wider text-c-accent-2 mb-2">With auth51</p>
         <p className="text-[13.5px] text-c-text-2 leading-relaxed">
-          Each call carries a fresh token — scoped to one action, bound to this
+          Each call carries a fresh token, scoped to one action, bound to this
           agent&apos;s fingerprint and a key that never leaves the process. A stolen token
           is inert.
         </p>
@@ -298,14 +298,14 @@ function McpGuide() {
       <p className="text-[17px] text-c-text leading-relaxed">
         If your agents reach tools through MCP servers, auth51 governs them at the
         protocol boundary: a proxy sits in front of the MCP server and turns each tool
-        call into an allow/deny decision — with the same intent-token and audit trail.
+        call into an allow/deny decision, with the same intent-token and audit trail.
       </p>
       <RoadmapCard
         title="Available as a proxy today"
         body={<>The <span className="font-mono text-[13px] text-c-text">auth51-mcp-proxy</span> is a
           zero-dependency stdio passthrough that enforces per-tool policy and mints
-          intent tokens against the authority. Managed setup from the console —
-          one-line install + policy — is what we&apos;re wiring next.</>}
+          intent tokens against the authority. Managed setup from the console
+          (one-line install plus policy) is what we&apos;re wiring next.</>}
       />
       <p className="mt-6 text-body text-c-text-2">
         Want the managed MCP path early?{' '}
@@ -320,12 +320,12 @@ function NoAppGuide() {
   return (
     <div>
       <p className="text-[17px] text-c-text leading-relaxed">
-        No agent app yet? You&apos;ll be able to build one right here — describe an agent,
+        No agent app yet? You&apos;ll be able to build one right here: describe an agent,
         give it a couple of tools, and watch a governed run against a sandboxed
         service, with the plain-OAuth vs. auth51 difference side by side.
       </p>
       <RoadmapCard
-        title="Interactive builder — coming soon"
+        title="Interactive builder, coming soon"
         body={<>Until it ships, the fastest way to see auth51 work end to end is the
           guided walkthrough: a real agent run and the exact attack it blocks, narrated
           step by step.</>}

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 const CONCEPTS = [
   { href: '/docs/concepts/agent-identity', title: 'Agent identity',
-    body: 'What makes an agent that agent — and why identity is a fingerprint of the code, not a secret it carries.' },
+    body: 'What makes an agent that agent, and why identity is a fingerprint of the code, not a secret it carries.' },
   { href: '/docs/concepts/intent-tokens', title: 'Intent tokens',
     body: 'One short-lived credential per action, bound to a key the agent can’t hand over. Why a stolen one is inert.' },
   { href: '/docs/concepts/proof-of-possession', title: 'Proof-of-possession (DPoP)',
@@ -18,9 +18,9 @@ const CONCEPTS = [
   { href: '/docs/concepts/capabilities', title: 'Capabilities & the surface',
     body: 'Where scopes come from: the installed tool surface, the resource-server catalog, and the two namespaces a grant draws on.' },
   { href: '/docs/concepts/grants-and-scopes', title: 'Grants & scopes',
-    body: 'The ceiling on what an agent may mint — base scopes plus gated step-up scopes, derived at registration and enforced at mint.' },
+    body: 'The ceiling on what an agent may mint: base scopes plus gated step-up scopes, derived at registration and enforced at mint.' },
   { href: '/docs/concepts/workflows', title: 'Workflows & steps',
-    body: 'Ordered plans with per-step scopes, prerequisites, and approval gates — so a run can’t skip ahead.' },
+    body: 'Ordered plans with per-step scopes, prerequisites, and approval gates, so a run can’t skip ahead.' },
   { href: '/docs/concepts/delegation', title: 'Delegation & chains',
     body: 'How a hand-off between agents is recorded, hashed into the token, and validated so the path can’t be forged.' },
   { href: '/docs/concepts/non-amplification', title: 'Non-amplification',
@@ -37,7 +37,7 @@ export default function ConceptsIndex() {
       <PageTitle eyebrow="Concepts">Concepts</PageTitle>
       <Lead>
         The pages here explain how auth51 works and why it&rsquo;s built the way it is. You
-        don&rsquo;t need them to get started, but they&rsquo;re worth reading once — they&rsquo;re short,
+        don&rsquo;t need them to get started, but they&rsquo;re worth reading once. They&rsquo;re short,
         and each one starts from a problem you already have.
       </Lead>
       <P>Read them in order the first time; they build on each other.</P>

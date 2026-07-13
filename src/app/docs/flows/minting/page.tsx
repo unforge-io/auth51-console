@@ -16,7 +16,7 @@ export default function MintingFlow() {
       <Lead>
         This is the sequence that runs on every governed call. The agent is about to touch a resource;
         between the intent and the request, the runtime mints an intent token and the Authority decides
-        whether to grant it. It&rsquo;s the hot path — and it adds a handful of milliseconds to a step that
+        whether to grant it. It&rsquo;s the hot path, and it adds a handful of milliseconds to a step that
         already takes an LLM hundreds.
       </Lead>
 
@@ -28,8 +28,8 @@ export default function MintingFlow() {
       <P>
         When the agent is about to call a resource, the runtime pauses the egress and assembles a mint
         request against the <code className="code-inline">agent_checksum</code> grant: the agent id, the
-        checksum it just computed from the live agent, the requested scope and audience, and — if the
-        run is following a plan — the workflow, step, and delegation context. This request is itself
+        checksum it just computed from the live agent, the requested scope and audience, and (if the
+        run is following a plan) the workflow, step, and delegation context. This request is itself
         authenticated with the client&rsquo;s ordinary OAuth token; minting an intent token is a privileged
         operation.
       </P>
@@ -46,12 +46,12 @@ export default function MintingFlow() {
       <Callout>
         The checksum comparison here <em>is</em> the runtime identity check. Because the Authority
         recomputes it, a mint request from an agent whose prompt or tools changed since registration
-        fails at this step — the same request that worked before the change is now denied.
+        fails at this step. The same request that worked before the change is now denied.
       </Callout>
 
       <H2>The mint and the attach</H2>
       <P>
-        On success the Authority issues an intent token — an ordinary JWT carrying the identity, the
+        On success the Authority issues an intent token: an ordinary JWT carrying the identity, the
         single scope and audience, a tight expiry, the <code className="code-inline">cnf.jkt</code> key
         binding, and the <code className="code-inline">intent</code> and{' '}
         <code className="code-inline">agent_proof</code> claims. The runtime attaches it to the outbound
@@ -63,7 +63,7 @@ export default function MintingFlow() {
       <Deep title="What it costs, and why the total can go down">
         <P>
           The security work here is small: token minting adds on the order of ~18 ms, and the checksum
-          computation is a fraction of a millisecond — negligible against an LLM reasoning step that
+          computation is a fraction of a millisecond, negligible against an LLM reasoning step that
           runs hundreds to thousands of milliseconds.
         </P>
         <P className="!mb-0">
@@ -75,9 +75,9 @@ export default function MintingFlow() {
       </Deep>
 
       <Related items={[
-        { href: '/docs/flows/workflow-tracking', label: 'Next — workflow tracking' },
-        { href: '/docs/concepts/intent-tokens', label: 'Concept — the token that’s minted' },
-        { href: '/docs/architecture/authority', label: 'Architecture — the Authority' },
+        { href: '/docs/flows/workflow-tracking', label: 'Next: workflow tracking' },
+        { href: '/docs/concepts/intent-tokens', label: 'Concept: the token that’s minted' },
+        { href: '/docs/architecture/authority', label: 'Architecture: the Authority' },
       ]} />
     </article>
   )

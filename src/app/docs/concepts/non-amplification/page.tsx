@@ -16,7 +16,7 @@ export default function NonAmplification() {
       <Lead>
         Agents delegate. A planner hands a step to a worker; a worker calls a tool that calls
         another service. The risk in any hand-off is that authority quietly grows along the
-        way — the worker ends up able to do more than the planner was ever allowed to. auth51&rsquo;s
+        way, so the worker ends up able to do more than the planner was ever allowed to. auth51&rsquo;s
         answer is a rule with a plain name: authority can go down a chain, never up.
       </Lead>
 
@@ -25,12 +25,12 @@ export default function NonAmplification() {
           This is the <strong>confused deputy</strong>, a failure mode identified in access-control
           research decades ago: a program with real privileges is tricked by a less-privileged caller
           into using those privileges on the caller&rsquo;s behalf. The authority that gets used is the
-          deputy&rsquo;s, not the caller&rsquo;s — so privilege is effectively laundered upward.
+          deputy&rsquo;s, not the caller&rsquo;s, so privilege is effectively laundered upward.
         </p>
         <p>
           The classic mitigation is <em>least privilege</em> plus <em>attenuation</em>: authority may
           only ever be narrowed as it&rsquo;s passed along, never broadened. OAuth already has the mechanism
-          for the narrowing half — <a href="/docs/reference">Token Exchange (RFC&nbsp;8693)</a> lets a
+          for the narrowing half: <a href="/docs/reference">Token Exchange (RFC&nbsp;8693)</a> lets a
           holder trade a token for a <em>more constrained</em> one. auth51 makes attenuation the only
           direction that exists: every mint is checked against a ceiling, so a hop can shrink authority
           but never grow it.
@@ -44,7 +44,7 @@ export default function NonAmplification() {
         escalation. When the agent asks the authority to mint a token, the request has to fall
         inside that grant. Ask for a scope outside it and the mint is refused. Ask for a
         step-up scope and you need an approved escalation first. The grant is set when you
-        register the agent and enforced at mint time — not audited after the fact.
+        register the agent and enforced at mint time, not audited after the fact.
       </P>
 
       <Callout>
@@ -60,12 +60,12 @@ export default function NonAmplification() {
         Because every agent is bounded by its own grant, a hand-off can&rsquo;t manufacture
         authority. A worker invoked by a planner still mints against the worker&rsquo;s grant, not
         the planner&rsquo;s. When a run follows a registered workflow, the authority also checks the
-        step against the workflow definition — its declared scopes, its dependencies, and any
-        approval gates — before it mints. A step can&rsquo;t claim scopes the workflow didn&rsquo;t give
+        step against the workflow definition (its declared scopes, its dependencies, and any
+        approval gates) before it mints. A step can&rsquo;t claim scopes the workflow didn&rsquo;t give
         it, and it can&rsquo;t run before the steps it depends on have completed.
       </P>
 
-      <Figure n={1} caption={<>Down a delegation chain, each agent mints against its own grant and the authority only narrows. The token that reaches a resource is a subset of every grant above it — never a superset.</>}>
+      <Figure n={1} caption={<>Down a delegation chain, each agent mints against its own grant and the authority only narrows. The token that reaches a resource is a subset of every grant above it, never a superset.</>}>
         <NonAmplificationDiagram />
       </Figure>
 
@@ -79,7 +79,7 @@ export default function NonAmplification() {
         <P>
           For a workflow run it adds step checks: prerequisite steps must be complete, approval gates for
           high-privilege steps must have been passed, and a step can only claim the scopes its workflow
-          definition granted it — no skipping ahead, no widening.
+          definition granted it. No skipping ahead, no widening.
         </P>
         <P className="!mb-0">
           Delegation depth is bounded to stop runaway chains, and if a parent agent is found compromised,
@@ -90,7 +90,7 @@ export default function NonAmplification() {
 
       <InTheWild title="The confused deputy">
         The classic failure: a low-privilege caller gets a high-privilege component to act for
-        it, and the component&rsquo;s authority — not the caller&rsquo;s — is what gets used. Bounding
+        it, and the component&rsquo;s authority, not the caller&rsquo;s, is what gets used. Bounding
         every agent by its own grant, at the moment of minting, is what stops a delegation from
         laundering privilege it was never given.
       </InTheWild>
@@ -101,13 +101,13 @@ export default function NonAmplification() {
         amplification in practice. The protocol draft goes further: a formal, checkable
         guarantee that a token derived across a hop is a strict subset of the one it came from,
         verifiable independently at each resource. That deeper cross-hop enforcement is being
-        hardened alongside the verifier — the model is fixed; the machinery is landing.
+        hardened alongside the verifier. The model is fixed; the machinery is landing.
       </P>
 
       <Related items={[
         { href: '/docs/concepts/intent-tokens', label: 'Intent tokens' },
         { href: '/docs/concepts/mcp', label: 'MCP governance' },
-        { href: '/docs/reference', label: 'Reference — the protocol draft' },
+        { href: '/docs/reference', label: 'Reference: the protocol draft' },
       ]} />
     </article>
   )

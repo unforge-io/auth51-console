@@ -4,15 +4,15 @@ import { PageTitle, Lead, H2, P, Callout, Related } from '@/components/docs/pros
 export const metadata: Metadata = {
   title: 'Threat lab',
   description:
-    'Every RS-side defense auth51 claims, demonstrated live and self-contained in one runnable script — stolen, forged, inflated, mis-operated, expired, mis-signed, and mis-audienced tokens, all inert at the resource.',
+    'Every RS-side defense auth51 claims, demonstrated live and self-contained in one runnable script: stolen, forged, inflated, mis-operated, expired, mis-signed, and mis-audienced tokens, all inert at the resource.',
 }
 
 const ATTACKS: [string, string, string][] = [
-  ['—', 'Legit call: valid token + valid DPoP', 'Allowed — the baseline'],
+  ['—', 'Legit call: valid token + valid DPoP', 'Allowed (the baseline)'],
   ['1', 'Steal a token, replay it with no proof', 'Proof-of-possession: a cnf-bound token needs a DPoP proof (RFC 9449); a copy from a log has no key'],
-  ['2', 'Forge a DPoP proof with the attacker’s key', 'The proof key must equal the token’s cnf.jkt — thumbprint mismatch'],
+  ['2', 'Forge a DPoP proof with the attacker’s key', 'The proof key must equal the token’s cnf.jkt (thumbprint mismatch)'],
   ['3', 'Scope inflation', 'The token must carry the endpoint’s scope'],
-  ['4', 'Wrong operation (O6): a GET token on DELETE', 'Each endpoint derives its own a51:rs scope; a GET token lacks DELETE’s. The correct DELETE token is allowed — it’s the operation, not a block-all'],
+  ['4', 'Wrong operation (O6): a GET token on DELETE', 'Each endpoint derives its own a51:rs scope; a GET token lacks DELETE’s. The correct DELETE token is allowed; the check is on the operation, not a block-all'],
   ['5', 'Replay a DPoP proof on a different request', 'htu binds the proof to this exact URL'],
   ['6', 'Present an expired token', 'exp, beyond clock skew'],
   ['7', 'Forge a token with the attacker’s signing key', 'JWKS signature verification'],
@@ -29,7 +29,7 @@ export default function ThreatLab() {
         Every RS-side defense on this site is demonstrated <em>live</em> by one runnable script.
         Nothing to deploy: a single process plays the Authority (owns the signing key, mints tokens,
         serves its own JWKS), the resource server (a FastAPI app guarded by{' '}
-        <a href="/docs/architecture/verifier">auth51-verifier</a>), and the attacker — then fires each
+        <a href="/docs/architecture/verifier">auth51-verifier</a>), and the attacker, then fires each
         attack in-process and checks the verifier reacts the way these docs claim.
       </Lead>
 
@@ -73,7 +73,7 @@ python examples/threat-lab/lab.py`}</code></pre>
       </P>
 
       <Callout>
-        The lab installs its own public key into the verifier&rsquo;s JWKS cache — it legitimately{' '}
+        The lab installs its own public key into the verifier&rsquo;s JWKS cache. It legitimately{' '}
         <em>is</em> the authority, so it knows that key. The signature, DPoP proof, scope, audience,
         and expiry are all verified for real by the unmodified verifier; none of the security checks
         are stubbed. Swap the local mint for a real <code className="code-inline">authority.auth51.com</code>{' '}

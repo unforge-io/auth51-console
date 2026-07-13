@@ -5,7 +5,7 @@ import { DiscoveryBoundaryDiagram } from '@/components/docs/diagrams'
 export const metadata: Metadata = {
   title: 'Discovery & the trust boundary',
   description:
-    'How an unregistered agent surfaces for review — without its prompt or tools ever entering the authority. Content and references travel separate paths.',
+    'How an unregistered agent surfaces for review, without its prompt or tools ever entering the authority. Content and references travel separate paths.',
 }
 
 export default function Discovery() {
@@ -16,13 +16,13 @@ export default function Discovery() {
       <Lead>
         You won&rsquo;t register every agent up front, and you shouldn&rsquo;t have to. Someone spins up
         a new agent, a script gets copied, a prompt changes. auth51&rsquo;s job is to notice the ones
-        you haven&rsquo;t approved and put them in front of you — without quietly trusting them, and
+        you haven&rsquo;t approved and put them in front of you, without quietly trusting them, and
         without your prompts ending up somewhere they shouldn&rsquo;t.
       </Lead>
 
-      <Foundations title="Why the authority is kept blind on purpose">
+      <Foundations title="Why the authority is kept blind">
         <p>
-          It&rsquo;s a long-standing security principle — <em>data minimization</em>, and least privilege
+          It&rsquo;s a long-standing security principle, <em>data minimization</em>, and least privilege
           applied to components: the part of a system that holds the keys and mints the credentials
           should see as little as it can get away with. In auth51 that part is the{' '}
           <strong>authority</strong>. An agent&rsquo;s system prompt is often its most sensitive asset, so
@@ -31,7 +31,7 @@ export default function Discovery() {
         <p>
           There&rsquo;s an OAuth parallel. Just as a client formally enters an authorization server through
           <a href="https://www.rfc-editor.org/rfc/rfc7591" target="_blank" rel="noreferrer"> Dynamic Client
-          Registration (RFC&nbsp;7591)</a> — a deliberate, sanctioned step — an agent&rsquo;s identity enters
+          Registration (RFC&nbsp;7591)</a>, a deliberate, sanctioned step, an agent&rsquo;s identity enters
           the trusted core only through registration. Discovery is what happens <em>before</em> that
           step: visibility without trust.
         </p>
@@ -44,8 +44,8 @@ export default function Discovery() {
         paths:
       </P>
       <P>
-        First, the client sends a <em>proposal</em> to the discovery service — the agent&rsquo;s
-        observed identity: its system prompt, its tools, and the computed checksum. Second,
+        First, the client sends a <em>proposal</em> to the discovery service: the agent&rsquo;s
+        observed identity, its system prompt, its tools, and the computed checksum. Second,
         when the agent tries to take a governed action, the mint is denied (it&rsquo;s not a
         registered agent) and the authority records a <em>reference</em>: just the agent id and
         the checksum, nothing more.
@@ -59,19 +59,19 @@ export default function Discovery() {
 
       <H2>The trust boundary: content and references travel apart</H2>
       <P>
-        This is the part worth understanding. The authority — the component that mints tokens
-        and holds your keys — never receives an agent&rsquo;s prompt or tools until you approve it.
+        The authority, the component that mints tokens and holds your keys, never receives an
+        agent&rsquo;s prompt or tools until you approve it.
         All it ever sees for an unregistered agent is a reference: an id and a checksum. The
         content lives in the discovery service, a separate component, and stays there for your
         review.
       </P>
 
-      <Figure n={1} caption={<>An unregistered agent&rsquo;s full identity goes only to the discovery service. Only a reference — id and checksum — crosses into the trusted core, so the authority never holds a prompt you haven&rsquo;t approved.</>}>
+      <Figure n={1} caption={<>An unregistered agent&rsquo;s full identity goes only to the discovery service. Only a reference (id and checksum) crosses into the trusted core, so the authority never holds a prompt you haven&rsquo;t approved.</>}>
         <DiscoveryBoundaryDiagram />
       </Figure>
 
       <P>
-        Approval is the one path that moves content into the authority, and it&rsquo;s a deliberate
+        Approval is the one path that moves content into the authority, and it&rsquo;s an explicit
         human action: clicking Register runs the normal registration, which is the sanctioned
         way for a prompt and tool set to enter the trusted core. Nothing an unregistered agent
         emitted gets there on its own.
@@ -85,30 +85,30 @@ export default function Discovery() {
           stores the full identity under that same value.
         </P>
         <P className="!mb-0">
-          So the join key is a hash both sides arrive at independently — not a shared copy of the
+          So the join key is a hash both sides arrive at independently, not a shared copy of the
           sensitive content. The authority learns &ldquo;an unregistered agent with checksum{' '}
           <code className="code-inline">a7f3…</code> tried to act,&rdquo; and the console can show you what
-          that checksum <em>is</em> by looking it up in discovery — without the prompt ever passing
+          that checksum <em>is</em> by looking it up in discovery, without the prompt ever passing
           through the authority.
         </P>
       </Deep>
 
       <Callout kind="warning">
         Discovery is not permission. An unregistered agent&rsquo;s governed calls are denied the
-        whole time it sits in the Discovered list — fail-closed. Discovery makes the agent
+        whole time it sits in the Discovered list; fail-closed. Discovery makes the agent
         <em> visible and easy to approve</em>; it never makes it trusted.
       </Callout>
 
       <InTheWild title="Shadow agents">
         The version of shadow IT that&rsquo;s coming: agents nobody registered, running with real
         credentials, calling real systems. You can&rsquo;t govern what you can&rsquo;t see. Discovery&rsquo;s
-        first job is to end the &ldquo;you can&rsquo;t see it&rdquo; part — every agent that runs shows up,
+        first job is to end the &ldquo;you can&rsquo;t see it&rdquo; part: every agent that runs shows up,
         with the exact identity it presented.
       </InTheWild>
 
       <Related items={[
         { href: '/docs/concepts/agent-identity', label: 'Agent identity' },
-        { href: '/docs/start', label: 'Quickstart — watch an agent get discovered' },
+        { href: '/docs/start', label: 'Quickstart: watch an agent get discovered' },
         { href: '/docs/concepts/intent-tokens', label: 'Intent tokens' },
       ]} />
     </article>

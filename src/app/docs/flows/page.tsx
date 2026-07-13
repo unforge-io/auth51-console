@@ -5,16 +5,16 @@ import { PageTitle, Lead, P } from '@/components/docs/prose'
 export const metadata: Metadata = {
   title: 'Protocol flows',
   description:
-    'The wire-level sequences that tie auth51 together — registration, token minting, workflow tracking, and multi-agent delegation — end to end.',
+    'The wire-level sequences that tie auth51 together, end to end: registration, token minting, workflow tracking, and multi-agent delegation.',
 }
 
 const FLOWS = [
   { href: '/docs/flows/registration', title: 'Registration', n: '1',
-    body: 'How a client, its agents, and their workflows enter the Authority — the one-time step that establishes every identity everything else checks against.' },
+    body: 'How a client, its agents, and their workflows enter the Authority. This one-time step establishes the identities everything else checks against.' },
   { href: '/docs/flows/minting', title: 'Token minting', n: '2',
     body: 'The request-time sequence: the runtime asks for an intent token, the Authority validates and mints, the token is attached and verified at the resource.' },
   { href: '/docs/flows/workflow-tracking', title: 'Workflow tracking', n: '3',
-    body: 'How the runtime follows a multi-step plan as it executes — tracking the step sequence and delegation so each mint reflects where the run actually is.' },
+    body: 'How the runtime follows a multi-step plan as it executes, tracking the step sequence and delegation so each mint reflects where the run actually is.' },
   { href: '/docs/flows/multi-agent', title: 'Multi-agent delegation', n: '4',
     body: 'The full path when a supervisor delegates to workers: each hop mints against its own grant, and the chain is carried and checked end to end.' },
 ]
@@ -25,12 +25,12 @@ export default function FlowsIndex() {
       <PageTitle eyebrow="Protocol flows">Protocol flows</PageTitle>
       <Lead>
         The Concepts pages explain the objects; the Architecture pages explain the components. These
-        pages put them in motion — the actual sequences of messages that register an agent, mint a
+        pages put them in motion: the actual sequences of messages that register an agent, mint a
         token, follow a workflow, and carry a delegation across agents.
       </Lead>
       <P>
         They&rsquo;re the readable companion to the wire-level flows in the protocol draft. Read them once
-        and the rest of the docs stops being a set of parts and becomes a system.
+        and the rest of the docs fits together as a system.
       </P>
 
       <ul className="mt-8 space-y-3">

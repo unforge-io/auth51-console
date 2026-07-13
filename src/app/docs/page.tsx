@@ -5,7 +5,7 @@ import { PageTitle, Lead, P } from '@/components/docs/prose'
 export const metadata: Metadata = {
   title: 'Docs',
   description:
-    'auth51 documentation — give every agent action an identity you can verify. Start fast, understand the model, look things up.',
+    'auth51 documentation: give every agent action an identity you can verify. Start fast, understand the model, look things up.',
 }
 
 const SECTIONS = [
@@ -24,7 +24,7 @@ const SECTIONS = [
   {
     href: '/docs/reference',
     title: 'Reference',
-    body: 'The standards auth51 builds on — OAuth, token exchange, DPoP — plus the protocol draft and the paper.',
+    body: 'The standards auth51 builds on (OAuth, token exchange, DPoP), plus the protocol draft and the paper.',
     cta: 'Standards & research',
   },
 ]

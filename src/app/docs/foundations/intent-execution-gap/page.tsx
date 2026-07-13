@@ -4,7 +4,7 @@ import { PageTitle, Lead, H2, P, Deep, SpecRef, InTheWild, Related } from '@/com
 export const metadata: Metadata = {
   title: 'The intent–execution gap',
   description:
-    'OAuth 2.0 assumes the client faithfully represents the user’s intent. An autonomous agent decides its own execution — and that gap is the problem auth51 exists to close.',
+    'OAuth 2.0 assumes the client faithfully represents the user’s intent. An autonomous agent decides its own execution, and that gap is the problem auth51 exists to close.',
 }
 
 export default function IntentExecutionGap() {
@@ -15,8 +15,8 @@ export default function IntentExecutionGap() {
       <Lead>
         Every authorization decision you make today rests on one quiet assumption: that the
         software holding a token is faithfully carrying out what its user asked for. For a web
-        app with fixed code, that assumption is safe. For an autonomous agent, it is exactly the
-        thing that isn&rsquo;t true anymore — and closing that gap is the whole reason auth51 exists.
+        app with fixed code, that assumption is safe. For an autonomous agent, it no longer
+        holds. Closing that gap is the reason auth51 exists.
       </Lead>
 
       <H2>The assumption, stated plainly</H2>
@@ -25,7 +25,7 @@ export default function IntentExecutionGap() {
         delegation framework. A resource owner approves a client, the authorization server issues
         the client a token, and every call the client makes with that token is taken to be
         something the user authorized. The specification is explicit that the client is presumed
-        to act on the resource owner&rsquo;s behalf — the token <em>represents</em> the user&rsquo;s intent.
+        to act on the resource owner&rsquo;s behalf. The token <em>represents</em> the user&rsquo;s intent.
       </P>
       <P>
         This held for a decade because &ldquo;the client&rdquo; was a program with fixed code paths. A
@@ -36,8 +36,8 @@ export default function IntentExecutionGap() {
 
       <H2>Why an agent breaks it</H2>
       <P>
-        An LLM-driven agent severs that weld. The user approves a goal — &ldquo;patch this
-        dependency,&rdquo; &ldquo;reconcile these invoices&rdquo; — and the <em>agent</em> decides how: which
+        An LLM-driven agent severs that weld. The user approves a goal (&ldquo;patch this
+        dependency,&rdquo; &ldquo;reconcile these invoices&rdquo;) and the <em>agent</em> decides how: which
         tools to call, in what order, whether to spawn sub-agents, when to escalate. The plan is
         generated at runtime from a prompt that can be edited, injected into, or swapped. The
         token still says &ldquo;this client, acting for this user,&rdquo; but the thing holding it now
@@ -47,19 +47,19 @@ export default function IntentExecutionGap() {
         Three structural cracks open at once:
       </P>
       <P>
-        <strong>No per-agent identity.</strong> An orchestrator, its five sub-agents, and a
+        There is no per-agent identity. An orchestrator, its five sub-agents, and a
         prompt-injected impostor all share one <code className="code-inline">client_id</code>. At
-        the token layer they are indistinguishable — the authority cannot tell which one is
+        the token layer they are indistinguishable, and the authority cannot tell which one is
         calling, or whether the caller is one it ever approved.
       </P>
       <P>
-        <strong>Intent and execution are separated.</strong> The scope granted covers the goal;
+        Intent and execution are separated. The scope granted covers the goal;
         the execution is unbounded within it. A token minted to &ldquo;read the repo and open a PR&rdquo;
         carries no evidence of <em>which</em> concrete action is happening right now, so a hijacked
         plan spends the same scope on something the user never pictured.
       </P>
       <P>
-        <strong>Bearer tokens are theft-ready.</strong> A standard OAuth token is a bearer token{' '}
+        Bearer tokens are theft-ready. A standard OAuth token is a bearer token{' '}
         <SpecRef href="https://www.rfc-editor.org/rfc/rfc6750">(RFC 6750)</SpecRef>: whoever holds
         it, wins. One agent that leaks a token into a log hands an attacker everything that token
         can do, for as long as it lives.
@@ -73,10 +73,10 @@ export default function IntentExecutionGap() {
           same object and never needed to be written down separately.
         </P>
         <P className="!mb-0">
-          Autonomous agents make the two diverge at runtime, which means intent has to become a
+          Autonomous agents make the two diverge at runtime, so intent has to become a
           first-class, verifiable thing in the token itself rather than an assumption about the
-          client. That single move — making intent explicit and cryptographic instead of assumed —
-          is what every other page in these Foundations is ultimately in service of.{' '}
+          client. Making intent explicit and cryptographic instead of assumed is what every other
+          page in these Foundations serves.{' '}
           <SpecRef href="https://arxiv.org/abs/2509.13597">arXiv 2509.13597</SpecRef>
         </P>
       </Deep>
@@ -84,8 +84,8 @@ export default function IntentExecutionGap() {
       <InTheWild title="One credential, many agents">
         The failure isn&rsquo;t hypothetical. Multi-agent systems routinely run an orchestrator and a
         fleet of workers under a single set of client credentials, because that is how OAuth&rsquo;s
-        client-credentials model was built. The moment one of those agents is subverted — a
-        poisoned tool result, an injected instruction — its calls are authorized exactly like a
+        client-credentials model was built. The moment one of those agents is subverted, whether
+        by a poisoned tool result or an injected instruction, its calls are authorized just like a
         legitimate one&rsquo;s, because nothing in the token distinguishes them.
       </InTheWild>
 
@@ -95,13 +95,13 @@ export default function IntentExecutionGap() {
         their own: a way to identify <em>which</em> agent is acting and prove it hasn&rsquo;t changed; a
         way to bind a token to <em>one</em> concrete action rather than a broad scope; and a way to
         make a stolen token useless to whoever stole it. The rest of the Foundations pages walk
-        through the standards that supply the raw materials — token exchange, DPoP, Zero-Trust —
+        through the standards that supply the raw materials (token exchange, DPoP, Zero-Trust),
         and the Concepts section shows how auth51 assembles them.
       </P>
 
       <Related items={[
         { href: '/docs/foundations/oauth-and-jwt', label: 'OAuth 2.0 & JWT, quickly' },
-        { href: '/docs/concepts/agent-identity', label: 'Concept — Agent identity' },
+        { href: '/docs/concepts/agent-identity', label: 'Concept: Agent identity' },
         { href: '/docs/foundations', label: 'Back to Foundations' },
       ]} />
     </article>

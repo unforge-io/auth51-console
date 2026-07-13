@@ -5,7 +5,7 @@ import { PageTitle, Lead, H2, P, Callout } from '@/components/docs/prose'
 export const metadata: Metadata = {
   title: 'Specification & standards',
   description:
-    'The auth51 protocol is specified as an IETF internet-draft, built on established OAuth standards — OAuth 2.0, token exchange, DPoP, JWT, JWK.',
+    'The auth51 protocol is specified as an IETF internet-draft, built on established OAuth standards: OAuth 2.0, token exchange, DPoP, JWT, and JWK.',
 }
 
 const RFCS = [
@@ -16,7 +16,7 @@ const RFCS = [
   { id: 'RFC 9449', title: 'Demonstrating Proof of Possession (DPoP)', href: 'https://www.rfc-editor.org/rfc/rfc9449',
     note: 'Binds an intent token to a key held in the agent process, so a copied token is useless.' },
   { id: 'RFC 7519', title: 'JSON Web Token (JWT)', href: 'https://www.rfc-editor.org/rfc/rfc7519',
-    note: 'The shape of an intent token on the wire — identity, scope, audience, expiry.' },
+    note: 'The shape of an intent token on the wire: identity, scope, audience, expiry.' },
   { id: 'RFC 7517', title: 'JSON Web Key (JWK)', href: 'https://www.rfc-editor.org/rfc/rfc7517',
     note: 'How a resource server fetches the authority’s public keys (JWKS) to verify a token.' },
 ]
@@ -26,13 +26,13 @@ export default function ReferenceHome() {
     <div>
       <PageTitle eyebrow="Reference">Specification &amp; standards</PageTitle>
       <Lead>
-        auth51 isn&rsquo;t a protocol you take on faith. What&rsquo;s new — agent identity as a
-        checksum, intent tokens minted per action, non-amplification across delegation — is
+        auth51 rests on standards you can read. What&rsquo;s new (agent identity as a
+        checksum, intent tokens minted per action, and non-amplification across delegation) is
         written up as an IETF internet-draft. Everything underneath it is established OAuth,
         so if you know these RFCs you already know most of how auth51 works.
       </Lead>
 
-      <H2>The auth51 protocol — the specification</H2>
+      <H2>The auth51 protocol: the specification</H2>
       <P>
         The internet-draft is the normative spec: it defines the identity checksum, the
         intent-token profile, the MCP <code className="code-inline">_meta</code> propagation
@@ -42,7 +42,7 @@ export default function ReferenceHome() {
       </P>
       <Callout>
         The canonical IETF datatracker link and the arXiv preprint are being finalized and
-        will be linked here. (Placeholders until then — not yet public.)
+        will be linked here. (Placeholders until then, not yet public.)
       </Callout>
 
       <H2>Standards it builds on</H2>
@@ -67,9 +67,9 @@ export default function ReferenceHome() {
 
       <H2>API, config, and scopes</H2>
       <P>
-        Endpoint-level reference for the authority and the client — request shapes, the
-        environment variables the client reads, and the scope envelope a customer key
-        carries — is being written and will live in this section.
+        Endpoint-level reference for the authority and the client is being written and will
+        live in this section: request shapes, the environment variables the client reads, and
+        the scope envelope a customer key carries.
       </P>
     </div>
   )
