@@ -55,26 +55,22 @@ function SectionFrame({
 }
 
 // ────────────────────────────────────────────────────────────────────────
-// Control Plane — the centerpiece
+// Runtime identity and enforcement path — the core differentiation
 // ────────────────────────────────────────────────────────────────────────
 
-export function ControlPlaneSection() {
-  const k8sRows = [
-    { k8s: 'API server / etcd', auth51: 'Auth51 Authority' },
-    { k8s: 'kubelet (per node)', auth51: 'Auth51 Runtime' },
-    { k8s: 'Admission / sidecar', auth51: 'Auth51 Verifier' },
-    { k8s: 'K8s Dashboard', auth51: 'Auth51 Console' },
-    { k8s: 'kubectl', auth51: 'a51 CLI' },
-    { k8s: 'kubeconfig', auth51: 'a51 config' },
-    { k8s: 'Workload / Pod', auth51: 'Agentic application' },
-    { k8s: 'kubectl apply -f', auth51: 'a51 apply -f' },
+export function RuntimeIdentitySection() {
+  const enforcementSteps = [
+    { step: 'Observe', detail: 'Runtime fingerprints the executing agent' },
+    { step: 'Authorize', detail: 'Authority verifies identity and grant' },
+    { step: 'Bind', detail: 'Per-action token carries signed claims' },
+    { step: 'Enforce', detail: 'Verifier checks claims at the resource boundary' },
   ]
   return (
     <SectionFrame
-      id="control-plane"
-      eyebrow="The Control Plane"
-      title={<>It&apos;s <span className="text-[#818cf8]">kubectl for AI agents</span>. Same primitives. New domain.</>}
-      kicker="Authority at the top, Runtimes embedded in your agents, Verifiers at every resource boundary, Console and CLI as your view. If you can deploy a Kubernetes cluster, you already know how to deploy Auth51."
+      id="runtime-identity"
+      eyebrow="Runtime identity enforcement"
+      title={<>Agent identity is <span className="text-[#818cf8]">derived at runtime</span> and authorization is enforced at the resource.</>}
+      kicker="Auth51 does not trust an agent to declare its own identity. The Runtime derives a fingerprint from observed data, the Authority verifies the identity and applicable grant, and the Verifier enforces the per-action token at the resource boundary."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10 items-start">
         <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] p-6 sm:p-8 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.35),0_0_0_1px_rgba(99,102,241,0.05)_inset]">
@@ -84,15 +80,15 @@ export function ControlPlaneSection() {
 
         <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(22_23_28)] to-[rgb(16_17_22)] overflow-hidden shadow-[0_20px_60px_-30px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
           <div className="px-5 py-3 border-b border-[rgb(38_39_43)]">
-            <p className="text-[10.5px] font-mono uppercase tracking-wider text-[#5c6168]">If you know K8s</p>
-            <p className="text-[13px] text-white mt-0.5">Translation table</p>
+            <p className="text-[10.5px] font-mono uppercase tracking-wider text-[#5c6168]">Enforcement path</p>
+            <p className="text-[13px] text-white mt-0.5">Observe → authorize → enforce</p>
           </div>
           <table className="w-full text-[12.5px]">
             <tbody className="divide-y divide-[rgb(38_39_43_/_0.6)]">
-              {k8sRows.map((r) => (
-                <tr key={r.k8s}>
-                  <td className="px-5 py-3 text-[#8a8f98]">{r.k8s}</td>
-                  <td className="px-5 py-3 font-mono text-[#a5b4fc] text-right">{r.auth51}</td>
+              {enforcementSteps.map((item) => (
+                <tr key={item.step}>
+                  <td className="px-5 py-3 font-mono text-[#a5b4fc]">{item.step}</td>
+                  <td className="px-5 py-3 text-[#8a8f98] text-right">{item.detail}</td>
                 </tr>
               ))}
             </tbody>
@@ -110,16 +106,16 @@ export function ControlPlaneSection() {
 export function LiveRegistrySection() {
   const classified = useMemo(() => classifyAgents(DEMO_AGENTS), [])
   const bullets = [
-    { title: 'Cryptographic fingerprinting', body: 'Every agent\'s prompt, tools, and configuration are hashed into a checksum at registration. If anything changes, the next token mint fails.' },
-    { title: 'Five-dimensional classification', body: 'Role, reasoning pattern, autonomy level, capability surface, provenance — all derived from observable data. The system interprets agents; agents don\'t self-declare.' },
-    { title: 'Live updates', body: 'New registrations appear within seconds. Versioning detects drift. Revocation propagates immediately.' },
+    { title: 'Cryptographic fingerprinting', body: 'At registration, Auth51 hashes the agent\'s prompt, tools, and configuration into a checksum. A changed checksum causes the next token mint to fail.' },
+    { title: 'Five-dimensional classification', body: 'Auth51 derives role, reasoning pattern, autonomy level, capability surface, and provenance from observable data instead of accepting self-declared classifications.' },
+    { title: 'Live updates', body: 'New registrations appear within seconds, versioning reveals drift, and revocations take effect immediately.' },
   ]
   return (
     <SectionFrame
       id="registry"
       eyebrow="Feature · Live Registry"
-      title={<>Every agent. <span className="text-[#34d399]">Verified.</span> Continuously.</>}
-      kicker="The Auth51 Console gives you a real-time view of every agent registered with the Authority — fingerprinted at runtime, classified by behaviour, observable from one pane."
+      title={<>Continuously <span className="text-[#34d399]">verify registered agents.</span></>}
+      kicker="The Auth51 Console provides a real-time view of agents registered with the Authority. It shows each agent's runtime fingerprint and classification in one place."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         <div className="relative rounded-xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] overflow-hidden shadow-[0_30px_70px_-25px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
@@ -186,8 +182,8 @@ export function DiscoverySection() {
     <SectionFrame
       id="discovery"
       eyebrow="Feature · Discovery"
-      title={<>Agents appear. <span className="text-[#facc15]">We catch them.</span></>}
-      kicker="The Runtime watches every host it's installed on. Any unfamiliar process that loads the shim shows up in your Discovered inbox — before it can mint a single token."
+      title={<>Discover unregistered agents <span className="text-[#facc15]">before they can act.</span></>}
+      kicker="The Runtime monitors each host on which it is installed. An unfamiliar process that loads the shim appears in the Discovered queue before it can mint a token."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10 items-start">
         <div className="relative rounded-xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] overflow-hidden shadow-[0_30px_70px_-25px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
@@ -223,10 +219,10 @@ export function DiscoverySection() {
         <div>
           <h3 className="text-[18px] font-semibold text-white mb-3">Zero-trust by default</h3>
           <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed mb-4">
-            An unregistered agent has no identity in the Authority. It can&apos;t mint tokens, can&apos;t access resources, can&apos;t be impersonated by another agent — because it doesn&apos;t exist yet.
+            An unregistered agent has no identity in the Authority, so it cannot mint tokens or access protected resources. Another agent cannot impersonate an identity that has not been registered.
           </p>
           <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed">
-            Review the discovery. If the fingerprint matches your release artifact, register with one click. If it doesn&apos;t, you&apos;ve just caught a rogue deployment before it could act.
+            Compare the discovered fingerprint with the expected release artifact. Approve the registration when they match; otherwise, investigate the deployment before it can act.
           </p>
         </div>
       </div>
@@ -249,8 +245,8 @@ export function WorkflowsSection() {
     <SectionFrame
       id="workflows"
       eyebrow="Feature · Workflows"
-      title={<>From inferred topology to <span className="text-[#818cf8]">live execution.</span></>}
-      kicker="Three lenses on the same multi-agent system. The Console derives orchestration from the tool graph automatically, surfaces declared WorkflowDefinitions, and (soon) replays actual runtime traces against them."
+      title={<>Inspect inferred, registered, and <span className="text-[#818cf8]">runtime workflows.</span></>}
+      kicker="The Console derives orchestration from the tool graph, displays registered WorkflowDefinitions, and will compare runtime traces with those declarations."
     >
       {/* Tab bar */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -299,12 +295,11 @@ function InferredPanel() {
       <div className="p-6 lg:p-8">
         <h3 className="text-[17px] font-semibold text-white mb-2">Inferred from the tool graph</h3>
         <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed mb-4">
-          Every orchestrator agent — one whose tools include other agents — becomes a workflow root.
-          Children are traced recursively. No declaration needed. As soon as agents register, their delegation
-          structure is visible.
+          An agent whose tools include other agents is treated as a workflow root. Auth51 traces its children
+          recursively, so the delegation structure becomes visible as soon as the agents register.
         </p>
         <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed">
-          Useful for: understanding what you actually deployed, debugging &ldquo;why does this agent have this access,&rdquo; catching scope creep.
+          Use this view to confirm what was deployed, investigate why an agent has access, and identify scope creep.
         </p>
       </div>
     </div>
@@ -331,8 +326,8 @@ function RegisteredPanel() {
       <div className="p-6 lg:p-8">
         <h3 className="text-[17px] font-semibold text-white mb-2">Declared with the Authority</h3>
         <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed mb-4">
-          A registered workflow is a signed declaration: which steps run, in what order, with what scopes,
-          gated by what approvals. Token mints validate against it — drift is impossible.
+          A registered workflow is a signed declaration of its steps, order, scopes, and approval gates.
+          Token minting validates requests against that declaration and rejects workflow drift.
         </p>
         <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed">
           Approval gates (⚠ HITL) require explicit human sign-off before the next step proceeds.
@@ -361,13 +356,13 @@ function RuntimePanel() {
         </pre>
       </div>
       <div className="p-6 lg:p-8">
-        <h3 className="text-[17px] font-semibold text-white mb-2">Real executions, real outcomes</h3>
+        <h3 className="text-[17px] font-semibold text-white mb-2">Review runtime workflow traces</h3>
         <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed mb-4">
-          Each workflow run gets a unique trace ID. The Console renders the actual step sequence with timings,
-          status, and — for blocked runs — exactly which anchor caught the violation.
+          Each workflow run receives a unique trace ID. The Console shows the actual step sequence, timing,
+          status, and the security anchor that blocked a violation.
         </p>
         <p className="text-[13.5px] text-[#b6bbc5] leading-relaxed">
-          Comparative view (registered vs runtime) coming with the analyzer agent in the next release.
+          A forthcoming analyzer view will compare registered workflows with runtime traces.
         </p>
       </div>
     </div>
@@ -383,8 +378,8 @@ export function ThreatsSection() {
     <SectionFrame
       id="threats"
       eyebrow="Empirical evaluation"
-      title={<>12 known agentic attacks. <span className="text-[#34d399]">All 12 blocked.</span></>}
-      kicker="Every threat below is implemented as a runnable scenario, executed against both an OAuth-only baseline and an Auth51-protected configuration. OAuth failed to prevent any attacks. Auth51 blocked every attack."
+      title={<>Auth51 blocked the attack in <span className="text-[#34d399]">all 12 implemented scenarios.</span></>}
+      kicker="Each scenario below runs against both an OAuth-only baseline and an Auth51-protected configuration. In these tests, the OAuth-only baseline blocked none; Auth51 blocked all 12."
     >
       <div className="grid grid-cols-3 gap-3 mb-8 max-w-[640px]">
         <Mini eyebrow="OAuth" value="0/12" tag="blocked" tone="danger" />
@@ -459,8 +454,8 @@ export function FederationSection() {
     <SectionFrame
       id="federation"
       eyebrow="Identity Federation"
-      title={<>Identity federated. <span className="text-[#a5b4fc]">Secrets never seen.</span></>}
-      kicker="The Console signs short-lived JWTs asserting who you are. Each Authority verifies them and issues its own tokens, bound to your user. Your browser never holds client_secrets, refresh tokens, or anything else dangerous. Built on RFC 8693 Token Exchange."
+      title={<>Federate identity without exposing <span className="text-[#a5b4fc]">client secrets to the browser.</span></>}
+      kicker="The Console uses short-lived JWTs to assert the signed-in user. Each Authority validates those assertions and issues its own user-bound tokens. The browser does not receive client secrets or refresh tokens. This exchange follows RFC 8693."
     >
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-10">
         <div className="relative rounded-2xl border border-[rgb(46_48_54)] bg-gradient-to-b from-[rgb(14_15_18)] to-[rgb(10_11_13)] p-6 sm:p-8 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.35),0_0_0_1px_rgba(99,102,241,0.05)_inset]">
@@ -468,14 +463,14 @@ export function FederationSection() {
           <FederationFlow />
         </div>
         <ul className="space-y-5">
-          <Bullet title="One sign-in. Many control planes.">
-            Sign into the Console once via Clerk / SSO. Switch between dev, staging, and prod Authorities like kubectl context-switches between clusters. Each one issues its own short-lived token.
+          <Bullet title="Use one console session across Authorities.">
+            Sign in once through Clerk or SSO and switch among development, staging, and production Authorities. Each Authority issues its own short-lived token.
           </Bullet>
-          <Bullet title="Audit per-human, not per-client.">
-            Every action carries your actual identity in the token, not a shared service-account. Audit logs answer who, not just what.
+          <Bullet title="Preserve user identity in audit records.">
+            Each action carries the user&apos;s identity rather than a shared service-account identity, so audit logs record who initiated it.
           </Bullet>
-          <Bullet title="Standards-based.">
-            RFC 8693 token exchange. RFC 9440 message signatures. Agentic JWT IETF draft. No proprietary protocol — your existing JWT libraries already understand the tokens.
+          <Bullet title="Use existing OAuth and JWT infrastructure.">
+            Auth51 uses RFC 8693 token exchange, RFC 9440 proof-of-possession, and the Agentic JWT IETF Internet-Draft. Existing JWT libraries can process the resulting tokens.
           </Bullet>
         </ul>
       </div>
@@ -635,8 +630,8 @@ export function InstallSection() {
     <SectionFrame
       id="install"
       eyebrow="Get started"
-      title={<>Install. Register. <span className="text-[#34d399]">Done.</span></>}
-      kicker="Drop the shim into your agent process, point it at an Authority, and every outbound call is identity-bound, intent-bound, and audit-logged. No service to run, no sidecar to deploy."
+      title={<>Integrate Auth51 with <span className="text-[#34d399]">a single import.</span></>}
+      kicker="Add the client library to the agent process and configure it with an Authority. Outbound calls then carry identity- and intent-bound tokens and appear in audit logs. The client integration requires no sidecar or changes to agent or tool logic."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <CodeBlock label="Python">{`$ pip install auth51
@@ -711,11 +706,11 @@ export function CtaSection() {
       <Container>
         <div className="py-24 sm:py-32 text-center max-w-[640px] mx-auto">
           <h2 className="text-[36px] sm:text-[44px] font-semibold text-white tracking-tight leading-[1.06]">
-            Ship agents you can <span className="text-[#a5b4fc]">defend in production.</span>
+            Evaluate Auth51 with <span className="text-[#a5b4fc]">a working agent.</span>
           </h2>
           <p className="mt-5 text-[16px] text-[#b6bbc5] leading-relaxed">
-            Open the Console, register your first agent, and watch every call get identity-bound and audit-logged.
-            Or just curl the live endpoints and see for yourself.
+            Open the Console and register an agent to inspect identity-bound, auditable calls.
+            The walkthrough demonstrates the same flow against live endpoints.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Link

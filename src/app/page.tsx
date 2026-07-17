@@ -3,7 +3,7 @@ import { Container } from '@/components/ui/Container'
 import { Button } from '@/components/ui/Button'
 import { AnimatedConsolePreview } from '@/components/marketing/AnimatedConsolePreview'
 import {
-  ControlPlaneSection,
+  RuntimeIdentitySection,
   LiveRegistrySection,
   DiscoverySection,
   WorkflowsSection,
@@ -16,13 +16,13 @@ import {
 /**
  * Auth51 homepage — Linear-style dark, full-width hero with the animated
  * Console preview placed below the headline (not side-by-side), followed by
- * deep sections explaining the control plane.
+ * deep sections explaining runtime identity and per-action authorization.
  */
 export default function Home() {
   return (
     <>
       <Hero />
-      <ControlPlaneSection />
+      <RuntimeIdentitySection />
       <LiveRegistrySection />
       <DiscoverySection />
       <WorkflowsSection />
@@ -92,15 +92,15 @@ function Hero() {
               the headline breaks into 2 lines at lg, not 3. */}
           <div className="mx-auto max-w-[1120px] text-center">
             <p className="font-mono text-[11px] font-semibold tracking-[0.18em] text-[#818cf8] uppercase mb-6">
-              Identity · Intent · Audit · for AI agents
+              Runtime identity · Per-action authorization · for AI agents
             </p>
             <h1 className="text-[44px] sm:text-[60px] lg:text-[72px] font-semibold text-white leading-[1.04] tracking-tight text-balance">
-              The control plane your AI agents need before production.
+              Verify the agent behind every action.
             </h1>
             <p className="mt-7 text-[17px] sm:text-[20px] text-[#b6bbc5] leading-relaxed text-pretty max-w-[680px] mx-auto">
-              Auth51 fingerprints every agent at runtime, binds every action to a declared intent,
-              and rejects every call that doesn&apos;t match. Built on OAuth 2.0 Token Exchange
-              and the Agentic JWT IETF draft.
+              Valid credentials do not prove which agent is actually acting. Auth51 derives identity
+              from the running agent&apos;s observed system prompt, tools, and configuration, then binds
+              each approved action to a per-action token enforced at the resource server.
             </p>
             <div className="mt-10 flex flex-wrap gap-3 justify-center">
               <Link href="/console">
@@ -116,14 +116,14 @@ function Hero() {
             </div>
 
             {/* Trust strip */}
-            <div className="mt-10 flex items-center gap-4 text-[12.5px] text-[#8a8f98] justify-center">
-              <Stat number="12/12" label="threats blocked" />
+            <div className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-[#8a8f98] justify-center">
+              <Stat number="12/12" label="implemented scenarios blocked" />
               <Sep />
-              <Stat number="+2.1ms" label="overhead" />
+              <Stat number="+2.1ms" label="per token mint" />
               <Sep />
-              <Stat number="40+" label="live agents" />
+              <Stat number="1" label="client import" />
               <Sep />
-              <span className="font-mono text-[#8a8f98]">idp.auth51.com</span>
+              <span className="font-mono text-[#8a8f98]">OAuth 2.0 compatible</span>
             </div>
           </div>
 
