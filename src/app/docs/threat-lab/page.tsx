@@ -4,17 +4,17 @@ import { PageTitle, Lead, H2, P, Callout, Related } from '@/components/docs/pros
 export const metadata: Metadata = {
   title: 'Threat lab',
   description:
-    'Every RS-side defense auth51 claims, demonstrated live and self-contained in one runnable script: stolen, forged, inflated, mis-operated, expired, mis-signed, and mis-audienced tokens, all inert at the resource.',
+    'A self-contained script that exercises Auth51 resource-server defenses against stolen, forged, over-scoped, expired, incorrectly signed, and incorrectly audienced tokens.',
 }
 
 const ATTACKS: [string, string, string][] = [
   ['—', 'Legit call: valid token + valid DPoP', 'Allowed (the baseline)'],
-  ['1', 'Steal a token, replay it with no proof', 'Proof-of-possession: a cnf-bound token needs a DPoP proof (RFC 9449); a copy from a log has no key'],
+  ['1', 'Steal a token and replay it without proof', 'Proof-of-possession: a cnf-bound token requires a DPoP proof (RFC 9449); copying the token does not provide the key'],
   ['2', 'Forge a DPoP proof with the attacker’s key', 'The proof key must equal the token’s cnf.jkt (thumbprint mismatch)'],
-  ['3', 'Scope inflation', 'The token must carry the endpoint’s scope'],
-  ['4', 'Wrong operation (O6): a GET token on DELETE', 'Each endpoint derives its own a51:rs scope; a GET token lacks DELETE’s. The correct DELETE token is allowed; the check is on the operation, not a block-all'],
+  ['3', 'Request with an inflated scope', 'The token must carry the scope required by the endpoint'],
+  ['4', 'Wrong operation (O6): use a GET token on DELETE', 'Each endpoint derives its own a51:rs scope. A GET token lacks the DELETE scope, while a correctly scoped DELETE token is allowed'],
   ['5', 'Replay a DPoP proof on a different request', 'htu binds the proof to this exact URL'],
-  ['6', 'Present an expired token', 'exp, beyond clock skew'],
+  ['6', 'Present an expired token', 'The exp claim, including the permitted clock skew'],
   ['7', 'Forge a token with the attacker’s signing key', 'JWKS signature verification'],
   ['8', 'Use a token at the wrong resource server', 'aud (audience)'],
   ['9', 'Tamper the agent’s prompt or code', 'The identity checksum changes, so the Authority won’t mint under the registered identity'],
@@ -26,11 +26,11 @@ export default function ThreatLab() {
       <PageTitle eyebrow="Get started">Threat lab</PageTitle>
 
       <Lead>
-        Every RS-side defense on this site is demonstrated <em>live</em> by one runnable script.
-        Nothing to deploy: a single process plays the Authority (owns the signing key, mints tokens,
-        serves its own JWKS), the resource server (a FastAPI app guarded by{' '}
-        <a href="/docs/architecture/verifier">auth51-verifier</a>), and the attacker, then fires each
-        attack in-process and checks the verifier reacts the way these docs claim.
+        One runnable script demonstrates the resource-server defenses described in these docs.
+        A single process acts as the Authority, the protected resource server, and the attacker.
+        It owns the signing key, mints tokens, serves a JWKS, runs a FastAPI application protected
+        by <a href="/docs/architecture/verifier">auth51-verifier</a>, and submits each attack to
+        confirm that the verifier produces the expected result.
       </Lead>
 
       <H2>Run it</H2>
@@ -39,12 +39,13 @@ python -m venv .venv && . .venv/bin/activate
 pip install -e . -r examples/threat-lab/requirements.txt
 python examples/threat-lab/lab.py`}</code></pre>
       <P>
-        A <code className="code-inline">✓</code> means the attack was <strong>blocked</strong> (or the
-        legitimate call allowed); a <code className="code-inline">✗</code> means a defense didn&rsquo;t
-        hold. The lab exits non-zero if any defense fails, so it doubles as a conformance test.
+        A <code className="code-inline">✓</code> means that an attack was <strong>blocked</strong> or
+        that the legitimate baseline request was allowed. A <code className="code-inline">✗</code>{' '}
+        means that the expected defense failed. The process exits with a non-zero status if any
+        check fails, so the lab also serves as a conformance test.
       </P>
 
-      <H2>What it proves</H2>
+      <H2>What it demonstrates</H2>
       <div className="my-6 overflow-x-auto">
         <table className="w-full text-[13px] border-collapse">
           <thead>
@@ -66,18 +67,18 @@ python examples/threat-lab/lab.py`}</code></pre>
         </table>
       </div>
       <P>
-        Attacks 1&ndash;8 are enforced by the verifier at the resource, entirely offline. Attack 9 is
-        the mint-side anchor: <a href="/docs/concepts/agent-identity">identity</a> is a fingerprint of
-        the code, not a secret the agent carries, so tampering is self-evident before a token is ever
-        issued.
+        The verifier enforces attacks 1&ndash;8 at the resource without calling the Authority. Attack 9
+        exercises the mint-side identity check: <a href="/docs/concepts/agent-identity">agent identity</a>{' '}
+        is derived from the agent rather than from a stored secret, so tampering changes the checksum
+        before a token is issued.
       </P>
 
       <Callout>
-        The lab installs its own public key into the verifier&rsquo;s JWKS cache. It legitimately{' '}
-        <em>is</em> the authority, so it knows that key. The signature, DPoP proof, scope, audience,
-        and expiry are all verified for real by the unmodified verifier; none of the security checks
-        are stubbed. Swap the local mint for a real <code className="code-inline">authority.auth51.com</code>{' '}
-        token and the same verifier reacts identically.
+        The lab installs its public key in the verifier&rsquo;s JWKS cache because it acts as the
+        Authority for the test. The unmodified verifier checks the signature, DPoP proof, scope,
+        audience, and expiry; the security checks are not stubbed. Replacing the local mint with a
+        token from <code className="code-inline">authority.auth51.com</code> exercises the same
+        verifier path.
       </Callout>
 
       <Related items={[

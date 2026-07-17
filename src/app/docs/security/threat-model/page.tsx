@@ -4,7 +4,7 @@ import { PageTitle, Lead, H2, P, Deep, Callout, SpecRef, InTheWild, Related } fr
 export const metadata: Metadata = {
   title: 'Threat model',
   description:
-    'The agent-specific attacks auth51 is built to stop: spoofed identity, token replay, runtime tampering, cross-agent escalation, forged intent. Organized by STRIDE, with real-world precedents.',
+    'The agent-specific attacks Auth51 is designed to address, including identity spoofing, token replay, runtime tampering, cross-agent escalation, and forged intent.',
 }
 
 export default function ThreatModel() {
@@ -13,77 +13,78 @@ export default function ThreatModel() {
       <PageTitle eyebrow="Security model">Threat model</PageTitle>
 
       <Lead>
-        A conventional OAuth threat model assumes a fixed client. An agent is not fixed. Its behavior
-        is driven by a prompt, it spawns sub-agents, and it picks tools at runtime. That opens up a set
-        of attacks the classic model doesn&rsquo;t name. The protocol&rsquo;s threat analysis enumerates twelve
-        of them, using STRIDE as the frame.
+        A conventional OAuth threat model assumes a client with fixed behavior. An agent can instead
+        select tools, generate plans, and spawn sub-agents at runtime based on its prompt and inputs.
+        The protocol&rsquo;s threat analysis uses STRIDE to organize twelve attacks that arise from this
+        execution model.
       </Lead>
       <P>
-        Read them as the reason each mechanism exists, not as a checklist. Every anchor on the next
-        page traces back to one or more of these.
+        These threats explain why each Auth51 mechanism exists. The security anchors on the next
+        page each address one or more of them.
       </P>
 
       <H2>Where the risk concentrates</H2>
       <P>
-        STRIDE has six categories; the agent-specific threats cluster in five of them. Denial of
-        service is real but not agent-specific. It&rsquo;s handled as an availability concern
-        (rate-limiting the mint path, bounding checksum work) rather than as a distinct agent threat.
-        The other five are where identity-driven controls earn their place:
+        STRIDE defines six categories, and the agent-specific threats in this model fall into five
+        of them. Denial of service remains relevant but is not specific to agents. Auth51 treats it
+        as an availability concern through measures such as rate limiting the mint path and bounding
+        checksum work. The remaining categories cover the identity-driven threats below.
       </P>
       <P>
-        Spoofing covers three. Pretending to be a trusted agent by cloning its identity, replaying a
-        token it was issued, or swapping in a compromised client library. All three attack the question
-        &ldquo;is this really who it claims to be?&rdquo;
+        <strong>Spoofing</strong> covers three threats: cloning a trusted agent&rsquo;s identity,
+        replaying one of its tokens, and replacing the client library with a compromised version.
+        Each attacks the system&rsquo;s ability to verify who is acting.
       </P>
       <P>
-        Tampering covers three. Changing what the agent is or does after it was trusted: modifying its
-        prompt or tools at runtime, injecting instructions through its inputs, or rewriting the workflow
-        definition it&rsquo;s supposed to follow.
+        <strong>Tampering</strong> covers changes made after an agent or workflow has been trusted:
+        modifying the agent&rsquo;s prompt or tools at runtime, injecting instructions through its
+        inputs, or rewriting its workflow definition.
       </P>
       <P>
-        Elevation of privilege covers three. Ending up able to do more than intended: one agent
-        steering a higher-privileged one, skipping an approval step, or minting a broader scope than
-        the step calls for.
+        <strong>Elevation of privilege</strong> covers an agent gaining more authority than intended.
+        This includes steering a more privileged agent, skipping a required approval, or minting a
+        broader scope than the current step requires.
       </P>
       <P>
-        Repudiation covers two. Breaking the link between a user&rsquo;s intent and an agent&rsquo;s action:
-        forging the origin of an intent, or manipulating a delegation chain to hide who actually acted.
+        <strong>Repudiation</strong> covers failures in the link between a user&rsquo;s intent and an
+        agent&rsquo;s action, including forged intent origins and manipulated delegation chains that hide
+        which agent acted.
       </P>
       <P>
-        Information disclosure covers one. Leaking the agent&rsquo;s own configuration, its prompts and
-        tools, which is both sensitive and a map for the spoofing attacks above.
+        <strong>Information disclosure</strong> covers exposure of an agent&rsquo;s configuration,
+        prompts, and tools. That information is sensitive on its own and can also support the
+        spoofing attacks described above.
       </P>
 
       <Callout>
-        This maps cleanly onto the OWASP frames a security audience already knows: the classic Top 10
-        (broken access control, cryptographic failures, injection, insecure design) plus the LLM Top
-        10 (prompt injection, excessive agency). The agent threats are familiar failure modes with a
-        new actor in the client seat.
+        These threats also map to familiar OWASP categories. The traditional Top 10 includes broken
+        access control, cryptographic failures, injection, and insecure design; the LLM Top 10 adds
+        concerns such as prompt injection and excessive agency. The failure modes are familiar, but
+        the agent introduces a dynamic actor inside the client boundary.
       </Callout>
 
       <Deep title="All twelve threats, one by one">
-        <P><strong>T1 · Agent identity spoofing.</strong> A malicious agent reproduces a legitimate one&rsquo;s id, prompt, and tool set to present an identical fingerprint. Vector: source or config is exfiltrated (a repo compromise) and cloned. Answered by checksum verification and client-library integrity.</P>
-        <P><strong>T2 · Token replay.</strong> A valid intent token is intercepted (off the wire or from a memory dump) and replayed by another party before it expires. Answered by proof-of-possession: the token only works for the key-holder that minted it.</P>
-        <P><strong>T3 · Client-library impersonation.</strong> The trusted client shim is replaced with a compromised build that quietly skips the checks. Vector: supply-chain compromise or local privilege escalation. Answered by integrity validation of the library and checksum verification.</P>
-        <P><strong>T4 · Runtime code modification.</strong> An agent&rsquo;s prompt, tools, or config are altered <em>after</em> it registered cleanly, via memory injection, a debugger, or reflection. Answered by runtime checksum re-verification and input validation.</P>
-        <P><strong>T5 · Prompt injection.</strong> Crafted inputs or poisoned external data steer the model into actions that violate policy. Answered by input/output validation combined with the per-action grant ceiling: the injected action still needs a scope it doesn&rsquo;t have.</P>
-        <P><strong>T6 · Workflow-definition tampering.</strong> The workflow stored at the authorization server is rewritten to permit transitions it shouldn&rsquo;t. Vector: compromised admin credentials or an AS vulnerability. Answered by access control on workflow definitions and workflow-state tracking.</P>
-        <P><strong>T7 · Cross-agent privilege escalation.</strong> A low-privilege agent manipulates a higher-privilege one into acting for it, the confused deputy. Answered by binding scope to the acting agent&rsquo;s own grant and validating the delegation context.</P>
-        <P><strong>T8 · Workflow-step bypass.</strong> An agent skips a required approval or runs steps out of order. Vector: direct API calls that dodge the workflow engine. Answered by workflow-state tracking and per-step authorization at the resource.</P>
-        <P><strong>T9 · Scope inflation.</strong> An agent requests or reuses broader scopes than the current step needs: excessive agency. Answered by scope binding and delegation-context validation, enforced at mint.</P>
-        <P><strong>T10 · Intent-origin forgery.</strong> It can&rsquo;t be proven cryptographically which user intent led to a given action, enabling deniability. Answered by binding a hash of the user&rsquo;s intent into the token lifecycle and per-step authorization.</P>
-        <P><strong>T11 · Delegation-chain manipulation.</strong> The delegation path is forged or replayed in a different context to hide the true origin of an action. Answered by PoP key binding and binding the intent hash into the chain.</P>
-        <P className="!mb-0"><strong>T12 · Agent-configuration exposure.</strong> Prompts, tools, and configuration leak through an over-exposed API or memory dump, sensitive in itself and fuel for T1/T3. Answered by checksum verification and client-library integrity, and by not exposing configuration in the first place. <SpecRef href="/docs/reference">draft-goswami-agentic-jwt §9.5–9.6</SpecRef></P>
+        <P><strong>T1 · Agent identity spoofing.</strong> A malicious agent reproduces a legitimate agent&rsquo;s id, prompt, and tool set to present the same fingerprint. This can follow source or configuration exfiltration, including a repository compromise. Checksum verification and client-library integrity address this threat.</P>
+        <P><strong>T2 · Token replay.</strong> Another party intercepts a valid intent token from the wire or a memory dump and replays it before it expires. Proof-of-possession binds the token to the key holder that minted it.</P>
+        <P><strong>T3 · Client-library impersonation.</strong> A compromised build replaces the trusted client shim and skips its checks. This can result from a supply-chain compromise or local privilege escalation. Library-integrity validation and checksum verification address this threat.</P>
+        <P><strong>T4 · Runtime code modification.</strong> An agent&rsquo;s prompt, tools, or configuration are altered <em>after</em> registration through memory injection, a debugger, or reflection. Runtime checksum re-verification and input validation address this threat.</P>
+        <P><strong>T5 · Prompt injection.</strong> Crafted inputs or poisoned external data steer the model toward an action that violates policy. Input and output validation reduce this risk, while the per-action grant ceiling still requires the injected action to have an allowed scope.</P>
+        <P><strong>T6 · Workflow-definition tampering.</strong> The workflow stored at the authorization server is modified to permit an invalid transition. Compromised administrative credentials or an authorization-server vulnerability can provide the attack vector. Access control on workflow definitions and workflow-state tracking address it.</P>
+        <P><strong>T7 · Cross-agent privilege escalation.</strong> A lower-privileged agent manipulates a higher-privileged agent into acting for it, creating a confused-deputy problem. Binding scope to the acting agent&rsquo;s grant and validating the delegation context address this threat.</P>
+        <P><strong>T8 · Workflow-step bypass.</strong> An agent skips a required approval or executes steps out of order, for example by calling an API directly instead of using the workflow engine. Workflow-state tracking and per-step authorization at the resource address this threat.</P>
+        <P><strong>T9 · Scope inflation.</strong> An agent requests or reuses broader scopes than the current step requires. Scope binding and delegation-context validation enforce the permitted scope at mint.</P>
+        <P><strong>T10 · Intent-origin forgery.</strong> The system cannot prove cryptographically which user intent led to an action, allowing its origin to be disputed. Binding a hash of the user&rsquo;s intent into the token lifecycle and applying per-step authorization address this threat.</P>
+        <P><strong>T11 · Delegation-chain manipulation.</strong> A delegation path is forged or replayed in another context to conceal the origin of an action. Proof-of-possession key binding and including the intent hash in the chain address this threat.</P>
+        <P className="!mb-0"><strong>T12 · Agent-configuration exposure.</strong> Prompts, tools, or configuration are exposed through an API or memory dump. The data is sensitive and can also support T1 and T3. Checksum verification, client-library integrity, and limiting configuration exposure address this threat. <SpecRef href="/docs/reference">draft-goswami-agentic-jwt §9.5–9.6</SpecRef></P>
       </Deep>
 
       <InTheWild title="These aren't hypothetical">
         <P>
-          <strong>SolarWinds (2020)</strong> is T3/T4 in the physical world: a trusted, signed build
-          carrying modified code that everything downstream kept trusting. <strong>Prompt-injection</strong>{' '}
-          incidents against production assistants are T5, already routine. And the{' '}
-          <strong>confused-deputy</strong> pattern behind T7 is one of the oldest results in access
-          control. It just arrives now at machine speed, between agents that delegate to each other
-          thousands of times an hour.
+          <strong>SolarWinds (2020)</strong> illustrates the T3 and T4 pattern: downstream systems
+          trusted a signed build that contained modified code. Prompt-injection incidents involving
+          production assistants illustrate T5. The confused-deputy problem behind T7 is also a
+          long-established access-control failure, now applied to agents that delegate work to one
+          another programmatically.
         </P>
       </InTheWild>
 

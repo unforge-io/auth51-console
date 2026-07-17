@@ -5,7 +5,7 @@ import { ChecksumDiagram } from '@/components/docs/diagrams'
 export const metadata: Metadata = {
   title: 'Agent identity',
   description:
-    "An agent's identity in auth51 is a fingerprint of what it is: its prompt and tools, not a secret it carries. How that fingerprint is computed, and why it matters.",
+    "An agent's identity in Auth51 is a fingerprint of what it is: its prompt and tools, rather than a secret it carries. Learn how that fingerprint is computed and used.",
 }
 
 export default function AgentIdentity() {
@@ -14,64 +14,62 @@ export default function AgentIdentity() {
       <PageTitle eyebrow="Concepts">Agent identity</PageTitle>
 
       <Lead>
-        Every request an agent makes looks the same to the service on the other end. A
-        shopping agent, a stray script, a token replayed from last week all send the same
-        bearer header, the same shape. The service can&rsquo;t tell them apart, so it can&rsquo;t ask
-        who is really calling, or whether they are still who they were.
+        To a receiving service, requests made with the same bearer token have the same identity.
+        A shopping agent, an unrelated script, and a replayed request can all present the same
+        authorization header. The service cannot distinguish which agent produced the request or
+        determine whether that agent still matches the version that was approved.
       </Lead>
-      <P>auth51 answers that with a fingerprint.</P>
+      <P>Auth51 adds that distinction through an agent fingerprint.</P>
 
       <H2>Identity is what the agent is, not a secret it holds</H2>
       <P>
-        API keys and passwords are things an agent <em>has</em>. They get copied, leaked,
-        or handed to the wrong process, and the credential itself tells you nothing about
-        whether the code behind it changed.
+        API keys and passwords are credentials an agent <em>has</em>. They can be copied, leaked,
+        or passed to another process. The credential itself does not indicate whether the code or
+        configuration using it has changed.
       </P>
       <P>
-        An auth51 agent&rsquo;s identity works the other way around. It&rsquo;s a hash of the things
-        that make the agent that agent: its system prompt, the tools it can call, and its
-        model configuration. We call that hash a <code className="code-inline">checksum</code>.
-        Edit the prompt or add a tool, and the checksum moves with it. Nothing is stored
-        inside the agent and handed over on request. The identity is recomputed from what
-        the agent actually is, every time it runs.
+        An Auth51 agent identity is instead derived from the properties that define the agent:
+        its system prompt, the tools it can call, and its model configuration. Auth51 calls the
+        resulting hash a <code className="code-inline">checksum</code>. Editing the prompt or adding
+        a tool changes that checksum. Rather than presenting a stored identity value, the runtime
+        recomputes the identity from the agent that is running.
       </P>
       <P>
-        That has a useful side effect. An agent whose prompt was quietly edited, or that
-        had a tool swapped in, no longer matches its registered fingerprint. It doesn&rsquo;t
-        inherit the trust you gave the original. It shows up as something new.
+        As a result, an agent with an edited prompt or a replaced tool no longer matches its
+        registered fingerprint. It is treated as a different identity rather than inheriting the
+        trust assigned to the registered agent.
       </P>
 
       <Foundations title="Why OAuth needs this at all">
         <p>
-          OAuth 2.0 <a href="/docs/reference">(RFC&nbsp;6749)</a> was built on an assumption:
-          the client application faithfully represents the user&rsquo;s intent. You authorize an
-          app once, it gets a token, and every call it makes with that token is taken to be
-          something you asked for. For a web app with fixed code, that holds.
+          OAuth 2.0 <a href="/docs/reference">(RFC&nbsp;6749)</a> assumes that the client
+          application faithfully represents the user&rsquo;s intent. Once a user authorizes an
+          application, requests made with its token are treated as authorized actions. That model
+          works for a web application with fixed code paths.
         </p>
         <p>
-          Autonomous agents break the assumption. They generate their own plans, spawn
-          sub-agents, and decide which tools to call without a human in the loop. Their
-          behavior is driven by a prompt that can be edited, injected into, or swapped. The
-          token still says &ldquo;this app, acting for this user,&rdquo; but the <em>thing</em> holding
-          the token is no longer fixed. The draft calls this gap the{' '}
-          <em>intent-execution separation problem</em>. A checksum closes it by making the
-          running agent&rsquo;s exact identity part of every authorization decision.
+          Autonomous agents weaken that assumption because they generate plans, spawn sub-agents,
+          and select tools at runtime. Their behavior is driven by a prompt that can be edited,
+          injected into, or replaced. The token still identifies the application acting for the
+          user, but the agent using it is no longer fixed. The draft calls this the{' '}
+          <em>intent-execution separation problem</em>. The checksum addresses it by including the
+          running agent&rsquo;s identity in each authorization decision.
         </p>
       </Foundations>
 
       <InTheWild title="SolarWinds, 2020">
-        Attackers slipped malicious code into a trusted, signed software build. Everything
-        downstream kept trusting it, because the signature still checked out. Identity tied
-        to <em>what the code is</em>, rather than to a key it carries, is the property that
-        breaks that chain: change the code, and the fingerprint changes with it.
+        Attackers inserted malicious code into a trusted, signed software build. Downstream
+        systems continued to trust the build because its signature remained valid. An identity
+        derived from <em>what the code is</em>, rather than only from a key it carries, changes when
+        the code changes.
       </InTheWild>
 
       <H2>How the fingerprint is computed</H2>
       <P>
-        The checksum is a one-way hash (SHA3-512) over the agent&rsquo;s identity inputs. What
-        matters is what happens <em>before</em> the hash: the inputs are put into a canonical
-        form first, so changes that don&rsquo;t affect behavior don&rsquo;t change the identity, while
-        any change that does is caught.
+        The checksum is a one-way SHA3-512 hash over the agent&rsquo;s identity inputs. Before hashing,
+        Auth51 converts those inputs into a canonical form. Changes that do not affect behavior,
+        such as formatting or key order, therefore leave the identity unchanged, while behavioral
+        changes produce a different checksum.
       </P>
 
       <Figure n={1} caption={<>Identity inputs are canonicalized, then hashed once. The same logical agent yields the same checksum across frameworks and formatting.</>}>
@@ -80,88 +78,88 @@ export default function AgentIdentity() {
 
       <Deep title="What canonicalization does, and why it matters across frameworks">
         <P>
-          Without normalization, the same logical tool would fingerprint differently in
-          LangChain, CrewAI, or a hand-rolled loop, because of different wrapper parameters,
-          whitespace, and key ordering. The checksum would be brittle and framework-specific.
-          auth51 normalizes so the identity tracks meaning, not packaging:
+          Without normalization, the same logical tool could produce different fingerprints in
+          LangChain, CrewAI, or a custom loop because of wrapper parameters, whitespace, and key
+          ordering. Auth51 normalizes these differences so the identity represents behavior rather
+          than framework-specific packaging.
         </P>
         <P>
-          Tool signatures are stripped of framework wrapper parameters
-          (the <code className="code-inline">*args</code>/<code className="code-inline">**kwargs</code>{' '}
-          catch-alls a framework injects) before hashing, so a tool means the same thing
-          regardless of who wraps it.
+          Framework-injected wrapper parameters, including{' '}
+          <code className="code-inline">*args</code> and{' '}
+          <code className="code-inline">**kwargs</code> catch-alls, are removed from tool
+          signatures before hashing. The same logical tool can therefore retain the same identity
+          across wrappers.
         </P>
         <P>
-          Tool source code, when included, is normalized through the
-          Abstract Syntax Tree: parse to AST, remove docstrings (captured separately) and
-          comments, then unparse to a canonical form. Reformatting the code doesn&rsquo;t move the
-          checksum; changing the logic does.
+          When tool source code is included, it is normalized through the Abstract Syntax Tree.
+          Auth51 parses the source, removes comments and docstrings that are captured separately,
+          and then converts the AST back to a canonical form. Reformatting does not change the
+          checksum, while changing the logic does.
         </P>
         <P>
-          Structured inputs (config, tool metadata) are serialized with
-          sorted keys, so map ordering can&rsquo;t produce two different hashes for the same content.
+          Structured inputs, including configuration and tool metadata, are serialized with sorted
+          keys. Map ordering therefore cannot produce different hashes for equivalent content.
         </P>
         <P className="!mb-0">
           <SpecRef>draft-goswami-agentic-jwt §5</SpecRef>{' '}specifies the normalization rules in full.
         </P>
       </Deep>
 
-      <H2>You don&rsquo;t tell auth51 which agent is running</H2>
+      <H2>How Auth51 identifies the running agent</H2>
       <P>
-        You never call{' '}
-        <code className="code-inline">identify(&quot;shopping-agent&quot;)</code>. The client
-        watches your agent talk to its model, reads the system prompt off that request, and
-        recomputes the checksum against the agents your org has registered. A match
-        identifies the agent <em>and</em> proves it hasn&rsquo;t changed, in a single step.
-        There&rsquo;s no self-declaration for an impostor to fake.
+        Your application does not call{' '}
+        <code className="code-inline">identify(&quot;shopping-agent&quot;)</code>. The client observes
+        the agent&rsquo;s model request, reads the system prompt from that request, and recomputes the
+        checksum against the agents registered in your organization. A match identifies the agent
+        and verifies that it has not changed, without relying on a self-declared name.
       </P>
       <P>
-        No match is information too. It means an agent is running that you haven&rsquo;t
-        registered, which is worth a look. auth51 surfaces it for you to review instead of
-        trusting it quietly. That&rsquo;s what Discovery is for.
+        A request with no matching checksum represents an unregistered agent. Auth51 sends that
+        identity to Discovery for review rather than treating it as a registered agent.
       </P>
 
       <H2>The checksum, in four flavors</H2>
       <P>
-        You&rsquo;ll see checksum versions referenced as v1 through v4. v3 hashes the agent&rsquo;s
-        identity (its id, prompt, and config); v4 also folds in the interface of its
-        in-process tools. v1 and v2 exist for backward compatibility. The client and the
-        authority agree on which format to use, so you rarely touch this directly.
+        Checksum versions are identified as v1 through v4. v3 hashes the agent id, system prompt,
+        and model configuration. v4 also includes the interfaces of its in-process tools. v1 and
+        v2 remain available for backward compatibility. The client and the Authority agree on the
+        format, so applications rarely need to select it directly.
       </P>
 
       <Deep title="Exactly what goes into each version">
         <P>
-          All four are SHA3-512 over a canonicalized input; they differ in what that input includes.
+          All four versions use SHA3-512 over canonicalized input. They differ in the fields
+          included in that input.
         </P>
         <P>
-          v1 and v2 are legacy identity hashes retained for compatibility with
-          agents registered under earlier releases. The authority still validates them so an
-          upgrade never orphans a registered agent.
+          v1 and v2 are legacy identity hashes retained for agents registered under earlier
+          releases. The Authority continues to validate them so those registrations remain usable
+          after an upgrade.
         </P>
         <P>
-          v3 is identity-only: agent id, system prompt, and model
-          configuration. It is the baseline used when tool interfaces aren&rsquo;t available at
-          the point of computation.
+          v3 is identity-only: agent id, system prompt, and model configuration. It is used when
+          tool interfaces are not available at the point of computation.
         </P>
         <P>
-          v4 is v3 plus the interfaces of the agent&rsquo;s in-process tools
-          (names, normalized signatures, and where configured, AST-normalized source). It
-          detects a swapped tool, not just an edited prompt.
+          v4 extends v3 with the interfaces of the agent&rsquo;s in-process tools, including names,
+          normalized signatures, and, where configured, AST-normalized source. It can detect a
+          replaced tool as well as an edited prompt.
         </P>
         <P className="!mb-0">
-          When an agent registers, the authority recomputes the checksum itself rather than
-          trusting the one submitted. Client and server independently arrive at the same
-          fingerprint, or registration fails. Re-registering the same agent id with a
-          different checksum creates a new, versioned record; the latest is used for
-          validation. <SpecRef>draft-goswami-agentic-jwt §5.2</SpecRef>
+          During registration, the Authority recomputes the checksum rather than trusting the
+          submitted value. Registration succeeds only when the client and server independently
+          produce the same fingerprint. Registering the same agent id with a different checksum
+          creates a new versioned record, and the latest record is used for validation.{' '}
+          <SpecRef>draft-goswami-agentic-jwt §5.2</SpecRef>
         </P>
       </Deep>
 
       <H2>Where identity shows up</H2>
       <P>
-        In two places. At the model call, to work out which agent is running; that&rsquo;s
-        Discovery. And on every governed action, folded into the intent token so the
-        resource server can check who acted before it does the work. Intent tokens, next.
+        Identity is used in two places. At the model call, it identifies the running agent and
+        supports Discovery when no registered match exists. For each governed action, it is also
+        included in the intent token so the resource server can verify which agent acted before
+        processing the request.
       </P>
 
       <Related items={[
