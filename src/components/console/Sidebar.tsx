@@ -44,6 +44,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Overview', href: '/console' },
       { label: 'Get started', href: '/console/onboarding' },
+      { label: 'Studio', href: '/console/studio' },
     ],
   },
   {
