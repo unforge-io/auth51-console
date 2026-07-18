@@ -6,18 +6,56 @@ export const runtime = 'nodejs'
 // Composition runs a real LLM (Claude Opus) over the spec — allow a long request.
 export const maxDuration = 300
 
+const MAX_SPEC_BYTES = 8 * 1024 * 1024 // 8 MB — Plaid's spec is ~1–2 MB
+
+/** Fetch a spec by URL, server-side. Basic SSRF hygiene: http(s) only, no
+ * loopback/link-local/metadata hosts, size-capped. Runs on Vercel (outside the
+ * auth51 VPC), so it can't reach internal services regardless. */
+async function fetchSpecText(rawUrl: string): Promise<string> {
+  let url: URL
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    throw new Error('spec_url is not a valid URL')
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error('spec_url must be http(s)')
+  }
+  const host = url.hostname.toLowerCase()
+  if (
+    host === 'localhost' ||
+    host === '0.0.0.0' ||
+    host === '::1' ||
+    host.startsWith('127.') ||
+    host.startsWith('169.254.') ||
+    host.startsWith('10.') ||
+    host.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  ) {
+    throw new Error('spec_url host is not allowed')
+  }
+  const res = await fetch(url.toString(), { redirect: 'follow' })
+  if (!res.ok) throw new Error(`fetch failed (HTTP ${res.status})`)
+  const buf = await res.arrayBuffer()
+  if (buf.byteLength > MAX_SPEC_BYTES) throw new Error('spec is too large (> 8 MB)')
+  return new TextDecoder().decode(buf)
+}
+
 /**
  * POST /api/cp/generate
  *
- * Proxy the signed-in customer's spec to the workforce generator. We exchange a
- * server-side Authority token (org from the Clerk session) and call
- * workforce/generate with it — the backend takes ownership from the token, so the
- * generated pack belongs to this org. Returns a PREVIEW (profile + warnings) for
- * the review gate; nothing is persisted here (see /api/cp/profiles to save).
+ * Proxy the signed-in customer's spec to the workforce generator. Accepts the
+ * spec as `spec` (object), `spec_text` (JSON or YAML), or `spec_url` (fetched
+ * here). We exchange a server-side Authority token (org from the Clerk session)
+ * and call workforce/generate with it — the backend takes ownership from the
+ * token, so the pack belongs to this org. Returns a PREVIEW (profile + warnings);
+ * nothing is persisted here (see /api/cp/profiles to save).
  */
 export async function POST(req: Request) {
   let body: {
     spec?: unknown
+    spec_text?: string
+    spec_url?: string
     rs_id?: string
     profile_id?: string
     use_cases?: string[]
@@ -29,8 +67,17 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (!body.spec || !body.rs_id) {
-    return NextResponse.json({ error: 'spec and rs_id are required' }, { status: 400 })
+
+  let specText = body.spec_text
+  if (!body.spec && !specText && body.spec_url) {
+    try {
+      specText = await fetchSpecText(body.spec_url)
+    } catch (e) {
+      return NextResponse.json({ error: `spec_url: ${String(e)}` }, { status: 400 })
+    }
+  }
+  if (!body.spec && !specText) {
+    return NextResponse.json({ error: 'provide a spec, spec text, or a spec URL' }, { status: 400 })
   }
 
   try {
@@ -39,8 +86,9 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        spec: body.spec,
-        rs_id: body.rs_id,
+        spec: body.spec ?? undefined,
+        spec_text: specText,
+        rs_id: body.rs_id || undefined, // workforce derives from servers[0] if absent
         profile_id: body.profile_id,
         use_cases: body.use_cases ?? [],
         domain_context: body.domain_context ?? '',

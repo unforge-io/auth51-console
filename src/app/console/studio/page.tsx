@@ -43,6 +43,7 @@ function deriveRsId(specText: string): string {
 
 export default function StudioPage() {
   const [specText, setSpecText] = useState('')
+  const [specUrl, setSpecUrl] = useState('')
   const [rsId, setRsId] = useState('')
   const [useCasesText, setUseCasesText] = useState('')
   const [context, setContext] = useState('')
@@ -51,21 +52,29 @@ export default function StudioPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
 
+  // Best-effort prefill for JSON paste; YAML / URL specs derive rs_id server-side.
   const derivedRs = useMemo(() => deriveRsId(specText), [specText])
-  const effectiveRs = rsId.trim() || derivedRs
 
   async function onGenerate() {
     setError(null); setNotice(null); setResult(null)
-    let spec: unknown
-    try { spec = JSON.parse(specText) } catch { setError('The spec is not valid JSON.'); return }
-    if (!effectiveRs) { setError('Set an RS host (e.g. api.plaid.com) — none found in the spec.'); return }
+    const url = specUrl.trim()
+    const text = specText.trim()
+    if (!url && !text) { setError('Paste a spec (JSON or YAML) or give a spec URL.'); return }
     const use_cases = useCasesText.split('\n').map((s) => s.trim()).filter(Boolean)
+    // Send raw text or a URL — the server accepts JSON or YAML and derives the
+    // RS host from the spec when we don't supply one.
+    const payload = {
+      ...(url ? { spec_url: url } : { spec_text: text }),
+      rs_id: rsId.trim() || undefined,
+      use_cases,
+      domain_context: context,
+    }
     setBusy('generate')
     try {
       const res = await fetch('/api/cp/generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ spec, rs_id: effectiveRs, use_cases, domain_context: context }),
+        body: JSON.stringify(payload),
       })
       const data: GenerateResponse = await res.json()
       if (!res.ok) { setError(data.error || `Generation failed (HTTP ${res.status})`); return }
@@ -123,26 +132,40 @@ export default function StudioPage() {
       <div className="rounded-xl border border-c-border bg-c-bg p-4 space-y-4">
         <div>
           <label className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5 block">
-            OpenAPI spec (JSON)
+            Spec URL (optional — fetched for you)
+          </label>
+          <input
+            value={specUrl}
+            onChange={(e) => setSpecUrl(e.target.value)}
+            placeholder="https://raw.githubusercontent.com/plaid/plaid-openapi/master/2020-09-14.yml"
+            spellCheck={false}
+            className="w-full rounded-lg border border-c-border bg-c-surface-2 px-3 py-2 text-[12px] font-mono text-c-text"
+          />
+        </div>
+
+        <div>
+          <label className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5 block">
+            …or paste the OpenAPI spec (JSON or YAML){specUrl.trim() && <span className="text-c-text-3 normal-case"> — ignored while a URL is set</span>}
           </label>
           <textarea
             value={specText}
             onChange={(e) => setSpecText(e.target.value)}
-            placeholder='{ "openapi": "3.0.0", "info": {...}, "paths": {...} }'
+            placeholder={'openapi: 3.0.0\ninfo: { title: My API }\npaths: { ... }'}
             spellCheck={false}
-            className="w-full h-48 rounded-lg border border-c-border bg-c-surface-2 px-3 py-2 text-[12px] font-mono text-c-text leading-relaxed"
+            disabled={!!specUrl.trim()}
+            className="w-full h-48 rounded-lg border border-c-border bg-c-surface-2 px-3 py-2 text-[12px] font-mono text-c-text leading-relaxed disabled:opacity-40"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5 block">
-              RS host {derivedRs && <span className="text-c-text-3 normal-case">— detected {derivedRs}</span>}
+              RS host (optional){derivedRs && <span className="text-c-text-3 normal-case"> — detected {derivedRs}</span>}
             </label>
             <input
               value={rsId}
               onChange={(e) => setRsId(e.target.value)}
-              placeholder={derivedRs || 'api.plaid.com'}
+              placeholder={derivedRs || 'derived from spec servers'}
               spellCheck={false}
               className="w-full rounded-lg border border-c-border bg-c-surface-2 px-3 py-2 text-[12px] font-mono text-c-text"
             />
