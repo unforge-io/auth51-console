@@ -11,10 +11,19 @@ const MAX_SPEC_BYTES = 8 * 1024 * 1024 // 8 MB — Plaid's spec is ~1–2 MB
 /** Fetch a spec by URL, server-side. Basic SSRF hygiene: http(s) only, no
  * loopback/link-local/metadata hosts, size-capped. Runs on Vercel (outside the
  * auth51 VPC), so it can't reach internal services regardless. */
+/** github.com/owner/repo/blob/ref/path → raw.githubusercontent.com/owner/repo/ref/path
+ *  so a pasted GitHub file page (the HTML view) fetches the actual file. */
+function toRawGithub(u: URL): URL {
+  if (u.hostname !== 'github.com') return u
+  const m = u.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/(.+)$/)
+  if (!m) return u
+  return new URL(`https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`)
+}
+
 async function fetchSpecText(rawUrl: string): Promise<string> {
   let url: URL
   try {
-    url = new URL(rawUrl)
+    url = toRawGithub(new URL(rawUrl))
   } catch {
     throw new Error('spec_url is not a valid URL')
   }

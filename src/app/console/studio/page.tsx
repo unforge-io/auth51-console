@@ -198,7 +198,7 @@ export default function StudioPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={onGenerate}
-            disabled={busy !== null || !specText.trim()}
+            disabled={busy !== null || (!specText.trim() && !specUrl.trim())}
             className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {busy === 'generate' ? 'Generating…' : 'Generate workforce'}
