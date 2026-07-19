@@ -51,12 +51,13 @@ export default function StudioPage() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
+  const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
 
   // Best-effort prefill for JSON paste; YAML / URL specs derive rs_id server-side.
   const derivedRs = useMemo(() => deriveRsId(specText), [specText])
 
   async function onGenerate() {
-    setError(null); setNotice(null); setResult(null)
+    setError(null); setNotice(null); setResult(null); setProgress([])
     const url = specUrl.trim()
     const text = specText.trim()
     if (!url && !text) { setError('Paste a spec (JSON or YAML) or give a spec URL.'); return }
@@ -70,15 +71,30 @@ export default function StudioPage() {
       domain_context: context,
     }
     setBusy('generate')
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
     try {
+      // 1) start the job
       const res = await fetch('/api/cp/generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data: GenerateResponse = await res.json()
-      if (!res.ok) { setError(data.error || `Generation failed (HTTP ${res.status})`); return }
-      setResult(data)
+      const started = await res.json()
+      if (!res.ok || !started.job_id) {
+        setError(started.error || `Generation failed (HTTP ${res.status})`); return
+      }
+      // 2) poll the live progress feed until done — the Opus run is on the
+      //    workforce, so this stays responsive however long generation takes.
+      const jobId: string = started.job_id
+      for (;;) {
+        await sleep(1500)
+        const pr = await fetch(`/api/cp/generate/${jobId}`, { cache: 'no-store' })
+        const j = await pr.json()
+        if (!pr.ok) { setError(j.error || `Lost the job (HTTP ${pr.status})`); break }
+        if (Array.isArray(j.progress)) setProgress(j.progress)
+        if (j.status === 'done') { setResult(j.result as GenerateResponse); break }
+        if (j.status === 'error') { setError(j.error || 'generation failed'); break }
+      }
     } catch (e) {
       setError(String(e))
     } finally {
@@ -204,10 +220,38 @@ export default function StudioPage() {
             {busy === 'generate' ? 'Generating…' : 'Generate workforce'}
           </button>
           <span className="text-[11.5px] text-c-text-3">
-            Runs Claude Opus over the surface — this can take up to a minute.
+            The generator agent walks the whole spec on Claude Opus — you'll see its
+            progress below as it works.
           </span>
         </div>
       </div>
+
+      {/* ── Live activity feed (the agent walking the spec) ────────── */}
+      {(busy === 'generate' || (progress.length > 0 && !profile)) && (
+        <div className="mt-6 rounded-xl border border-c-border bg-c-surface-2 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-c-accent animate-pulse" />
+            <span className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3">
+              Generator agent {busy === 'generate' ? 'working' : 'finished'}
+            </span>
+          </div>
+          <div className="space-y-0.5 max-h-64 overflow-y-auto">
+            {(progress.length ? progress : ['Starting…']).slice(-14).map((line, i, arr) => (
+              <div
+                key={i}
+                className={
+                  'text-[12px] font-mono ' +
+                  (busy === 'generate' && i === arr.length - 1
+                    ? 'text-c-text'
+                    : 'text-c-text-3')
+                }
+              >
+                <span className="text-c-text-3">›</span> {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Result ─────────────────────────────────────────────────── */}
       {profile && (

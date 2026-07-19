@@ -10,6 +10,11 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { MANAGED_AUDIENCE, MANAGED_AUTHORITY_URL } from './managed'
 import { signSubjectToken } from './signing'
 
+// The audience the subject_token must carry — it must equal the console trusted
+// issuer's `expected_audience` on the Authority (the real issuer host,
+// `authority.auth51.com`, via MANAGED_AUDIENCE). Overridable if that changes.
+const EXCHANGE_AUDIENCE = process.env.AUTH51_EXCHANGE_AUDIENCE || MANAGED_AUDIENCE
+
 export class AuthError extends Error {
   constructor(public status: number, message: string) {
     super(message)
@@ -44,7 +49,7 @@ export async function getAuthorityToken(scope = 'read:agents'): Promise<OrgToken
     userId,
     email,
     name,
-    audience: MANAGED_AUDIENCE,
+    audience: EXCHANGE_AUDIENCE,
     scopes: scope.split(' '),
     ttlSeconds: 300,
     org,
@@ -58,7 +63,7 @@ export async function getAuthorityToken(scope = 'read:agents'): Promise<OrgToken
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       subject_token: subjectToken,
       subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
-      audience: MANAGED_AUDIENCE,
+      audience: EXCHANGE_AUDIENCE,
       scope,
     }).toString(),
   })

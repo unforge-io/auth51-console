@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { signSubjectToken } from '@/lib/console/signing'
+import { MANAGED_AUDIENCE } from '@/lib/console/managed'
 
 export const runtime = 'nodejs'
 
@@ -46,7 +47,9 @@ export async function POST(req: Request) {
   let body: { endpoint?: string; audience?: string; scope?: string } = {}
   try { body = await req.json() } catch { /* ignore */ }
   const endpoint = body.endpoint?.replace(/\/$/, '')
-  const audience = body.audience ?? 'idp.localhost'
+  // Default to the real issuer host (the trusted issuer's expected_audience);
+  // "idp.localhost" was a stale patchet-era placeholder, retired.
+  const audience = body.audience ?? MANAGED_AUDIENCE
   const scope = body.scope ?? 'read:agents'
 
   if (!endpoint) {

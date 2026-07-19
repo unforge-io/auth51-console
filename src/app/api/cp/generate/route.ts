@@ -3,8 +3,9 @@ import { NextResponse } from 'next/server'
 import { AuthError, WORKFORCE_URL, getAuthorityToken } from '@/lib/console/serverAuth'
 
 export const runtime = 'nodejs'
-// Composition runs a real LLM (Claude Opus) over the spec — allow a long request.
-export const maxDuration = 300
+// Just kicks off the job + (optionally) fetches the spec URL — quick. The long
+// Opus run happens on the workforce; the client polls /api/cp/generate/[jobId].
+export const maxDuration = 60
 
 const MAX_SPEC_BYTES = 8 * 1024 * 1024 // 8 MB — Plaid's spec is ~1–2 MB
 
@@ -53,12 +54,13 @@ async function fetchSpecText(rawUrl: string): Promise<string> {
 /**
  * POST /api/cp/generate
  *
- * Proxy the signed-in customer's spec to the workforce generator. Accepts the
- * spec as `spec` (object), `spec_text` (JSON or YAML), or `spec_url` (fetched
- * here). We exchange a server-side Authority token (org from the Clerk session)
- * and call workforce/generate with it — the backend takes ownership from the
- * token, so the pack belongs to this org. Returns a PREVIEW (profile + warnings);
- * nothing is persisted here (see /api/cp/profiles to save).
+ * Start a generation job for the signed-in customer. Accepts the spec as `spec`
+ * (object), `spec_text` (JSON or YAML), or `spec_url` (fetched here). We exchange
+ * a server-side Authority token (org from the Clerk session) and call
+ * workforce/generate with it — the backend owns the pack to this org. Returns
+ * `{job_id}`; the client polls GET /api/cp/generate/[jobId] for the live progress
+ * feed + the eventual profile. (The long Opus run lives on the workforce, so this
+ * request stays quick and there's no multi-minute frozen screen.)
  */
 export async function POST(req: Request) {
   let body: {
