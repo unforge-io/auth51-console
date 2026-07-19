@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 /**
  * Simulation Studio — turn an OpenAPI spec into a governed agentic pack.
@@ -52,9 +52,18 @@ export default function StudioPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
+  const [elapsed, setElapsed] = useState(0) // seconds spent generating (reassurance)
 
   // Best-effort prefill for JSON paste; YAML / URL specs derive rs_id server-side.
   const derivedRs = useMemo(() => deriveRsId(specText), [specText])
+
+  // Tick an elapsed-time counter while the generator runs.
+  useEffect(() => {
+    if (busy !== 'generate') return
+    setElapsed(0)
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(t)
+  }, [busy])
 
   async function onGenerate() {
     setError(null); setNotice(null); setResult(null); setProgress([])
@@ -85,12 +94,22 @@ export default function StudioPage() {
       }
       // 2) poll the live progress feed until done — the Opus run is on the
       //    workforce, so this stays responsive however long generation takes.
+      //    Tolerate transient poll failures (a flaky token exchange etc.) — the
+      //    job keeps running on the backend, so retry rather than give up.
       const jobId: string = started.job_id
+      let fails = 0
       for (;;) {
         await sleep(1500)
-        const pr = await fetch(`/api/cp/generate/${jobId}`, { cache: 'no-store' })
-        const j = await pr.json()
-        if (!pr.ok) { setError(j.error || `Lost the job (HTTP ${pr.status})`); break }
+        let j: { status?: string; progress?: string[]; result?: unknown; error?: string }
+        try {
+          const pr = await fetch(`/api/cp/generate/${jobId}`, { cache: 'no-store' })
+          j = await pr.json()
+          if (!pr.ok) throw new Error(j.error || `HTTP ${pr.status}`)
+        } catch (e) {
+          if (++fails >= 5) { setError(`Lost contact with the job: ${String(e)}`); break }
+          continue // transient — the job is still running; keep polling
+        }
+        fails = 0
         if (Array.isArray(j.progress)) setProgress(j.progress)
         if (j.status === 'done') { setResult(j.result as GenerateResponse); break }
         if (j.status === 'error') { setError(j.error || 'generation failed'); break }
@@ -228,27 +247,42 @@ export default function StudioPage() {
 
       {/* ── Live activity feed (the agent walking the spec) ────────── */}
       {(busy === 'generate' || (progress.length > 0 && !profile)) && (
-        <div className="mt-6 rounded-xl border border-c-border bg-c-surface-2 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-c-accent animate-pulse" />
-            <span className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3">
-              Generator agent {busy === 'generate' ? 'working' : 'finished'}
+        <div className="mt-6 rounded-xl border border-c-border bg-c-surface-2 p-5">
+          <div className="flex items-center gap-2.5 mb-4">
+            {busy === 'generate' ? (
+              <span className="w-4 h-4 rounded-full border-2 border-c-accent/25 border-t-c-accent animate-spin" />
+            ) : (
+              <span className="w-4 h-4 rounded-full bg-c-success/20 border border-c-success/40 flex items-center justify-center text-[9px] text-c-success">✓</span>
+            )}
+            <span className="text-[13px] font-medium text-c-text">
+              {busy === 'generate' ? 'Generator agent working' : 'Generator agent finished'}
             </span>
+            {busy === 'generate' && (
+              <span className="text-[11.5px] font-mono text-c-text-3 tabular-nums">
+                {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
+              </span>
+            )}
           </div>
-          <div className="space-y-0.5 max-h-64 overflow-y-auto">
-            {(progress.length ? progress : ['Starting…']).slice(-14).map((line, i, arr) => (
-              <div
-                key={i}
-                className={
-                  'text-[12px] font-mono ' +
-                  (busy === 'generate' && i === arr.length - 1
-                    ? 'text-c-text'
-                    : 'text-c-text-3')
-                }
-              >
-                <span className="text-c-text-3">›</span> {line}
-              </div>
-            ))}
+
+          <div className="max-h-72 overflow-y-auto">
+            {(progress.length ? progress : ['Starting…']).slice(-16).map((line, i, arr) => {
+              const isLast = i === arr.length - 1
+              const active = busy === 'generate' && isLast
+              return (
+                <div key={i} className="flex items-start gap-3 py-1">
+                  <span className="mt-[3px] shrink-0">
+                    {active ? (
+                      <span className="block w-3.5 h-3.5 rounded-full border-2 border-c-accent/25 border-t-c-accent animate-spin" />
+                    ) : (
+                      <span className="block w-3.5 h-3.5 rounded-full bg-c-accent/15 border border-c-accent/40" />
+                    )}
+                  </span>
+                  <span className={'text-[13px] leading-[1.45] ' + (active ? 'text-c-text font-medium' : 'text-c-text-2')}>
+                    {line}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

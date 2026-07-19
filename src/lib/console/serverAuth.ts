@@ -24,14 +24,30 @@ export class AuthError extends Error {
 
 export type OrgToken = { token: string; org: string }
 
+// Cache the exchanged token per user so a burst of calls (e.g. polling a
+// generation job every 1.5s) reuses ONE token instead of re-exchanging each
+// time. Each exchange makes the Authority re-fetch the console JWKS, which is
+// flaky (occasional 403 from the CDN); caching turns ~1 exchange/sec into ~1 per
+// token lifetime, so a poll storm can't trip it. Module-scope, so it survives
+// within a warm serverless instance (a cold start just re-exchanges once).
+type CacheEntry = { token: string; org: string; exp: number }
+const _tokenCache = new Map<string, CacheEntry>()
+
 /**
  * Sign a subject token for the current Clerk user and exchange it at the
- * Authority for an org-scoped access token. Throws AuthError(401) if not signed
- * in, AuthError(502) if the exchange fails.
+ * Authority for an org-scoped access token (cached until shortly before it
+ * expires). Throws AuthError(401) if not signed in, AuthError(502) if the
+ * exchange fails.
  */
 export async function getAuthorityToken(scope = 'read:agents'): Promise<OrgToken> {
   const { userId, orgId, orgSlug } = await auth()
   if (!userId) throw new AuthError(401, 'unauthenticated')
+
+  const cacheKey = `${userId}:${scope}`
+  const cached = _tokenCache.get(cacheKey)
+  if (cached && cached.exp > Date.now()) {
+    return { token: cached.token, org: cached.org }
+  }
 
   const user = await currentUser()
   const email =
@@ -72,7 +88,11 @@ export async function getAuthorityToken(scope = 'read:agents'): Promise<OrgToken
     throw new AuthError(502, `token exchange failed (${res.status}): ${detail}`)
   }
   const data = await res.json()
-  return { token: data.access_token as string, org }
+  const token = data.access_token as string
+  // Cache until 60s before expiry (default 30m if the Authority omits expires_in).
+  const ttlSec = typeof data.expires_in === 'number' ? data.expires_in : 1800
+  _tokenCache.set(cacheKey, { token, org, exp: Date.now() + Math.max(30, ttlSec - 60) * 1000 })
+  return { token, org }
 }
 
 /** The workforce generation backend (server-only env; defaults to prod). */
