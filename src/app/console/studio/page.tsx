@@ -220,8 +220,8 @@ export default function StudioPage() {
             {busy === 'generate' ? 'Generating…' : 'Generate workforce'}
           </button>
           <span className="text-[11.5px] text-c-text-3">
-            The generator agent walks the whole spec on Claude Opus — you'll see its
-            progress below as it works.
+            The generator agent walks the whole spec on Claude Opus — its progress
+            shows below as it works.
           </span>
         </div>
       </div>
