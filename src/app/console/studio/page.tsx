@@ -31,6 +31,10 @@ type Profile = {
   use_cases: string[]; owner_org?: string | null; source: string
 }
 type GenerateResponse = { profile?: Profile; warnings?: string[]; error?: string }
+type ProfileSummary = {
+  id: string; name: string; description?: string; source: string
+  owner_org?: string | null; use_cases: string[]; agents: string[]
+}
 
 function deriveRsId(specText: string): string {
   try {
@@ -53,6 +57,7 @@ export default function StudioPage() {
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
   const [elapsed, setElapsed] = useState(0) // seconds spent generating (reassurance)
+  const [saved, setSaved] = useState<ProfileSummary[] | null>(null) // your saved packs
 
   // Best-effort prefill for JSON paste; YAML / URL specs derive rs_id server-side.
   const derivedRs = useMemo(() => deriveRsId(specText), [specText])
@@ -64,6 +69,32 @@ export default function StudioPage() {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000)
     return () => clearInterval(t)
   }, [busy])
+
+  // Load this org's saved packs on visit (this is what "comes back" after login).
+  async function loadSaved() {
+    try {
+      const res = await fetch('/api/cp/profiles', { cache: 'no-store' })
+      const data = await res.json()
+      setSaved(res.ok && Array.isArray(data.profiles) ? data.profiles : [])
+    } catch {
+      setSaved([])
+    }
+  }
+  useEffect(() => { loadSaved() }, [])
+
+  // Open a saved pack into the roster view (GET returns the full profile object).
+  async function openSaved(id: string) {
+    setError(null); setNotice(null); setResult(null); setProgress([])
+    try {
+      const res = await fetch(`/api/cp/profiles/${encodeURIComponent(id)}`, { cache: 'no-store' })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || `Could not load "${id}"`); return }
+      setResult({ profile: data as Profile, warnings: [] })
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    } catch (e) {
+      setError(String(e))
+    }
+  }
 
   async function onGenerate() {
     setError(null); setNotice(null); setResult(null); setProgress([])
@@ -132,7 +163,8 @@ export default function StudioPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || `Save failed (HTTP ${res.status})`); return }
-      setNotice(`Saved "${result.profile.name}" to your org — its agents now appear under Agents.`)
+      setNotice(`Saved "${result.profile.name}" to your org. It's in "Your saved workforces" and will be here next time you log in.`)
+      loadSaved() // reflect the new/updated pack in the saved list immediately
     } catch (e) {
       setError(String(e))
     } finally {
@@ -160,6 +192,38 @@ export default function StudioPage() {
       {notice && (
         <div className="mb-4 rounded-lg border border-c-success/30 bg-c-success/5 px-4 py-3 text-[13px] text-c-success">
           {notice}
+        </div>
+      )}
+
+      {/* ── Your saved workforces (loaded on visit) ────────────────── */}
+      {saved && saved.length > 0 && (
+        <div className="mb-6 rounded-xl border border-c-border overflow-hidden">
+          <div className="px-4 py-2.5 bg-c-surface-2 text-[11px] font-medium uppercase tracking-wide text-c-text-3">
+            Your saved workforces
+          </div>
+          <div className="divide-y divide-c-border">
+            {saved.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => openSaved(p.id)}
+                className="w-full text-left px-4 py-3 hover:bg-c-surface-2 flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0">
+                  <div className="text-[14px] text-c-text truncate">{p.name}</div>
+                  {p.description && (
+                    <div className="text-[12px] text-c-text-3 truncate">{p.description}</div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[12px] font-mono text-c-text-3">{p.agents.length} agents</span>
+                  {p.source === 'seed' && (
+                    <span className="rounded-full bg-c-surface-2 border border-c-border px-2 py-0.5 text-[10px] font-mono text-c-text-3">seed</span>
+                  )}
+                  <span className="text-c-text-3">→</span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

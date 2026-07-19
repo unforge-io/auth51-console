@@ -5,6 +5,27 @@ import { AuthError, WORKFORCE_URL, getAuthorityToken } from '@/lib/console/serve
 export const runtime = 'nodejs'
 
 /**
+ * GET /api/cp/profiles
+ *
+ * List the caller's saved packs (org-scoped by the token) plus shared seeds.
+ * This is what the Studio loads on visit so your saved workforces come back.
+ */
+export async function GET() {
+  try {
+    const { token } = await getAuthorityToken()
+    const res = await fetch(`${WORKFORCE_URL}/profiles`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))
+    return NextResponse.json(data, { status: res.status })
+  } catch (err) {
+    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.status })
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
+
+/**
  * POST /api/cp/profiles
  *
  * Persist an approved (possibly edited) generated pack — the review-gate commit.
