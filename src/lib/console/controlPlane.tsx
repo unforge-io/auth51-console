@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { MANAGED_AUDIENCE } from './managed'
 
 /**
  * Control Plane context — the kubeconfig-equivalent for Auth51.
@@ -72,7 +73,22 @@ export function ControlPlaneProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as ControlPlaneState
         if (parsed && Array.isArray(parsed.contexts)) {
+          // Migrate the retired "idp.localhost" placeholder audience left by
+          // earlier builds / the old ConnectDialog default. The authority's
+          // trusted issuer expects the managed audience, so a stored context
+          // still carrying idp.localhost would fail the RFC 8693 exchange with
+          // "Audience doesn't match". Rewrite it in place and re-persist.
+          let migrated = false
+          for (const c of parsed.contexts) {
+            if (c.audience === 'idp.localhost') {
+              c.audience = MANAGED_AUDIENCE
+              migrated = true
+            }
+          }
           setState(parsed)
+          if (migrated) {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)) } catch { /* ignore */ }
+          }
         }
       }
     } catch (err) {

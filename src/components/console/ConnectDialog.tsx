@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { checkHealth, listAgents, AuthorityError } from '@/lib/console/api'
+import { MANAGED_AUDIENCE } from '@/lib/console/managed'
 import { cn } from '@/lib/utils'
 
 /**
@@ -21,7 +22,7 @@ export function ConnectDialog({ onClose, defaultName }: { onClose: () => void; d
   const { addContext, state } = useControlPlane()
   const [name, setName] = useState(defaultName ?? suggestName(state.contexts.map((c) => c.name)))
   const [endpoint, setEndpoint] = useState('https://authority.auth51.com')
-  const [audience, setAudience] = useState('idp.localhost')
+  const [audience, setAudience] = useState(MANAGED_AUDIENCE)
   const [appId, setAppId] = useState('Patchet')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)

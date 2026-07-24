@@ -9,6 +9,7 @@
  */
 
 import type { ControlPlaneContext } from './controlPlane'
+import { MANAGED_AUDIENCE } from './managed'
 
 // ── Domain types — match the shape returned by `/intent/agents/{app_id}` ──
 
@@ -138,7 +139,13 @@ export async function getAccessToken(
   ctx: ControlPlaneContext,
   scope = 'read:agents',
 ): Promise<string> {
-  const audience = ctx.audience ?? 'idp.localhost'
+  // A stored context may still carry the retired "idp.localhost" placeholder
+  // (from an earlier build or the old ConnectDialog default). The authority's
+  // trusted issuer expects the managed audience, so normalize it here rather
+  // than sending a value the RFC 8693 exchange will reject.
+  const audience = (!ctx.audience || ctx.audience === 'idp.localhost')
+    ? MANAGED_AUDIENCE
+    : ctx.audience
 
   // 1 — Check in-memory cache (keyed by either client_id OR __exchange__)
   for (const candidateKey of [
