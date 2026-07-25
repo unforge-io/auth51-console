@@ -69,6 +69,7 @@ export async function POST(req: Request) {
     spec_url?: string
     rs_id?: string
     profile_id?: string
+    app_id?: string
     use_cases?: string[]
     domain_context?: string
     use_llm?: boolean
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
         spec_text: specText,
         rs_id: body.rs_id || undefined, // workforce derives from servers[0] if absent
         profile_id: body.profile_id,
+        app_id: body.app_id || undefined, // Authority App the pack registers under
         use_cases: body.use_cases ?? [],
         domain_context: body.domain_context ?? '',
         use_llm: body.use_llm ?? true,

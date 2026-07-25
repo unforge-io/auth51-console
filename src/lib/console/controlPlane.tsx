@@ -59,6 +59,9 @@ type ControlPlaneContextValue = {
   addContext: (ctx: ControlPlaneContext) => void
   removeContext: (name: string) => void
   switchContext: (name: string) => void
+  /** Set the active App on the current context (drives ctx.appId — which app's
+   *  agents/discovered the console reads, and what generated agents register under). */
+  setActiveApp: (appId: string) => void
 }
 
 const Ctx = createContext<ControlPlaneContextValue | null>(null)
@@ -128,17 +131,27 @@ export function ControlPlaneProvider({ children }: { children: ReactNode }) {
     persist({ ...state, current: name })
   }, [state, persist])
 
+  const setActiveApp = useCallback((appId: string) => {
+    if (!state.current) return
+    persist({
+      ...state,
+      contexts: state.contexts.map((c) =>
+        c.name === state.current ? { ...c, appId } : c,
+      ),
+    })
+  }, [state, persist])
+
   const currentContext = state.current
     ? state.contexts.find((c) => c.name === state.current) ?? null
     : null
 
   // Wait for hydration to avoid SSR mismatch
   if (!hydrated) {
-    return <Ctx.Provider value={{ state: DEFAULT_STATE, currentContext: null, addContext, removeContext, switchContext }}>{children}</Ctx.Provider>
+    return <Ctx.Provider value={{ state: DEFAULT_STATE, currentContext: null, addContext, removeContext, switchContext, setActiveApp }}>{children}</Ctx.Provider>
   }
 
   return (
-    <Ctx.Provider value={{ state, currentContext, addContext, removeContext, switchContext }}>
+    <Ctx.Provider value={{ state, currentContext, addContext, removeContext, switchContext, setActiveApp }}>
       {children}
     </Ctx.Provider>
   )

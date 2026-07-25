@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useControlPlane } from '@/lib/console/controlPlane'
 
 /**
  * Simulation Studio — turn an OpenAPI spec into a governed agentic pack.
@@ -28,7 +29,7 @@ type UseCase = {
 type Profile = {
   id: string; name: string; description?: string; rs_id?: string | null
   structure: string; agents: AgentSpec[]; programs: UseCase[]
-  use_cases: string[]; owner_org?: string | null; source: string
+  use_cases: string[]; owner_org?: string | null; app_id?: string | null; source: string
 }
 type GenerateResponse = { profile?: Profile; warnings?: string[]; error?: string }
 type ProfileSummary = {
@@ -46,6 +47,7 @@ function deriveRsId(specText: string): string {
 }
 
 export default function StudioPage() {
+  const { currentContext } = useControlPlane()
   const [specText, setSpecText] = useState('')
   const [specUrl, setSpecUrl] = useState('')
   const [rsId, setRsId] = useState('')
@@ -107,6 +109,9 @@ export default function StudioPage() {
     const payload = {
       ...(url ? { spec_url: url } : { spec_text: text }),
       rs_id: rsId.trim() || undefined,
+      // Which App this pack belongs to (its agents register/mint under it, and
+      // the console's app-scoped Registered/Discovered reads then line up).
+      app_id: currentContext?.appId || undefined,
       use_cases,
       domain_context: context,
     }

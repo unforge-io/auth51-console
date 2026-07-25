@@ -301,6 +301,9 @@ export async function getAgent(
 export type ApiKey = {
   client_id: string
   display_name: string
+  /** The App this key is bound to (its token carries this as the `app` claim).
+   *  null for a legacy org-wide key. */
+  app_id?: string | null
   allowed_scopes: string[]
   allowed_audiences: string[]
   is_active: boolean
@@ -319,7 +322,7 @@ export type ApiKeyCreated = ApiKey & {
  */
 export async function createApiKey(
   ctx: ControlPlaneContext,
-  opts: { displayName: string; audiences?: string[]; scopes?: string[] },
+  opts: { displayName: string; appId?: string; audiences?: string[]; scopes?: string[] },
 ): Promise<ApiKeyCreated> {
   const token = await getAccessToken(ctx, 'manage:clients')
   const url = `${ctx.endpoint.replace(/\/$/, '')}/oauth-clients`
@@ -328,6 +331,9 @@ export async function createApiKey(
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       display_name: opts.displayName,
+      // Bind the key to an App so its token carries the `app` claim and the
+      // intent path scopes to that app. Omit ⇒ legacy org-wide key.
+      ...(opts.appId ? { app_id: opts.appId } : {}),
       audiences: opts.audiences ?? [],
       ...(opts.scopes ? { scopes: opts.scopes } : {}),
     }),
@@ -361,6 +367,58 @@ export async function revokeApiKey(ctx: ControlPlaneContext, clientId: string): 
     try { detail = await res.json() } catch { detail = await res.text() }
     throw new AuthorityError(`API key revoke failed (HTTP ${res.status})`, res.status, detail)
   }
+}
+
+// ── Apps (first-class applications under an org) ──
+
+export type App = {
+  app_id: string
+  display_name: string
+  description?: string | null
+  created_at: number
+}
+
+/**
+ * List the org's Apps. An App is the namespace agents/workflows register under
+ * and the unit an API key is scoped to. Needs `manage:clients`.
+ */
+export async function listApps(ctx: ControlPlaneContext): Promise<App[]> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/apps`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Apps fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as App[]
+}
+
+/**
+ * Create an App under the signed-in org. The server generates a unique,
+ * readable `app_id` from the display name unless one is supplied.
+ */
+export async function createApp(
+  ctx: ControlPlaneContext,
+  opts: { displayName: string; description?: string; appId?: string },
+): Promise<App> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/apps`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      display_name: opts.displayName,
+      ...(opts.description ? { description: opts.description } : {}),
+      ...(opts.appId ? { app_id: opts.appId } : {}),
+    }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`App creation failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as App
 }
 
 // ── Audit (decisions) ──

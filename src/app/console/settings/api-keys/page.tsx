@@ -3,36 +3,46 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import {
-  listApiKeys, createApiKey, revokeApiKey,
-  type ApiKey, type ApiKeyCreated, AuthorityError,
+  listApiKeys, createApiKey, revokeApiKey, listApps, createApp,
+  type ApiKey, type ApiKeyCreated, type App, AuthorityError,
 } from '@/lib/console/api'
 import { EmptyState } from '@/components/console/EmptyState'
 import { Button } from '@/components/ui/Button'
 
 /**
- * API Keys — self-serve OAuth clients scoped to the customer's org.
+ * Apps & API keys.
  *
- * A key is what a customer pastes into `auth51.configure(...)` so their agents
- * mint intent tokens against the authority. The secret is shown exactly once,
- * on creation (POST /oauth-clients); afterwards only its metadata is listed.
+ * An App is a first-class application under your org (the namespace agents
+ * register under, and the unit an API key is scoped to). You create an App,
+ * pick it as active, then mint API keys FOR it. A key's token carries the
+ * `app` claim, so agents register/mint under exactly that app — and the
+ * console's Discovered/Registered views read the same app. The client_secret
+ * is shown exactly once, on creation.
  */
 export default function ApiKeysPage() {
-  const { currentContext } = useControlPlane()
+  const { currentContext, setActiveApp } = useControlPlane()
+  const [apps, setApps] = useState<App[]>([])
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showCreateApp, setShowCreateApp] = useState(false)
   const [justCreated, setJustCreated] = useState<ApiKeyCreated | null>(null)
+
+  const activeApp = currentContext?.appId
 
   const load = useCallback(async () => {
     if (!currentContext) return
     setLoading(true); setError(null)
     try {
-      setKeys(await listApiKeys(currentContext))
+      const [a, k] = await Promise.all([listApps(currentContext), listApiKeys(currentContext)])
+      setApps(a); setKeys(k)
+      // Default the active app to the first one if none is selected yet.
+      if (!currentContext.appId && a.length > 0) setActiveApp(a[0].app_id)
     } catch (err) {
-      setError(errMsg(err)); setKeys([])
+      setError(errMsg(err)); setKeys([]); setApps([])
     } finally { setLoading(false) }
-  }, [currentContext])
+  }, [currentContext, setActiveApp])
 
   useEffect(() => { load() }, [load])
 
@@ -42,14 +52,14 @@ export default function ApiKeysPage() {
     <div className="max-w-4xl mx-auto px-6 py-10">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[22px] font-semibold text-c-text tracking-tight">API keys</h1>
+          <h1 className="text-[22px] font-semibold text-c-text tracking-tight">Apps &amp; API keys</h1>
           <p className="mt-1 text-[14px] text-c-text-2 leading-relaxed max-w-xl">
-            Credentials your agents use to mint intent tokens. Configure the
-            auth51 embed with a key&rsquo;s <code className="text-c-text">client_id</code> and{' '}
-            <code className="text-c-text">client_secret</code>. Scoped to your org.
+            An <strong>App</strong> is an agentic application under your org. Create keys
+            <em> for </em> an app; each key&rsquo;s token carries the app, so agents
+            register and mint under it. The active app is what this console reads.
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)} disabled={!activeApp}>
           Create key
         </Button>
       </div>
@@ -60,13 +70,48 @@ export default function ApiKeysPage() {
         </div>
       )}
 
+      {/* ── Apps ── */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-c-text-3">Apps</h2>
+          <button onClick={() => setShowCreateApp(true)} className="text-[12px] text-c-accent hover:underline">
+            + New app
+          </button>
+        </div>
+        {apps.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-c-border px-4 py-6 text-center text-[13px] text-c-text-3">
+            No apps yet. Create one to scope your agents and keys.
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {apps.map((a) => {
+              const active = a.app_id === activeApp
+              return (
+                <button key={a.app_id} onClick={() => setActiveApp(a.app_id)}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                    active ? 'border-c-accent bg-c-accent/10' : 'border-c-border hover:border-c-border-2'
+                  }`}>
+                  <div className="text-[13px] font-medium text-c-text">{a.display_name}</div>
+                  <div className="text-[11px] font-mono text-c-text-3">{a.app_id}</div>
+                  {active && <div className="text-[10px] font-medium uppercase tracking-wide text-c-accent mt-0.5">active</div>}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {justCreated && (
         <SecretReveal created={justCreated} onDone={() => { setJustCreated(null); load() }} />
       )}
 
+      {/* ── Keys ── */}
+      <h2 className="text-[13px] font-semibold uppercase tracking-wide text-c-text-3 mb-2">
+        API keys{activeApp ? <span className="text-c-text-3 normal-case font-normal"> · {activeApp}</span> : null}
+      </h2>
       <div className="rounded-xl border border-c-border overflow-hidden">
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2.5 bg-c-surface-2 text-[11px] font-medium uppercase tracking-wide text-c-text-3">
-          <span>Name / client_id</span><span>Scopes</span><span>Status</span><span></span>
+          <span>Name / client_id</span><span>App</span><span>Status</span><span></span>
         </div>
         {loading && keys.length === 0 ? (
           <div className="px-4 py-8 text-center text-[13px] text-c-text-3">Loading…</div>
@@ -82,8 +127,8 @@ export default function ApiKeysPage() {
                 <div className="text-[14px] text-c-text font-medium truncate">{k.display_name}</div>
                 <div className="text-[12px] font-mono text-c-text-3 truncate">{k.client_id}</div>
               </div>
-              <div className="text-[12px] text-c-text-2 max-w-[220px] truncate" title={k.allowed_scopes.join(' ')}>
-                {k.allowed_scopes.length} scope{k.allowed_scopes.length === 1 ? '' : 's'}
+              <div className="text-[12px] font-mono text-c-text-2 max-w-[180px] truncate" title={k.app_id ?? 'org-wide'}>
+                {k.app_id ?? <span className="text-c-text-3">org-wide</span>}
               </div>
               <span className={`text-[12px] font-medium ${k.is_active ? 'text-c-success' : 'text-c-text-3'}`}>
                 {k.is_active ? 'active' : 'revoked'}
@@ -100,8 +145,17 @@ export default function ApiKeysPage() {
         )}
       </div>
 
-      {showCreate && (
+      {showCreateApp && (
+        <CreateAppDialog
+          onClose={() => setShowCreateApp(false)}
+          onCreated={(a) => { setShowCreateApp(false); setActiveApp(a.app_id); load() }}
+          create={(opts) => createApp(currentContext, opts)}
+        />
+      )}
+
+      {showCreate && activeApp && (
         <CreateDialog
+          appId={activeApp}
           onClose={() => setShowCreate(false)}
           onCreated={(created) => { setShowCreate(false); setJustCreated(created) }}
           create={(opts) => createApiKey(currentContext, opts)}
@@ -128,9 +182,10 @@ async function revoke(
 }
 
 function CreateDialog(props: {
+  appId: string
   onClose: () => void
   onCreated: (c: ApiKeyCreated) => void
-  create: (opts: { displayName: string; audiences?: string[] }) => Promise<ApiKeyCreated>
+  create: (opts: { displayName: string; appId?: string; audiences?: string[] }) => Promise<ApiKeyCreated>
 }) {
   const [name, setName] = useState('')
   const [audiences, setAudiences] = useState('')
@@ -143,6 +198,7 @@ function CreateDialog(props: {
     try {
       const created = await props.create({
         displayName: name.trim(),
+        appId: props.appId,
         audiences: audiences.split(',').map((a) => a.trim()).filter(Boolean),
       })
       props.onCreated(created)
@@ -152,7 +208,9 @@ function CreateDialog(props: {
   return (
     <Overlay onClose={props.onClose}>
       <h2 className="text-[17px] font-semibold text-c-text mb-1">Create API key</h2>
-      <p className="text-[13px] text-c-text-2 mb-4">The secret is shown once — copy it somewhere safe.</p>
+      <p className="text-[13px] text-c-text-2 mb-4">
+        For app <code className="text-c-text">{props.appId}</code>. The secret is shown once — copy it somewhere safe.
+      </p>
       <label className="block text-[12px] font-medium text-c-text-2 mb-1">Name</label>
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
         placeholder="e.g. production agents"
@@ -168,6 +226,45 @@ function CreateDialog(props: {
         <Button variant="ghost" size="sm" onClick={props.onClose} disabled={busy}>Cancel</Button>
         <Button variant="primary" size="sm" onClick={submit} disabled={busy}>
           {busy ? 'Creating…' : 'Create'}
+        </Button>
+      </div>
+    </Overlay>
+  )
+}
+
+function CreateAppDialog(props: {
+  onClose: () => void
+  onCreated: (a: App) => void
+  create: (opts: { displayName: string; description?: string }) => Promise<App>
+}) {
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const submit = async () => {
+    if (!name.trim()) { setErr('Give the app a name.'); return }
+    setBusy(true); setErr(null)
+    try {
+      props.onCreated(await props.create({ displayName: name.trim() }))
+    } catch (e) { setErr(errMsg(e)); setBusy(false) }
+  }
+
+  return (
+    <Overlay onClose={props.onClose}>
+      <h2 className="text-[17px] font-semibold text-c-text mb-1">Create app</h2>
+      <p className="text-[13px] text-c-text-2 mb-4">
+        An app groups agents and the keys that run them. We generate a unique app id from the name.
+      </p>
+      <label className="block text-[12px] font-medium text-c-text-2 mb-1">Name</label>
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
+        placeholder="e.g. Payments Ops"
+        onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+        className="w-full mb-4 rounded-lg border border-c-border bg-c-bg px-3 py-2 text-[14px] text-c-text outline-none focus:border-c-accent" />
+      {err && <div className="mb-3 text-[13px] text-c-danger">{err}</div>}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={props.onClose} disabled={busy}>Cancel</Button>
+        <Button variant="primary" size="sm" onClick={submit} disabled={busy}>
+          {busy ? 'Creating…' : 'Create app'}
         </Button>
       </div>
     </Overlay>
