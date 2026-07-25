@@ -24,3 +24,24 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
+
+/**
+ * DELETE /api/cp/profiles/[id]
+ *
+ * Delete a saved pack (and its stored spec) from the caller's org. Org-scoped by
+ * the token; seeds are read-only. Agents already registered keep their identity.
+ */
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const { token } = await getAuthorityToken()
+    const res = await fetch(`${WORKFORCE_URL}/profiles/${encodeURIComponent(params.id)}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))
+    return NextResponse.json(data, { status: res.status })
+  } catch (err) {
+    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.status })
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}

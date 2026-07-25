@@ -185,6 +185,21 @@ export default function StudioPage() {
     }
   }
 
+  async function deletePack(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? This removes the saved pack and its stored spec. Agents already registered in the Authority keep their identity.`)) return
+    setError(null); setNotice(null)
+    try {
+      const res = await fetch(`/api/cp/profiles/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || `Delete failed (HTTP ${res.status})`); return
+      }
+      if (result?.profile?.id === id) setResult(null) // close it if it's open
+      setNotice(`Deleted "${name}".`)
+      loadSaved()
+    } catch (e) { setError(String(e)) }
+  }
+
   const profile = result?.profile
   const warnings = result?.warnings ?? []
 
@@ -216,25 +231,30 @@ export default function StudioPage() {
           </div>
           <div className="divide-y divide-c-border">
             {saved.map((p) => (
-              <button
+              <div
                 key={p.id}
-                onClick={() => openSaved(p.id)}
-                className="w-full text-left px-4 py-3 hover:bg-c-surface-2 flex items-center justify-between gap-3"
+                className="px-4 py-3 hover:bg-c-surface-2 flex items-center justify-between gap-3"
               >
-                <div className="min-w-0">
+                <button onClick={() => openSaved(p.id)} className="min-w-0 flex-1 text-left">
                   <div className="text-[14px] text-c-text truncate">{p.name}</div>
                   {p.description && (
                     <div className="text-[12px] text-c-text-3 truncate">{p.description}</div>
                   )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
+                </button>
+                <div className="flex items-center gap-3 shrink-0">
                   <span className="text-[12px] font-mono text-c-text-3">{p.agents.length} agents</span>
-                  {p.source === 'seed' && (
+                  {p.source === 'seed' ? (
                     <span className="rounded-full bg-c-surface-2 border border-c-border px-2 py-0.5 text-[10px] font-mono text-c-text-3">seed</span>
+                  ) : (
+                    <button
+                      onClick={() => deletePack(p.id, p.name)}
+                      className="text-[12px] text-c-danger hover:underline">
+                      Delete
+                    </button>
                   )}
-                  <span className="text-c-text-3">→</span>
+                  <button onClick={() => openSaved(p.id)} aria-label="Open" className="text-c-text-3 hover:text-c-text">→</button>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>
