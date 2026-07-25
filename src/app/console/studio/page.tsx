@@ -60,6 +60,11 @@ export default function StudioPage() {
   // discovery-first flow (baseline run surfaces agents in Discovered). On ⇒
   // register the roster now, under the active app, in your org.
   const [autoRegister, setAutoRegister] = useState(false)
+  // ── Run a use case (governed live agent) ──
+  const [runUseCaseText, setRunUseCaseText] = useState('')
+  const [runBusy, setRunBusy] = useState(false)
+  const [runStatus, setRunStatus] = useState<string | null>(null)
+  const [runResult, setRunResult] = useState<{ tool_outputs?: Record<string, unknown>; agent?: string; error?: string } | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
   const [elapsed, setElapsed] = useState(0) // seconds spent generating (reassurance)
@@ -198,6 +203,41 @@ export default function StudioPage() {
       setNotice(`Deleted "${name}".`)
       loadSaved()
     } catch (e) { setError(String(e)) }
+  }
+
+  async function runUseCase() {
+    const p = result?.profile
+    if (!p) return
+    setRunBusy(true); setRunStatus('starting'); setRunResult(null); setError(null)
+    try {
+      const res = await fetch('/api/cp/run', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ profile: p.id, use_case: runUseCaseText.trim() || undefined }),
+      })
+      const started = await res.json()
+      if (!res.ok || !started.run_id) {
+        setError(started.error || `Run failed (HTTP ${res.status})`); setRunStatus(null); return
+      }
+      setRunStatus('running')
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+      // The agent runs a real LLM on the workforce; poll until it settles.
+      for (let i = 0; i < 150; i++) {
+        await sleep(2000)
+        const pr = await fetch(`/api/cp/run/${started.run_id}`, { cache: 'no-store' })
+        const pd = await pr.json().catch(() => ({}))
+        if (pd.status && pd.status !== 'running') {
+          setRunStatus(pd.status)
+          setRunResult(pd.result ?? (pd.error ? { error: pd.error } : null))
+          return
+        }
+      }
+      setRunStatus('timed out')
+    } catch (e) {
+      setError(String(e)); setRunStatus(null)
+    } finally {
+      setRunBusy(false)
+    }
   }
 
   const profile = result?.profile
@@ -411,6 +451,45 @@ export default function StudioPage() {
                 {busy === 'save' ? 'Saving…' : 'Save to my org'}
               </button>
             </div>
+          </div>
+
+          {/* ── Run a use case (governed live agent) ── */}
+          <div className="mb-4 rounded-lg border border-c-border bg-c-surface-2 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="text-[12px] font-semibold text-c-text">
+                Run a use case <span className="font-normal text-c-text-3">— a real agent, governed tool calls</span>
+              </div>
+              <button onClick={runUseCase} disabled={runBusy}
+                className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40">
+                {runBusy ? (runStatus ?? 'Running…') : 'Run'}
+              </button>
+            </div>
+            <input value={runUseCaseText} onChange={(e) => setRunUseCaseText(e.target.value)}
+              placeholder={profile.use_cases?.[0] || 'Describe what the agent should do…'}
+              className="w-full rounded-md border border-c-border bg-c-bg px-3 py-2 text-[13px] text-c-text outline-none focus:border-c-accent" />
+            {profile.use_cases && profile.use_cases.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {profile.use_cases.slice(0, 6).map((uc, i) => (
+                  <button key={i} onClick={() => setRunUseCaseText(uc)}
+                    className="rounded-full border border-c-border px-2 py-0.5 text-[11px] text-c-text-2 hover:border-c-accent">
+                    {uc}
+                  </button>
+                ))}
+              </div>
+            )}
+            {runStatus && !runBusy && (
+              <div className="mt-3">
+                <div className={`text-[12px] font-medium ${runStatus === 'done' ? 'text-c-success' : runStatus === 'error' ? 'text-c-danger' : 'text-c-text-2'}`}>
+                  Run {runStatus}{runResult?.agent ? ` · agent ${runResult.agent}` : ''}
+                </div>
+                {runResult?.error && <div className="mt-1 text-[12px] text-c-danger break-words">{runResult.error}</div>}
+                {runResult?.tool_outputs && (
+                  <pre className="mt-2 rounded-md bg-c-bg border border-c-border px-3 py-2 text-[11px] font-mono text-c-text-2 overflow-x-auto max-h-72">
+                    {JSON.stringify(runResult.tool_outputs, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
 
           {warnings.length > 0 && (
