@@ -56,6 +56,10 @@ export default function StudioPage() {
   const [busy, setBusy] = useState<'generate' | 'save' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // "Register on Save" — default OFF. Off ⇒ the pack goes through the
+  // discovery-first flow (baseline run surfaces agents in Discovered). On ⇒
+  // register the roster now, under the active app, in your org.
+  const [autoRegister, setAutoRegister] = useState(false)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
   const [elapsed, setElapsed] = useState(0) // seconds spent generating (reassurance)
@@ -161,14 +165,18 @@ export default function StudioPage() {
     if (!result?.profile) return
     setError(null); setNotice(null); setBusy('save')
     try {
-      const res = await fetch('/api/cp/profiles', {
+      const res = await fetch(`/api/cp/profiles${autoRegister ? '?auto_register=true' : ''}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(result.profile),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || `Save failed (HTTP ${res.status})`); return }
-      setNotice(`Saved "${result.profile.name}" to your org. It's in "Your saved workforces" and will be here next time you log in.`)
+      const reg = data.registration
+      const regNote = reg?.registered
+        ? ` Registered ${reg.ok_count}/${reg.agents?.length ?? 0} agents under "${reg.app_id}".`
+        : autoRegister ? ` (registration: ${reg?.error ?? 'skipped'})` : ''
+      setNotice(`Saved "${result.profile.name}" to your org.${regNote} It's in "Your saved workforces" and will be here next time you log in.`)
       loadSaved() // reflect the new/updated pack in the saved list immediately
     } catch (e) {
       setError(String(e))
@@ -367,13 +375,22 @@ export default function StudioPage() {
               </span>
               <span className="text-[12px] text-c-text-3 font-mono">{profile.agents.length} agents</span>
             </div>
-            <button
-              onClick={onSave}
-              disabled={busy !== null}
-              className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40"
-            >
-              {busy === 'save' ? 'Saving…' : 'Save to my org'}
-            </button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-[12px] text-c-text-2 cursor-pointer select-none"
+                     title="On: register the roster now, in your org, under the active app. Off: the pack goes through the discovery-first flow (a baseline run surfaces agents in Discovered for review).">
+                <input type="checkbox" checked={autoRegister}
+                       onChange={(e) => setAutoRegister(e.target.checked)}
+                       disabled={busy !== null} />
+                Register on save
+              </label>
+              <button
+                onClick={onSave}
+                disabled={busy !== null}
+                className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40"
+              >
+                {busy === 'save' ? 'Saving…' : 'Save to my org'}
+              </button>
+            </div>
           </div>
 
           {warnings.length > 0 && (

@@ -41,9 +41,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
+  // "Register on Save": when set, the workforce also registers the roster under
+  // the app, forwarding this token — so it needs register:intent (read:agents
+  // stays for the reuse-lookup). Default save only needs read:agents.
+  const autoRegister = new URL(req.url).searchParams.get('auto_register') === 'true'
+
   try {
-    const { token } = await getAuthorityToken()
-    const res = await fetch(`${WORKFORCE_URL}/profiles`, {
+    const { token } = await getAuthorityToken(
+      autoRegister ? 'read:agents register:intent' : 'read:agents',
+    )
+    const wfUrl = `${WORKFORCE_URL}/profiles${autoRegister ? '?auto_register=true' : ''}`
+    const res = await fetch(wfUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify(profile),
