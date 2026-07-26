@@ -14,10 +14,10 @@ export default function ZeroTrust() {
       <PageTitle eyebrow="Foundations">Zero-Trust alignment</PageTitle>
 
       <Lead>
-        auth51 adopted the reference model the industry already
+        Auth51 adopted the reference model the industry already
         agrees on for &ldquo;never trust, always verify&rdquo; and dropped its components into the roles that
         model defines. If you know NIST&rsquo;s Zero-Trust vocabulary, you already know where every
-        auth51 piece sits and why.
+        Auth51 piece sits and why.
       </Lead>
 
       <H2>The model in one paragraph</H2>
@@ -30,9 +30,9 @@ export default function ZeroTrust() {
         network; every request is evaluated on its own.
       </P>
 
-      <H2>auth51&rsquo;s components, mapped one-to-one</H2>
+      <H2>Auth51&rsquo;s components, mapped one-to-one</H2>
       <P>
-        The mapping is exact. auth51 restores Zero-Trust semantics for agents
+        The mapping is exact. Auth51 restores Zero-Trust semantics for agents
         rather than bolting on a new paradigm:
       </P>
       <P>
@@ -59,7 +59,7 @@ export default function ZeroTrust() {
       <P>
         SP 800-207 talks about the <em>implicit trust zone</em>: the region behind an enforcement
         point where, once you&rsquo;re in, you&rsquo;re trusted. Classic session-based auth makes that zone
-        large, since one login buys broad, lasting access. auth51&rsquo;s per-action intent tokens make it
+        large, since one login buys broad, lasting access. Auth51&rsquo;s per-action intent tokens make it
         nearly a point: a token authorizes one action for a few minutes, so the &ldquo;once you&rsquo;re in&rdquo;
         window barely exists. That&rsquo;s the same instinct behind CISA&rsquo;s Zero-Trust maturity guidance
         toward short-lived, just-enough access, applied at the granularity of a single agent call.

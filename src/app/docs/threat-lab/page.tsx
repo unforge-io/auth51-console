@@ -67,8 +67,8 @@ python examples/threat-lab/lab.py`}</code></pre>
         </table>
       </div>
       <P>
-        The verifier enforces attacks 1&ndash;8 at the resource without calling the Authority. Attack 9
-        exercises the mint-side identity check: <a href="/docs/concepts/agent-identity">agent identity</a>{' '}
+        The verifier blocks attacks 1&ndash;8 at the resource server level without calling the Authority. Attack 9
+        exercises the token minting-side identity check: <a href="/docs/concepts/agent-identity">agent identity</a>{' '}
         is derived from the agent rather than from a stored secret, so tampering changes the checksum
         before a token is issued.
       </P>

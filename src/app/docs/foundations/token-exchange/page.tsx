@@ -46,17 +46,17 @@ export default function TokenExchange() {
         It&rsquo;s also where the standard stops. RFC 8693 defines how to <em>record</em> a
         chain; it leaves to the implementer what to <em>enforce</em> about it. A resource server
         still receives a bearer token and must parse nested JSON to discover who really acted.
-        auth51 takes the same idea and makes it enforceable: the delegation path is hashed into the
+        Auth51 takes the same idea and makes it enforceable: the delegation path is hashed into the
         token and validated at mint against the agents and workflow the authority actually knows.
       </P>
 
       <H2>How the agent_checksum grant sits on top</H2>
       <P>
-        auth51&rsquo;s <code className="code-inline">agent_checksum</code> grant is token exchange with
+        Auth51&rsquo;s <code className="code-inline">agent_checksum</code> grant is token exchange with
         one addition: before the exchange happens, the authority verifies <em>which agent</em> is
         asking, by recomputing its checksum. The exchanged token narrows scope, and it
         narrows it <em>to a proven agent identity and a single workflow step</em>. The base
-        standard supplies the trade-down and the delegation record; auth51 supplies the agent proof
+        standard supplies the trade-down and the delegation record while Auth51 supplies the agent proof
         and the enforcement.
       </P>
 
@@ -70,7 +70,7 @@ export default function TokenExchange() {
           intent implicit.
         </P>
         <P className="!mb-0">
-          So auth51 uses token exchange as the substrate and adds the checksum-verified subject and
+          So Auth51 uses token exchange as the substrate and adds the checksum-verified subject and
           the <code className="code-inline">intent</code> claim on top, staying wire-compatible with
           the OAuth token endpoint while restoring the one-token-per-intent semantics agents need.{' '}
           <SpecRef href="/docs/reference">draft-goswami-agentic-jwt §4</SpecRef>

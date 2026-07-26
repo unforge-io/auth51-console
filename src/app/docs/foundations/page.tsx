@@ -28,15 +28,14 @@ export default function FoundationsIndex() {
     <div>
       <PageTitle eyebrow="Foundations">Foundations</PageTitle>
       <Lead>
-        auth51 is not a new protocol you take on faith. Almost everything underneath it is
-        established, widely deployed OAuth and Zero-Trust machinery, composed a particular way
+        Auth51 is not a new protocol you take on in blind faith. Almost everything underneath it is
+        established, widely deployed OAuth and Zero-Trust machinery, composed perfectly
         for autonomous agents. These pages explain that machinery on its own terms, then show the
-        seam where auth51 picks it up.
+        seam where Auth51 picks it up.
       </Lead>
       <P>
-        You don&rsquo;t need to read these to use auth51. Read them if you want to know <em>why</em>{' '}
-        it&rsquo;s built the way it is, and to satisfy yourself that the novel part is small and the
-        rest is standards you already trust.
+        You don&rsquo;t need to read these to use Auth51. Read them if you want to know <em>why</em>{' '}
+        it&rsquo;s built the way it is, and to learn why exactly Auth51 is different.
       </P>
 
       <ul className="mt-8 space-y-3">

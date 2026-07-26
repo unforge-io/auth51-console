@@ -20,8 +20,8 @@ import { PageTitle, Lead } from '@/components/docs/prose'
 type PersonaId = 'has-app' | 'mcp' | 'no-app'
 
 const PERSONAS: { id: PersonaId; label: string; blurb: string; status: 'ready' | 'preview' | 'soon' }[] = [
-  { id: 'has-app', label: 'I have an agent app', blurb: 'A Python agent built with LangGraph, CrewAI, or your own framework', status: 'ready' },
-  { id: 'mcp',     label: 'I call MCP servers',  blurb: 'Govern agent access to tools exposed by third-party MCP servers', status: 'preview' },
+  { id: 'has-app', label: 'I have an agentic app', blurb: 'A Python agent built with LangGraph, CrewAI, or your own framework', status: 'ready' },
+  { id: 'mcp',     label: 'I use MCP servers',  blurb: 'Govern agent access to tools from third-party MCP servers', status: 'preview' },
   { id: 'no-app',  label: "I'm just exploring",  blurb: 'See an end-to-end example before writing any code', status: 'soon' },
 ]
 
@@ -32,9 +32,8 @@ export function GettingStarted() {
     <div>
       <PageTitle eyebrow="Get started">Give every agent action an identity you can verify</PageTitle>
       <Lead>
-        Auth51 mints a scoped, single-use token for each outbound call your agent makes.
-        The token is created at the source, bound to a key that remains in the process, and
-        verified by the resource. Your tools do not need to implement this authorization logic.
+        Auth51 gives every agent action its own scoped, short-lived token. This token is minted in your
+        process and is cryptographically bound so a stolen one is useless. All of this is built on top of your existing workflow, so your tools stay untouched.
         Choose the path that matches your starting point.
       </Lead>
 
@@ -91,27 +90,27 @@ function HasAppLesson() {
     <div>
       {/* Introduce the authorization gap before the integration steps. */}
       <p className="text-[17px] text-c-text leading-relaxed">
-        A typical tool or API request does not show{' '}
+        Traditionally, API requests do not show{' '}
         <span className="text-c-text font-medium">which</span> agent produced it, whether the
         agent still matches its registered instructions, or whether another process is replaying
         a leaked token. Auth51 adds a verifiable agent identity to each action. For the default
-        integration, you enable it with a single <code className="code-inline">import</code>.
+        setup, you only need to add a single <code className="code-inline">import</code>.
       </p>
 
       <YouWillLearn items={[
-        <>Why an agent&apos;s identity is a <em>fingerprint</em> of what it is rather than a password</>,
-        <>How one import enables agent identification without changing your agent logic</>,
+        <>Why an agent proves its identity by its <em>fingerprint</em>, not by a token it could leak</>,
+        <>How one import enables agent identification without changing any underlying logic</>,
         <>How to review and approve an unregistered agent</>,
         <>Where to observe the authorization flow</>,
       ]} />
 
       {/* The one idea: the mental model before any mechanics. */}
-      <SectionHeading>The one idea</SectionHeading>
+      <SectionHeading>The core principle</SectionHeading>
       <p className="text-body text-c-text-2 leading-relaxed">
         An agent&apos;s identity is a fingerprint of{' '}
         <span className="text-c-text">what it is</span>: its system prompt and the tools it can
         call, rather than a secret it carries. The Auth51 client observes the model request,
-        computes that fingerprint as a <code className="code-inline">checksum</code>, and compares
+        computes that fingerprint as a cryptographic <code className="code-inline">hash</code>, and compares
         it with the agents registered in your organization. A match identifies the agent without
         relying on a self-declared name. If no registration matches, Auth51 treats the agent as
         unregistered and sends it for review.
@@ -156,10 +155,10 @@ run_your_agent()`}</CodeBlock>
 
       <Step n={3} title="Approve it in the console" last>
         <p className="text-body text-c-text-2 leading-relaxed mb-3">
-          The first time the agent runs, the client sends its observed identity—the system prompt,
-          tools, and computed checksum—to your organization&apos;s Discovery inbox. Open{' '}
+          The first time the agent runs, the client sends its observed identity, consisting of the system prompt,
+          tools, and computed checksum, to your organization&apos;s Discovery inbox. Open{' '}
           <DocLink href="/console/agents/discovered">Agents → Discovered</DocLink>, review the
-          identity, and select <span className="text-c-text font-medium">Register</span>. On the
+          identity, and select <span className="text-c-text font-medium">Register</span> to approve the agent. On the
           next run, Auth51 recognizes the registered agent and governs its actions.
         </p>
         <ConsolePreview />
