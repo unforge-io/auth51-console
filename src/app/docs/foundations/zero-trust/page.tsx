@@ -14,10 +14,9 @@ export default function ZeroTrust() {
       <PageTitle eyebrow="Foundations">Zero-Trust alignment</PageTitle>
 
       <Lead>
-        Auth51 adopted the reference model the industry already
-        agrees on for &ldquo;never trust, always verify&rdquo; and dropped its components into the roles that
-        model defines. If you know NIST&rsquo;s Zero-Trust vocabulary, you already know where every
-        Auth51 piece sits and why.
+        Auth51 uses the reference model the industry already agrees on for &ldquo;never trust, always
+        verify,&rdquo; and its components fill the roles that model defines. If you know NIST&rsquo;s
+        Zero-Trust vocabulary, you already know where every Auth51 piece sits and why.
       </Lead>
 
       <H2>The model in one paragraph</H2>
@@ -32,8 +31,7 @@ export default function ZeroTrust() {
 
       <H2>Auth51&rsquo;s components, mapped one-to-one</H2>
       <P>
-        The mapping is exact. Auth51 restores Zero-Trust semantics for agents
-        rather than bolting on a new paradigm:
+        Auth51 maps cleanly to Zero-Trust roles and each of its parts plays one of the standard roles.
       </P>
       <P>
         The Authority is the PDP. Every token request is evaluated against
@@ -65,11 +63,11 @@ export default function ZeroTrust() {
         toward short-lived, just-enough access, applied at the granularity of a single agent call.
       </P>
 
-      <Deep title="Why the mapping matters beyond tidiness">
+      <Deep title="Why the one-to-one mapping matters">
         <P>
-          The roles line up, and beyond that, having <em>two</em> PEPs on opposite sides
-          of the call is what makes the model hold under agent non-determinism. The client-side PEP
-          proves identity and intent at the source; the resource-side PEP re-verifies independently,
+          Beyond the roles themselves, what actually makes the model hold under agent
+          non-determinism is having <em>two</em> PEPs on opposite sides of the call. The client-side PEP
+          proves identity and intent at the source, and the resource-side PEP re-verifies independently,
           trusting nothing the client asserted on its own. Neither has to trust the network between
           them, and the PDP never has to be on the data path.
         </P>

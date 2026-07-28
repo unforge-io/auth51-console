@@ -13,10 +13,10 @@ export default function ProofOfPossessionFoundations() {
       <PageTitle eyebrow="Foundations">Proof-of-possession (DPoP &amp; mTLS)</PageTitle>
 
       <Lead>
-        A bearer token&rsquo;s weakness is in its name. <em>Sender-constrained</em> tokens fix it. The
-        token is bound to a key, and using it requires proving you hold that key. Two standards do
-        this; Auth51 uses one of them, and applies it at a finer grain than either was originally
-        aimed at.
+        A bearer token&rsquo;s weakness is right there in its name, and <em>sender-constrained</em>{' '}
+        tokens fix it. The token is bound to a key, and using it means proving you hold that key. Two
+        standards do this, and Auth51 uses one of them, applied at a finer grain than either was
+        originally aimed at.
       </Lead>
 
       <H2>The idea: bind the token to a key</H2>
@@ -54,11 +54,11 @@ export default function ProofOfPossessionFoundations() {
         checksum and the intent claim, rather than living off to the side at the transport.
       </P>
       <P>
-        There&rsquo;s a note in the protocol work worth surfacing: DPoP by itself doesn&rsquo;t close the
-        intent–execution gap. It proves the <em>client application</em> holds a key; it says nothing
-        about <em>which agent</em> is acting or <em>what</em> the action is. PoP is one of three
-        ingredients rather than the whole answer, which is why Auth51 pairs it with agent identity and
-        intent binding instead of treating sender-constraint as sufficient on its own.
+        One caveat is worth stating outright. DPoP on its own doesn&rsquo;t close the intent–execution
+        gap. It proves the <em>client application</em> holds a key, but says nothing about{' '}
+        <em>which agent</em> is acting or <em>what</em> the action is. Sender-constraint is one of
+        three ingredients, not the whole answer, which is why Auth51 pairs it with agent identity and
+        intent binding instead of leaning on it alone.
       </P>
 
       <H2>Bound per action, not per session</H2>

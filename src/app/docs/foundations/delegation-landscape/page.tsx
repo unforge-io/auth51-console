@@ -13,10 +13,10 @@ export default function DelegationLandscape() {
       <PageTitle eyebrow="Foundations">The delegation landscape</PageTitle>
 
       <Lead>
-        Auth51 isn&rsquo;t the only work on identity and delegation. It stands in a crowded, capable
-        field. Being honest about what the neighbors do well is the fastest way to see the one gap
-        they share: none of them bind a token to <em>which agent</em> is acting and <em>what</em>{' '}
-        single action it&rsquo;s taking.
+        Auth51 isn&rsquo;t the only work on identity and delegation. There are plenty of other capable competitors.
+        But once you see what each of these systems does well, the gap they all share stands out.
+        None of them bind a token to <em>which agent</em> is acting and <em>what</em> single action
+        it&rsquo;s taking.
       </Lead>
 
       <H2>Scope-limited consent</H2>
@@ -68,15 +68,15 @@ export default function DelegationLandscape() {
       </P>
 
       <Callout>
-        The pattern across all of these: they answer <em>who</em> is making a request (a client, a
-        service, a workload). For agents the unanswered question is <em>what</em> the request
-        represents, tied to <em>which</em> agent, provably. That&rsquo;s the seam Auth51 fills, by
-        composing these standards rather than competing with them.
+        All of these answer <em>who</em> is making a request, whether that&rsquo;s a client, a service,
+        or a workload. For agents, the question that stays open is <em>what</em> the request
+        represents, tied to <em>which</em> agent, provably. That&rsquo;s the gap Auth51 closes, and it
+        does so by composing these standards rather than competing with them.
       </Callout>
 
       <Deep title="Zero-Trust and AI-security work, briefly">
         <P>
-          Two adjacent bodies of work are worth placing. Zero-Trust architectures{' '}
+          Two nearby areas of work fit alongside this. Zero-Trust architectures{' '}
           (NIST SP 800-207, BeyondCorp, CISA&rsquo;s maturity model) give the right principles,
           per-request evaluation and short-lived access, but their current implementations verify{' '}
           <em>who</em> is calling (client identity), not <em>what</em> the request intends. Auth51

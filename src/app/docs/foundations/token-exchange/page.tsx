@@ -13,9 +13,9 @@ export default function TokenExchange() {
       <PageTitle eyebrow="Foundations">Token exchange (RFC 8693)</PageTitle>
 
       <Lead>
-        If there&rsquo;s one existing standard that already had the right shape for agents, it&rsquo;s OAuth
-        Token Exchange. It was written to take a token you hold and hand back a different, usually
-        narrower one. That is the move an agent needs before every action.
+        Of all the existing standards, OAuth Token Exchange already had the closest shape to what
+        agents need. It takes a token you hold and hands back a different, usually narrower one,
+        which is exactly what an agent has to do before each action.
       </Lead>
 
       <H2>Trading down</H2>
