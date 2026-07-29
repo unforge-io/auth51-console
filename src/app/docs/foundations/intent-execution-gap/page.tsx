@@ -15,8 +15,8 @@ export default function IntentExecutionGap() {
       <Lead>
         Most authorization decisions assume that the software holding a token is carrying out
         what its user requested. That assumption generally holds for a web application with fixed
-        code paths. An autonomous agent can determine its execution at runtime, so intent and
-        execution must be evaluated separately. Auth51 is designed to address that gap.
+        code paths, but autonomous agents determine their execution at runtime, so intent and
+        execution must be evaluated separately. Auth51 addresses that gap.
       </Lead>
 
       <H2>The assumption, stated plainly</H2>
@@ -88,7 +88,7 @@ export default function IntentExecutionGap() {
         distinguish between them.
       </InTheWild>
 
-      <H2>What closing the gap requires</H2>
+      <H2>Closing the gap</H2>
       <P>
         Closing the gap requires three capabilities that the base standards do not provide on
         their own: identifying <em>which</em> agent is acting and verifying that it has not changed;

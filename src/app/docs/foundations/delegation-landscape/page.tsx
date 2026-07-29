@@ -13,25 +13,25 @@ export default function DelegationLandscape() {
       <PageTitle eyebrow="Foundations">The delegation landscape</PageTitle>
 
       <Lead>
-        auth51 isn&rsquo;t the only work on identity and delegation. It stands in a crowded, capable
-        field. Being honest about what the neighbors do well is the fastest way to see the one gap
-        they share: none of them bind a token to <em>which agent</em> is acting and <em>what</em>{' '}
-        single action it&rsquo;s taking.
+        Auth51 isn&rsquo;t the only work on identity and delegation. There are plenty of other capable competitors.
+        But once you see what each of these systems does well, the gap they all share stands out.
+        None of them bind a token to <em>which agent</em> is acting and <em>what</em> single action
+        it&rsquo;s taking.
       </Lead>
 
       <H2>Scope-limited consent</H2>
       <P>
-        The authorization-code grant already narrows blast radius: a user approves a set of scopes,
+        The authorization-code grant is already quite narrow. A user approves a set of scopes,
         and a leaked token is limited to them. But scopes are predefined and static. They express
         a capability, not <em>which</em> agent invoked it or <em>why</em> this action is happening
-        now. For a deterministic app that&rsquo;s enough; for an agent choosing its own path at runtime,
+        now. For a deterministic app, that&rsquo;s enough. For an agent choosing its own path at runtime,
         a coarse scope can&rsquo;t represent intent.
       </P>
 
       <H2>Machine-to-machine credentials</H2>
       <P>
         The client-credentials grant lets a non-human client obtain a token for its own identity,
-        the backbone of backend service auth. Its limit is accountability: when one client
+        the backbone of backend service auth. When one client
         application houses an orchestrator and many autonomous agents sharing one credential set,
         the token identifies the <em>application</em>, and the agents inside it are
         indistinguishable. That&rsquo;s the &ldquo;no per-agent identity&rdquo; crack from the first Foundations page.
@@ -41,9 +41,9 @@ export default function DelegationLandscape() {
       <P>
         Token Exchange <SpecRef href="https://www.rfc-editor.org/rfc/rfc8693">(RFC 8693)</SpecRef>{' '}
         adds the <code className="code-inline">act</code> claim to record &ldquo;A acting for B,&rdquo; nested
-        for longer chains. It is the closest standard analogue to what auth51 does. The difference is
+        for longer chains. It is the closest standard analogue to what Auth51 does. The difference is
         enforcement: RFC 8693 records the chain and leaves semantics to the implementer, so a
-        resource server still receives a bearer token and must parse the chain itself. auth51 hashes
+        resource server still receives a bearer token and must parse the chain itself. Auth51 hashes
         the delegation path into the token and validates it at mint. (Covered in depth in{' '}
         <a href="/docs/foundations/token-exchange">Token exchange</a>.)
       </P>
@@ -68,25 +68,25 @@ export default function DelegationLandscape() {
       </P>
 
       <Callout>
-        The pattern across all of these: they answer <em>who</em> is making a request (a client, a
-        service, a workload). For agents the unanswered question is <em>what</em> the request
-        represents, tied to <em>which</em> agent, provably. That&rsquo;s the seam auth51 fills, by
-        composing these standards rather than competing with them.
+        All of these answer <em>who</em> is making a request, whether that&rsquo;s a client, a service,
+        or a workload. For agents, the question that stays open is <em>what</em> the request
+        represents, tied to <em>which</em> agent, provably. That&rsquo;s the gap Auth51 closes, and it
+        does so by composing these standards rather than competing with them.
       </Callout>
 
       <Deep title="Zero-Trust and AI-security work, briefly">
         <P>
-          Two adjacent bodies of work are worth placing. Zero-Trust architectures{' '}
+          Two nearby areas of work fit alongside this. Zero-Trust architectures{' '}
           (NIST SP 800-207, BeyondCorp, CISA&rsquo;s maturity model) give the right principles,
           per-request evaluation and short-lived access, but their current implementations verify{' '}
-          <em>who</em> is calling (client identity), not <em>what</em> the request intends. auth51
+          <em>who</em> is calling (client identity), not <em>what</em> the request intends. Auth51
           slots into that model rather than replacing it; see{' '}
           <a href="/docs/foundations/zero-trust">Zero-Trust alignment</a>.
         </P>
         <P className="!mb-0">
           AI-security approaches (prompt-injection guards, output validators) harden
           the model side and are complementary rather than competing: they reduce how often an agent is
-          subverted, while auth51 bounds what a subverted agent can do. Defense in depth wants both.
+          subverted, while Auth51 bounds what a subverted agent can do. Defense in depth wants both.
           The full comparison and threat analysis live in{' '}
           <SpecRef href="https://arxiv.org/abs/2509.13597">arXiv 2509.13597</SpecRef>.
         </P>
@@ -94,7 +94,7 @@ export default function DelegationLandscape() {
 
       <Related items={[
         { href: '/docs/foundations', label: 'Back to Foundations' },
-        { href: '/docs/concepts', label: 'Concepts: how auth51 works' },
+        { href: '/docs/concepts', label: 'Concepts: how Auth51 works' },
         { href: '/docs/reference', label: 'Reference: standards & research' },
       ]} />
     </article>

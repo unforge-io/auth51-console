@@ -4,7 +4,7 @@ import { PageTitle, Lead, H2, P, Deep, SpecRef, InTheWild, Related } from '@/com
 export const metadata: Metadata = {
   title: 'Proof-of-possession (DPoP & mTLS)',
   description:
-    'Sender-constraining a token so a stolen copy is inert. The two standard ways to do it (DPoP and mTLS), and why auth51 chose DPoP, bound per action.',
+    'Sender-constraining a token so a stolen copy is inert. The two standard ways to do it (DPoP and mTLS), and why Auth51 chose DPoP, bound per action.',
 }
 
 export default function ProofOfPossessionFoundations() {
@@ -13,10 +13,10 @@ export default function ProofOfPossessionFoundations() {
       <PageTitle eyebrow="Foundations">Proof-of-possession (DPoP &amp; mTLS)</PageTitle>
 
       <Lead>
-        A bearer token&rsquo;s weakness is in its name. <em>Sender-constrained</em> tokens fix it: the
-        token is bound to a key, and using it requires proving you hold that key. Two standards do
-        this; auth51 uses one of them, and applies it at a finer grain than either was originally
-        aimed at.
+        A bearer token&rsquo;s weakness is right there in its name, and <em>sender-constrained</em>{' '}
+        tokens fix it. The token is bound to a key, and using it means proving you hold that key. Two
+        standards do this, and Auth51 uses one of them, applied at a finer grain than either was
+        originally aimed at.
       </Lead>
 
       <H2>The idea: bind the token to a key</H2>
@@ -45,7 +45,7 @@ export default function ProofOfPossessionFoundations() {
         <code className="code-inline">cnf.jkt</code>, statelessly, with no callback.
       </P>
 
-      <H2>Why auth51 chose DPoP</H2>
+      <H2>Why Auth51 chose DPoP</H2>
       <P>
         Agents don&rsquo;t have stable client certificates; they have short-lived processes that come
         and go, sometimes many to a host. DPoP fits that: a keypair is generated in the agent
@@ -54,16 +54,16 @@ export default function ProofOfPossessionFoundations() {
         checksum and the intent claim, rather than living off to the side at the transport.
       </P>
       <P>
-        There&rsquo;s a note in the protocol work worth surfacing: DPoP by itself doesn&rsquo;t close the
-        intent–execution gap. It proves the <em>client application</em> holds a key; it says nothing
-        about <em>which agent</em> is acting or <em>what</em> the action is. PoP is one of three
-        ingredients rather than the whole answer, which is why auth51 pairs it with agent identity and
-        intent binding instead of treating sender-constraint as sufficient on its own.
+        One caveat is worth stating outright. DPoP on its own doesn&rsquo;t close the intent–execution
+        gap. It proves the <em>client application</em> holds a key, but says nothing about{' '}
+        <em>which agent</em> is acting or <em>what</em> the action is. Sender-constraint is one of
+        three ingredients, not the whole answer, which is why Auth51 pairs it with agent identity and
+        intent binding instead of leaning on it alone.
       </P>
 
       <H2>Bound per action, not per session</H2>
       <P>
-        The other shift is grain. Classic PoP binds a long-lived session token to a key. auth51
+        The other shift is grain. Classic PoP binds a long-lived session token to a key. Auth51
         binds a token that&rsquo;s good for one action and a few minutes. The key still never leaves the
         process, but the window in which any single token matters is tiny, so even a momentary key
         compromise buys an attacker almost nothing.
@@ -79,7 +79,7 @@ export default function ProofOfPossessionFoundations() {
 
       <Deep title="How this looks inside an intent token">
         <P>
-          In auth51, the <code className="code-inline">cnf.jkt</code> lives right in the intent token
+          In Auth51, the <code className="code-inline">cnf.jkt</code> lives right in the intent token
           alongside the identity and intent claims, and the DPoP proof is generated fresh per
           request. The Concepts page walks the exact mint-then-prove sequence with a diagram; this
           page is about the standard the sequence is built from.
@@ -93,7 +93,7 @@ export default function ProofOfPossessionFoundations() {
       </Deep>
 
       <Related items={[
-        { href: '/docs/concepts/proof-of-possession', label: 'Concept: how auth51 applies PoP' },
+        { href: '/docs/concepts/proof-of-possession', label: 'Concept: how Auth51 applies PoP' },
         { href: '/docs/foundations/zero-trust', label: 'Zero-Trust alignment' },
         { href: '/docs/concepts/mcp', label: 'Concept: MCP governance' },
       ]} />

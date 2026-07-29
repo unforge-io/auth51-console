@@ -13,7 +13,7 @@ export default function OAuthAndJwt() {
       <PageTitle eyebrow="Foundations">OAuth 2.0 &amp; JWT, quickly</PageTitle>
 
       <Lead>
-        auth51 extends OAuth rather than replacing it. So it&rsquo;s worth being precise about the parts
+        Auth51 extends OAuth rather than replacing it. So it&rsquo;s worth being precise about the parts
         it keeps unchanged: if you know these four things already, you know most of how an
         intent token is issued and verified.
       </Lead>
@@ -28,8 +28,8 @@ export default function OAuthAndJwt() {
         issues a token scoped to what was approved.
       </P>
       <P>
-        auth51 adds one grant to this family, <code className="code-inline">agent_checksum</code>,
-        for the case OAuth never anticipated: a client that needs to prove <em>which registered
+        Auth51 adds one grant to this family, <code className="code-inline">agent_checksum</code>,
+        for the case in which a client needs to prove <em>which registered
         agent</em> is asking, rather than only which application. Everything about how that grant is
         requested and answered follows the ordinary OAuth token-endpoint shape.
       </P>
@@ -71,7 +71,7 @@ export default function OAuthAndJwt() {
       </P>
 
       <Callout>
-        The one-line version: auth51 keeps OAuth&rsquo;s grants, the JWT/JWK formats, and
+        The one-line version: Auth51 keeps OAuth&rsquo;s grants, the JWT/JWK formats, and
         backward compatibility with plain resource servers. It changes only what a token{' '}
         <em>claims</em> and how tightly it&rsquo;s bound. If you already run OAuth, you already run most
         of this.
@@ -85,7 +85,7 @@ export default function OAuthAndJwt() {
           leaked token is a usable one. For deterministic clients, that is the correct design.
         </P>
         <P className="!mb-0">
-          What auth51 does is add three things on top, each borrowed from another standard:
+          What Auth51 does is add three things on top, each borrowed from another standard:
           a per-agent identity (the checksum), per-action intent (via token exchange), and sender
           constraint (via DPoP). The next three pages take those in turn.
         </P>
