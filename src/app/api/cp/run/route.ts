@@ -32,7 +32,10 @@ export async function POST(req: Request) {
   const run_id = randomUUID()
 
   try {
-    const { token } = await getAuthorityToken()
+    // The run registers (idempotently) + mints under YOUR org by forwarding this
+    // token, so it needs register:intent + generate:intent-token (read:agents for
+    // the reuse-lookup).
+    const { token } = await getAuthorityToken('read:agents register:intent generate:intent-token')
     const res = await fetch(`${WORKFORCE_URL}/run`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
