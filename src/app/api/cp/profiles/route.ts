@@ -41,14 +41,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
-  // "Register on Save": when set, the workforce also registers the roster under
-  // the app, forwarding this token — so it needs register:intent (read:agents
-  // stays for the reuse-lookup). Default save only needs read:agents.
+  // "Register on Save": when set, the workforce provisions the profile's own
+  // app-scoped OAuth key (POST /v1/oauth-clients → needs manage:clients) and then
+  // registers the roster THROUGH that key. So the forwarded token needs
+  // manage:clients (to create the key in the caller's org); the app key itself
+  // carries register:intent. Default save only needs read:agents.
   const autoRegister = new URL(req.url).searchParams.get('auto_register') === 'true'
 
   try {
     const { token } = await getAuthorityToken(
-      autoRegister ? 'read:agents register:intent' : 'read:agents',
+      autoRegister ? 'read:agents manage:clients' : 'read:agents',
     )
     const wfUrl = `${WORKFORCE_URL}/profiles${autoRegister ? '?auto_register=true' : ''}`
     const res = await fetch(wfUrl, {
