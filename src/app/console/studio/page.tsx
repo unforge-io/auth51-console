@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
+import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
 
 /**
  * Simulation Studio — turn an OpenAPI spec into a governed agentic pack.
@@ -67,6 +68,7 @@ export default function StudioPage() {
   const [runStatus, setRunStatus] = useState<string | null>(null)
   const [runId, setRunId] = useState<string | null>(null)        // current run, for resume
   const [resumeText, setResumeText] = useState('')               // the user's answer to a Yield
+  const [traceSpans, setTraceSpans] = useState<Span[]>([])       // live trace waterfall
   const [runResult, setRunResult] = useState<{ tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string; fields?: ElicitField[] } | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
@@ -211,12 +213,21 @@ export default function StudioPage() {
   // Poll a run until it settles on a non-running status (done/error/aborted) OR
   // pauses awaiting user input ('paused'). Sets runStatus + runResult and returns;
   // 'paused' carries result.reason (what the agent needs) for the input panel.
+  async function fetchTrace(id: string) {
+    try {
+      const tr = await fetch(`/api/cp/run/${id}/trace`, { cache: 'no-store' })
+      const td = await tr.json().catch(() => ({}))
+      if (Array.isArray(td.spans)) setTraceSpans(td.spans)
+    } catch { /* trace is best-effort; never breaks the run */ }
+  }
+
   async function pollRun(id: string) {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
     for (let i = 0; i < 150; i++) {
       await sleep(2000)
       const pr = await fetch(`/api/cp/run/${id}`, { cache: 'no-store' })
       const pd = await pr.json().catch(() => ({}))
+      await fetchTrace(id) // live waterfall grows as the run progresses
       if (pd.status && pd.status !== 'running') {
         setRunStatus(pd.status)
         setRunResult(pd.result ?? (pd.error ? { error: pd.error } : null))
@@ -230,7 +241,7 @@ export default function StudioPage() {
     const p = result?.profile
     if (!p) return
     setRunBusy(true); setRunStatus('starting'); setRunResult(null)
-    setResumeText(''); setRunId(null); setError(null)
+    setResumeText(''); setRunId(null); setError(null); setTraceSpans([])
     try {
       const res = await fetch('/api/cp/run', {
         method: 'POST',
@@ -554,6 +565,14 @@ export default function StudioPage() {
                     {JSON.stringify(runResult.tool_outputs, null, 2)}
                   </pre>
                 )}
+              </div>
+            )}
+            {traceSpans.length > 0 && (
+              <div className="mt-3">
+                <div className="mb-1 text-[11px] font-semibold text-c-text-2">
+                  Trace <span className="font-normal text-c-text-3">— governed hops (mint · DPoP · RS) and LLM calls; select a span for tokens + attributes</span>
+                </div>
+                <TraceWaterfall spans={traceSpans} />
               </div>
             )}
           </div>
