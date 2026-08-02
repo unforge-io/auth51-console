@@ -64,7 +64,9 @@ export default function StudioPage() {
   const [runUseCaseText, setRunUseCaseText] = useState('')
   const [runBusy, setRunBusy] = useState(false)
   const [runStatus, setRunStatus] = useState<string | null>(null)
-  const [runResult, setRunResult] = useState<{ tool_outputs?: Record<string, unknown>; agent?: string; error?: string } | null>(null)
+  const [runId, setRunId] = useState<string | null>(null)        // current run, for resume
+  const [resumeText, setResumeText] = useState('')               // the user's answer to a Yield
+  const [runResult, setRunResult] = useState<{ tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string } | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
   const [elapsed, setElapsed] = useState(0) // seconds spent generating (reassurance)
@@ -205,10 +207,29 @@ export default function StudioPage() {
     } catch (e) { setError(String(e)) }
   }
 
+  // Poll a run until it settles on a non-running status (done/error/aborted) OR
+  // pauses awaiting user input ('paused'). Sets runStatus + runResult and returns;
+  // 'paused' carries result.reason (what the agent needs) for the input panel.
+  async function pollRun(id: string) {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    for (let i = 0; i < 150; i++) {
+      await sleep(2000)
+      const pr = await fetch(`/api/cp/run/${id}`, { cache: 'no-store' })
+      const pd = await pr.json().catch(() => ({}))
+      if (pd.status && pd.status !== 'running') {
+        setRunStatus(pd.status)
+        setRunResult(pd.result ?? (pd.error ? { error: pd.error } : null))
+        return
+      }
+    }
+    setRunStatus('timed out')
+  }
+
   async function runUseCase() {
     const p = result?.profile
     if (!p) return
-    setRunBusy(true); setRunStatus('starting'); setRunResult(null); setError(null)
+    setRunBusy(true); setRunStatus('starting'); setRunResult(null)
+    setResumeText(''); setRunId(null); setError(null)
     try {
       const res = await fetch('/api/cp/run', {
         method: 'POST',
@@ -219,22 +240,36 @@ export default function StudioPage() {
       if (!res.ok || !started.run_id) {
         setError(started.error || `Run failed (HTTP ${res.status})`); setRunStatus(null); return
       }
-      setRunStatus('running')
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-      // The agent runs a real LLM on the workforce; poll until it settles.
-      for (let i = 0; i < 150; i++) {
-        await sleep(2000)
-        const pr = await fetch(`/api/cp/run/${started.run_id}`, { cache: 'no-store' })
-        const pd = await pr.json().catch(() => ({}))
-        if (pd.status && pd.status !== 'running') {
-          setRunStatus(pd.status)
-          setRunResult(pd.result ?? (pd.error ? { error: pd.error } : null))
-          return
-        }
-      }
-      setRunStatus('timed out')
+      setRunId(started.run_id); setRunStatus('running')
+      await pollRun(started.run_id)
     } catch (e) {
       setError(String(e)); setRunStatus(null)
+    } finally {
+      setRunBusy(false)
+    }
+  }
+
+  // Answer the agent's Yield and continue the SAME run. It may finish, or pause
+  // again with a follow-up question (the panel just re-renders each time).
+  async function resumeRun() {
+    const answer = resumeText.trim()
+    if (!runId || !answer) return
+    setRunBusy(true); setRunStatus('running'); setResumeText(''); setError(null)
+    try {
+      const res = await fetch(`/api/cp/run/${runId}/resume`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: answer }),
+      })
+      const started = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        // Keep the panel so the user can retry with their answer restored.
+        setError(started.error || `Resume failed (HTTP ${res.status})`)
+        setResumeText(answer); setRunStatus('paused'); return
+      }
+      await pollRun(runId)
+    } catch (e) {
+      setError(String(e)); setResumeText(answer); setRunStatus('paused')
     } finally {
       setRunBusy(false)
     }
@@ -477,7 +512,28 @@ export default function StudioPage() {
                 ))}
               </div>
             )}
-            {runStatus && !runBusy && (
+            {/* Paused: the agent yielded for input. Show its ask + an answer box. */}
+            {runStatus === 'paused' && !runBusy && (
+              <div className="mt-3 rounded-md border border-c-accent/40 bg-c-accent/5 px-3 py-2.5">
+                <div className="text-[12px] font-semibold text-c-text">
+                  Agent needs input{runResult?.agent ? ` · ${runResult.agent}` : ''}
+                </div>
+                {runResult?.reason && (
+                  <div className="mt-1 text-[12px] text-c-text-2 whitespace-pre-wrap break-words">{runResult.reason}</div>
+                )}
+                <div className="mt-2 flex gap-2">
+                  <input value={resumeText} onChange={(e) => setResumeText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') resumeRun() }}
+                    autoFocus placeholder="Type your answer…"
+                    className="flex-1 rounded-md border border-c-border bg-c-bg px-3 py-2 text-[13px] text-c-text outline-none focus:border-c-accent" />
+                  <button onClick={resumeRun} disabled={!resumeText.trim()}
+                    className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40">
+                    Send
+                  </button>
+                </div>
+              </div>
+            )}
+            {runStatus && runStatus !== 'paused' && !runBusy && (
               <div className="mt-3">
                 <div className={`text-[12px] font-medium ${runStatus === 'done' ? 'text-c-success' : runStatus === 'error' ? 'text-c-danger' : 'text-c-text-2'}`}>
                   Run {runStatus}{runResult?.agent ? ` · agent ${runResult.agent}` : ''}
