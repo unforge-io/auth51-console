@@ -18,14 +18,16 @@ export const runtime = 'nodejs'
  * Body: { input: string }
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  let body: { input?: string } = {}
+  let body: { input?: string; answers?: Record<string, unknown> } = {}
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 })
   }
-  if (typeof body.input !== 'string' || !body.input.trim()) {
-    return NextResponse.json({ error: 'input is required' }, { status: 400 })
+  const hasAnswers = body.answers && Object.keys(body.answers).length > 0
+  const hasInput = typeof body.input === 'string' && body.input.trim().length > 0
+  if (!hasAnswers && !hasInput) {
+    return NextResponse.json({ error: 'answers or input is required' }, { status: 400 })
   }
 
   try {
@@ -35,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ input: body.input }),
+        body: JSON.stringify({ answers: body.answers, input: body.input }),
       },
     )
     const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))

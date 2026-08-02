@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
+import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
 
 /**
  * Simulation Studio — turn an OpenAPI spec into a governed agentic pack.
@@ -66,7 +67,7 @@ export default function StudioPage() {
   const [runStatus, setRunStatus] = useState<string | null>(null)
   const [runId, setRunId] = useState<string | null>(null)        // current run, for resume
   const [resumeText, setResumeText] = useState('')               // the user's answer to a Yield
-  const [runResult, setRunResult] = useState<{ tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string } | null>(null)
+  const [runResult, setRunResult] = useState<{ tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string; fields?: ElicitField[] } | null>(null)
   const [result, setResult] = useState<GenerateResponse | null>(null)
   const [progress, setProgress] = useState<string[]>([]) // live agent activity feed
   const [elapsed, setElapsed] = useState(0) // seconds spent generating (reassurance)
@@ -249,27 +250,27 @@ export default function StudioPage() {
     }
   }
 
-  // Answer the agent's Yield and continue the SAME run. It may finish, or pause
-  // again with a follow-up question (the panel just re-renders each time).
-  async function resumeRun() {
-    const answer = resumeText.trim()
-    if (!runId || !answer) return
-    setRunBusy(true); setRunStatus('running'); setResumeText(''); setError(null)
+  // Answer the agent's Yield and continue the SAME run — with structured `answers`
+  // (from an elicitation form) or free-text `input`. It may finish, or pause again
+  // with a follow-up (the panel just re-renders each time).
+  async function submitResume(payload: { answers?: Record<string, unknown>; input?: string }) {
+    if (!runId) return
+    setRunBusy(true); setRunStatus('running'); setError(null)
     try {
       const res = await fetch(`/api/cp/run/${runId}/resume`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: answer }),
+        body: JSON.stringify(payload),
       })
       const started = await res.json().catch(() => ({}))
       if (!res.ok) {
-        // Keep the panel so the user can retry with their answer restored.
+        // Keep the panel (values stay) so the user can fix + retry.
         setError(started.error || `Resume failed (HTTP ${res.status})`)
-        setResumeText(answer); setRunStatus('paused'); return
+        setRunStatus('paused'); return
       }
       await pollRun(runId)
     } catch (e) {
-      setError(String(e)); setResumeText(answer); setRunStatus('paused')
+      setError(String(e)); setRunStatus('paused')
     } finally {
       setRunBusy(false)
     }
@@ -521,16 +522,25 @@ export default function StudioPage() {
                 {runResult?.reason && (
                   <div className="mt-1 text-[12px] text-c-text-2 whitespace-pre-wrap break-words">{runResult.reason}</div>
                 )}
-                <div className="mt-2 flex gap-2">
-                  <input value={resumeText} onChange={(e) => setResumeText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') resumeRun() }}
-                    autoFocus placeholder="Type your answer…"
-                    className="flex-1 rounded-md border border-c-border bg-c-bg px-3 py-2 text-[13px] text-c-text outline-none focus:border-c-accent" />
-                  <button onClick={resumeRun} disabled={!resumeText.trim()}
-                    className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40">
-                    Send
-                  </button>
-                </div>
+                {runResult?.fields && runResult.fields.length > 0 ? (
+                  <ElicitForm
+                    key={`${runId}:${JSON.stringify(runResult.fields)}`}
+                    fields={runResult.fields}
+                    busy={runBusy}
+                    onSubmit={(answers) => submitResume({ answers })}
+                  />
+                ) : (
+                  <div className="mt-2 flex gap-2">
+                    <input value={resumeText} onChange={(e) => setResumeText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && resumeText.trim()) submitResume({ input: resumeText.trim() }) }}
+                      autoFocus placeholder="Type your answer…"
+                      className="flex-1 rounded-md border border-c-border bg-c-bg px-3 py-2 text-[13px] text-c-text outline-none focus:border-c-accent" />
+                    <button onClick={() => submitResume({ input: resumeText.trim() })} disabled={!resumeText.trim()}
+                      className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40">
+                      Send
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             {runStatus && runStatus !== 'paused' && !runBusy && (
