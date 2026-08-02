@@ -212,7 +212,7 @@ export function TraceWaterfall({ spans }: { spans: Span[] }) {
               className={`flex items-center gap-2 px-2 py-1 cursor-pointer border-b border-c-border/50 ${isSel ? 'bg-c-accent/10' : 'hover:bg-c-surface-2'}`}>
               <div className="flex items-center gap-1 min-w-0" style={{ paddingLeft: n.depth * 12 }}>
                 {hasKids ? (
-                  <button onClick={(e) => { e.stopPropagation(); setCollapsed((c) => { const x = new Set(c); x.has(n.span_id) ? x.delete(n.span_id) : x.add(n.span_id); return x }) }}
+                  <button onClick={(e) => { e.stopPropagation(); setCollapsed((c) => { const x = new Set(c); if (x.has(n.span_id)) x.delete(n.span_id); else x.add(n.span_id); return x }) }}
                     className="text-[10px] text-c-text-3 w-3">{collapsed.has(n.span_id) ? '▸' : '▾'}</button>
                 ) : <span className="w-3" />}
                 {kind && <span className={`shrink-0 rounded border px-1 text-[9px] font-mono ${KIND_STYLE[kind] ?? 'border-c-border text-c-text-3'}`}>{kind}</span>}
