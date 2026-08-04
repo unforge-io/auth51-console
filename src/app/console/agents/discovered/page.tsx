@@ -5,6 +5,7 @@ import { useControlPlane } from '@/lib/console/controlPlane'
 import {
   AuthorityError,
   consumeProposal,
+  dismissDiscovered,
   listAgents,
   listDiscovered,
   listProposals,
@@ -118,6 +119,26 @@ export default function DiscoveredAgentsPage() {
     } finally { setBusy(null) }
   }
 
+  // Dismiss for real: retire BOTH signals so it stays gone on reload — the
+  // Authority trigger (by agent_id) and the discovery proposal (by checksum). The
+  // local `dismissed` set is just immediate UI feedback; persistence is the fix.
+  const dismiss = async (r: Row) => {
+    if (!currentContext) return
+    setBusy(r.checksum); setError(null)
+    setDismissed((d) => new Set(d).add(r.checksum))   // optimistic hide
+    try {
+      const ops: Promise<unknown>[] = []
+      if (r.trigger) ops.push(dismissDiscovered(currentContext, r.trigger.agent_id))
+      if (r.proposal) ops.push(consumeProposal(currentContext, r.checksum))
+      await Promise.all(ops)
+      await load(true)                                // refetch; persisted ⇒ won't return
+    } catch (err) {
+      // Persistence failed — un-hide + surface so it isn't a silent no-op again.
+      setDismissed((d) => { const n = new Set(d); n.delete(r.checksum); return n })
+      setError(err instanceof AuthorityError ? `Dismiss failed: ${err.message}` : `Dismiss failed: ${String(err)}`)
+    } finally { setBusy(null) }
+  }
+
   const visible = rows.filter((r) => !dismissed.has(r.checksum))
 
   if (!currentContext) return <EmptyState />
@@ -188,11 +209,11 @@ export default function DiscoveredAgentsPage() {
                     {busy === r.checksum ? '…' : 'Register'}
                   </button>
                   <button
-                    onClick={() => setDismissed((d) => new Set(d).add(r.checksum))}
+                    onClick={() => dismiss(r)}
                     disabled={busy === r.checksum}
                     className="rounded-md border border-c-border px-2.5 py-1 text-[12px] text-c-text-2 hover:border-c-border-2 disabled:opacity-40"
                   >
-                    Dismiss
+                    {busy === r.checksum ? '…' : 'Dismiss'}
                   </button>
                 </div>
               </div>
