@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
-import { listAgents, formatRegisteredAt, shortChecksum, type Registration, AuthorityError } from '@/lib/console/api'
+import { listAgents, unregisterAgent, formatRegisteredAt, shortChecksum, type Registration, AuthorityError } from '@/lib/console/api'
 import { classifyAgents, type AgentClassification } from '@/lib/agent-classification'
 import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
 import { useRefreshInterval } from '@/lib/console/useRefreshInterval'
@@ -55,6 +55,24 @@ export default function RegisteredAgentsPage() {
       setLoading(false)
     }
   }, [currentContext])
+
+  const [unregBusy, setUnregBusy] = useState<string | null>(null)
+
+  // Deregister an agent (removes its registration + capability grant). Confirmed
+  // in-panel; on success reload the list and close the detail panel.
+  const handleUnregister = useCallback(async (agent: Registration) => {
+    if (!currentContext) return
+    setUnregBusy(agent.agent_id); setError(null)
+    try {
+      await unregisterAgent(currentContext, agent.agent_id, agent.app_id)
+      setSelected(null)
+      await load()
+    } catch (err) {
+      setError(err instanceof AuthorityError
+        ? `Unregister failed: ${err.message}${err.detail ? ` — ${JSON.stringify(err.detail).slice(0, 200)}` : ''}`
+        : `Unregister failed: ${String(err)}`)
+    } finally { setUnregBusy(null) }
+  }, [currentContext, load])
 
   // Live polling — interval is a user-configurable global preference
   const { intervalMs, setIntervalMs } = useRefreshInterval()
@@ -144,7 +162,12 @@ export default function RegisteredAgentsPage() {
 
       {/* Detail panel */}
       {selected && (
-        <AgentDetailPanel agent={selected} onClose={() => setSelected(null)} />
+        <AgentDetailPanel
+          agent={selected}
+          onClose={() => setSelected(null)}
+          onUnregister={handleUnregister}
+          unregistering={unregBusy === selected.agent_id}
+        />
       )}
     </div>
   )
@@ -350,8 +373,20 @@ function Td({ children, align }: { children: React.ReactNode; align?: 'left' | '
 
 // ── Detail panel (slide-in from right) ──
 
-function AgentDetailPanel({ agent, onClose }: { agent: ClassifiedRegistration; onClose: () => void }) {
+function AgentDetailPanel({ agent, onClose, onUnregister, unregistering }: {
+  agent: ClassifiedRegistration
+  onClose: () => void
+  onUnregister: (a: Registration) => void
+  unregistering: boolean
+}) {
   const c = agent.classification
+  const discovered = agent.agent_id.startsWith('unregistered-')
+  const confirmUnregister = () => {
+    if (window.confirm(
+      `Unregister "${agent.agent_id}"? This removes its registration and capability grant from the Authority. ` +
+      `Its next run appears in Discovered again. Re-register via the pack's "Register on save" so it gets a capability grant.`))
+      onUnregister(agent)
+  }
   return (
     <div className="w-[440px] shrink-0 bg-c-surface overflow-y-auto">
       {/* Header */}
@@ -365,6 +400,13 @@ function AgentDetailPanel({ agent, onClose }: { agent: ClassifiedRegistration; o
           ×
         </button>
       </div>
+
+      {discovered && (
+        <div className="mx-5 mt-4 rounded-md border border-c-warning/30 bg-c-warning/5 px-3 py-2 text-[11.5px] text-c-warning">
+          Registered from Discovery — it has no capability (<span className="font-mono">a51:rs</span>) grant, so governed RS
+          calls deny (wrong-audience / scope). Unregister it, then re-save the pack with &ldquo;Register on save&rdquo;.
+        </div>
+      )}
 
       {/* Content */}
       <div className="px-5 py-4 space-y-5">
@@ -456,6 +498,19 @@ function AgentDetailPanel({ agent, onClose }: { agent: ClassifiedRegistration; o
             </pre>
           </Field>
         )}
+
+        {/* Danger zone — deregister */}
+        <div className="pt-2 border-t border-c-border">
+          <button
+            onClick={confirmUnregister}
+            disabled={unregistering}
+            className="w-full rounded-md border border-c-danger/40 bg-c-danger/5 px-3 py-2 text-[12px] font-medium text-c-danger hover:bg-c-danger/10 disabled:opacity-50 disabled:cursor-not-allowed">
+            {unregistering ? 'Unregistering…' : 'Unregister agent'}
+          </button>
+          <p className="mt-1.5 text-[10.5px] text-c-text-3 leading-snug">
+            Removes this agent&rsquo;s registration and capability grant. Its next run reappears in Discovered.
+          </p>
+        </div>
       </div>
     </div>
   )

@@ -723,6 +723,28 @@ export async function registerAgent(
   return await res.json() as { agent_id: string; checksum: string }
 }
 
+/** Deregister an agent: remove its registration(s) + capability grant from the
+ * Authority (org + app scoped). Used to clean up mis-registered agents — e.g. a
+ * discovery-path registration that carries no `a51:rs` grant, so its governed RS
+ * calls always deny. After removing, register the pack via "Register on save"
+ * (which attaches each tool's op scope) so the agent gets a real grant. */
+export async function unregisterAgent(
+  ctx: ControlPlaneContext,
+  agentId: string,
+  appId?: string,
+): Promise<{ deregistered: string; removed_registrations: number; removed_grants: number }> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'register:intent')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/agent/${encodeURIComponent(agentId)}?app_id=${encodeURIComponent(app)}`
+  const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Unregister failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as { deregistered: string; removed_registrations: number; removed_grants: number }
+}
+
 export type ChecksumPreview = {
   agent_id: string
   checksum: string        // canonical stored value (== checksum_v2)
