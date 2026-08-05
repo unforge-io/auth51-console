@@ -27,6 +27,7 @@ type AgentSpec = {
 type UseCase = {
   id: string; title: string; goal?: string
   entry_agent?: string | null; kind: string; suggested?: boolean
+  members?: string[]   // agents this use case exercises (entry + any delegates)
 }
 type Profile = {
   id: string; name: string; description?: string; rs_id?: string | null
@@ -636,7 +637,6 @@ export default function StudioPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] text-c-text">{p.title}</span>
                       <span className="rounded-md bg-c-surface-2 px-1.5 py-0.5 text-[11px] font-mono text-c-text-2">{p.kind}</span>
-                      {p.entry_agent && <span className="text-[11px] text-c-text-3 font-mono">entry: {p.entry_agent}</span>}
                       {p.suggested && (
                         <span className="rounded-full bg-c-accent/10 border border-c-accent/30 px-2 py-0.5 text-[10px] font-mono text-c-accent-2">
                           suggested
@@ -644,6 +644,30 @@ export default function StudioPage() {
                       )}
                     </div>
                     {p.goal && <p className="mt-1 text-[12px] text-c-text-3">{p.goal}</p>}
+                    {(() => {
+                      // The roster this use case exercises: entry first (starts the
+                      // run), then any agents it delegates to. Falls back to just the
+                      // entry for older packs generated before `members` existed.
+                      const entry = p.entry_agent || undefined
+                      const rest = (p.members || []).filter((m) => m !== entry)
+                      const roster = entry ? [entry, ...rest] : rest
+                      if (roster.length === 0) return null
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] uppercase tracking-wider text-c-text-3">Agents</span>
+                          {roster.map((m) => (
+                            <span key={m}
+                              title={m === entry ? 'Entry agent — starts this use case' : 'Delegated to by the entry agent'}
+                              className={`rounded-md px-1.5 py-0.5 text-[11px] font-mono ${
+                                m === entry
+                                  ? 'bg-c-accent/10 border border-c-accent/30 text-c-accent-2'
+                                  : 'bg-c-surface-2 text-c-text-2'}`}>
+                              {m === entry ? `▶ ${m}` : m}
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </div>
                 ))}
               </div>
