@@ -99,14 +99,44 @@ export default function StudioPage() {
   }
   useEffect(() => { loadSaved() }, [])
 
+  // Clear the run panel — used when switching rosters so one pack's run never
+  // bleeds into another's. The backend keeps a paused run durably per roster, so
+  // clearing here only parks it; re-opening the pack restores it.
+  function resetRunState() {
+    setRunId(null); setRunStatus(null); setRunResult(null)
+    setTraceSpans([]); setResumeText(''); setRunUseCaseText('')
+  }
+
+  // Re-attach to whatever scenario THIS roster left paused (durable, backend-owned).
+  // Best-effort: nothing paused ⇒ {} ⇒ the panel stays idle. A finished/aborted run
+  // isn't stored, so we never restore stale state.
+  async function restorePausedRun(profileId: string) {
+    try {
+      const res = await fetch(`/api/cp/run/latest?profile=${encodeURIComponent(profileId)}`, { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json().catch(() => ({})) as {
+        run_id?: string; status?: string
+        result?: { tool_outputs?: Record<string, unknown>; agent?: string; reason?: string; fields?: ElicitField[]; use_case?: string } | null
+      }
+      if (!data.run_id) return
+      setRunId(data.run_id)
+      setRunStatus(data.status || 'paused')
+      setRunResult(data.result ?? null)
+      if (data.result?.use_case) setRunUseCaseText(data.result.use_case)
+      fetchTrace(data.run_id)   // rebuild the waterfall as it stood at the pause
+    } catch { /* best-effort restore */ }
+  }
+
   // Open a saved pack into the roster view (GET returns the full profile object).
   async function openSaved(id: string) {
     setError(null); setNotice(null); setResult(null); setProgress([])
+    resetRunState()   // park the previous roster's run before showing this one
     try {
       const res = await fetch(`/api/cp/profiles/${encodeURIComponent(id)}`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) { setError(data.error || `Could not load "${id}"`); return }
       setResult({ profile: data as Profile, warnings: [] })
+      await restorePausedRun(id)   // re-attach this roster's paused scenario, if any
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
     } catch (e) {
       setError(String(e))
