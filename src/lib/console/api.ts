@@ -723,6 +723,49 @@ export async function registerAgent(
   return await res.json() as { agent_id: string; checksum: string }
 }
 
+export type ChecksumPreview = {
+  agent_id: string
+  checksum: string        // canonical stored value (== checksum_v2)
+  checksum_v1: string
+  checksum_v2: string
+  checksum_v3: string
+  checksum_v4: string
+  checksum_v5: string
+  already_registered: boolean
+}
+
+/** Preview: compute the exact checksums (v1–v5) a registration WOULD seal,
+ * without writing anything. Same inputs as registerAgent — lets the operator
+ * see the identity (and any A2 collision) before approving. Read-only. */
+export async function previewChecksums(
+  ctx: ControlPlaneContext,
+  proposal: Proposal,
+  appId?: string,
+): Promise<ChecksumPreview> {
+  const app = proposal.app_id ?? appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/register/agent/preview`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      app_id: app,
+      agent_components: {
+        agent_id: proposal.agent_id,
+        prompt_template: proposal.prompt,
+        tools: proposal.tools,
+        configuration: proposal.configuration,
+      },
+    }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Checksum preview failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as ChecksumPreview
+}
+
 // ── Utilities ──
 
 /** Group registrations by their `agent_id` prefix (e.g. "T1*" -> threat 1) */

@@ -9,9 +9,11 @@ import {
   listAgents,
   listDiscovered,
   listProposals,
+  previewChecksums,
   registerAgent,
   shortChecksum,
   formatRegisteredAt,
+  type ChecksumPreview,
   type DiscoveredTrigger,
   type Proposal,
 } from '@/lib/console/api'
@@ -49,6 +51,9 @@ export default function DiscoveredAgentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  // Lazily-fetched checksum previews, keyed by row checksum. 'loading'/'error'
+  // are sentinels so the panel can show progress without a second state map.
+  const [previews, setPreviews] = useState<Record<string, ChecksumPreview | 'loading' | 'error'>>({})
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [justRegistered, setJustRegistered] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -139,6 +144,20 @@ export default function DiscoveredAgentsPage() {
     } finally { setBusy(null) }
   }
 
+  // Expand/collapse the review panel. On first expand of a row that has proposal
+  // content, fetch the checksum preview (v1–v5) so the operator sees the exact
+  // identity that Register would seal — computed by the Authority, not persisted.
+  const toggleReview = useCallback((r: Row) => {
+    const next = expanded === r.checksum ? null : r.checksum
+    setExpanded(next)
+    if (next && r.proposal && currentContext && previews[r.checksum] === undefined) {
+      setPreviews((p) => ({ ...p, [r.checksum]: 'loading' }))
+      previewChecksums(currentContext, r.proposal)
+        .then((preview) => setPreviews((p) => ({ ...p, [r.checksum]: preview })))
+        .catch(() => setPreviews((p) => ({ ...p, [r.checksum]: 'error' })))
+    }
+  }, [expanded, currentContext, previews])
+
   const visible = rows.filter((r) => !dismissed.has(r.checksum))
 
   if (!currentContext) return <EmptyState />
@@ -190,7 +209,7 @@ export default function DiscoveredAgentsPage() {
                   <div className="text-[11.5px] text-c-text-3">
                     <span className="font-mono">{shortChecksum(r.checksum, 12)}…</span>
                     {r.proposal && (
-                      <>{' · '}<button onClick={() => setExpanded(expanded === r.checksum ? null : r.checksum)}
+                      <>{' · '}<button onClick={() => toggleReview(r)}
                                        className="text-c-accent-2 hover:underline">
                         {expanded === r.checksum ? 'hide identity' : 'review identity'}
                       </button></>
@@ -220,23 +239,28 @@ export default function DiscoveredAgentsPage() {
 
               {expanded === r.checksum && r.proposal && (
                 <div className="px-4 pb-4">
-                  <div className="rounded-lg border border-c-border bg-c-bg p-4 space-y-3">
+                  <div className="rounded-lg border border-c-border bg-c-bg p-4 space-y-4">
                     <div>
                       <div className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5">System prompt (as observed by your client)</div>
                       <pre className="text-[12px] font-mono text-c-text whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">{r.proposal.prompt}</pre>
                     </div>
                     {r.proposal.tools.length > 0 && (
                       <div>
-                        <div className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5">Tools ({r.proposal.tools.length})</div>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-2">Tools ({r.proposal.tools.length})</div>
+                        <div className="space-y-2">
                           {r.proposal.tools.map((t, i) => (
-                            <span key={i} className="rounded-md bg-c-surface-2 px-1.5 py-0.5 text-[11px] font-mono text-c-text-2">
-                              {String((t as { name?: string }).name ?? `tool_${i}`)}
-                            </span>
+                            <ToolDetail key={i} tool={t} index={i} />
                           ))}
                         </div>
                       </div>
                     )}
+                    {Object.keys(r.proposal.configuration ?? {}).length > 0 && (
+                      <div>
+                        <div className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5">Configuration</div>
+                        <pre className="text-[11.5px] font-mono text-c-text-2 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto rounded-md border border-c-border bg-c-surface-2 p-2">{JSON.stringify(r.proposal.configuration, null, 2)}</pre>
+                      </div>
+                    )}
+                    <ChecksumPanel state={previews[r.checksum]} />
                   </div>
                 </div>
               )}
@@ -250,6 +274,97 @@ export default function DiscoveredAgentsPage() {
         only the checksum reference from a mint attempt. They join here by checksum, and
         content enters the Authority only when you register — never on the minting path.
       </p>
+    </div>
+  )
+}
+
+// One observed tool, expanded: name + trust marker + description + the wire
+// parameter schema the embed captured (this is exactly what folds into the v4
+// tool-interface hash). Anthropic egress carries `input_schema`, OpenAI carries
+// `parameters` — accept either so the panel is model-agnostic.
+function ToolDetail({ tool, index }: { tool: Record<string, unknown>; index: number }) {
+  const name = String(tool.name ?? `tool_${index}`)
+  const description = typeof tool.description === 'string' ? tool.description : ''
+  const isAgent = tool.is_agent === true
+  const source = typeof tool.source === 'string' ? tool.source : 'process'
+  const schema = (tool.parameters ?? tool.input_schema) as
+    | { properties?: Record<string, { type?: string; description?: string }>; required?: string[] }
+    | undefined
+  const props = schema?.properties ?? {}
+  const required = new Set(schema?.required ?? [])
+  const paramNames = Object.keys(props)
+
+  return (
+    <div className="rounded-md border border-c-border bg-c-surface-2/50 p-2.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12.5px] font-mono font-medium text-c-text">{name}</span>
+        {isAgent
+          ? <span title="A sub-agent edge — part of the delegation graph, excluded from the identity hash"
+                  className="text-[9.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-accent/30 bg-c-accent/10 text-c-accent-2">agent</span>
+          : <span title={source === 'mcp' ? 'Rented/remote capability — granted, excluded from the identity hash (§13.1)' : 'In-process tool — part of IDENTITY, folded into v4 (§13.1)'}
+                  className="text-[9.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-border bg-c-surface-2 text-c-text-3">{source}</span>}
+      </div>
+      {description && <p className="mt-1 text-[12px] text-c-text-2 leading-snug">{description}</p>}
+      {paramNames.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          {paramNames.map((pn) => {
+            const p = props[pn] ?? {}
+            return (
+              <div key={pn} className="flex items-baseline gap-2 text-[11.5px] font-mono">
+                <span className="text-c-text">{pn}</span>
+                {p.type && <span className="text-c-text-3">{p.type}</span>}
+                {required.has(pn) && <span className="text-c-danger text-[10px]">required</span>}
+                {p.description && <span className="text-c-text-3 font-sans truncate">— {p.description}</span>}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="mt-1.5 text-[11px] text-c-text-3 italic">no parameters</p>
+      )}
+    </div>
+  )
+}
+
+// The identity Register would seal — v1–v5, computed by the Authority WITHOUT
+// persisting (POST /register/agent/preview). Runtime recognition matches v3
+// (prompt) today; v4 adds the tool interface, v5 adds normalized source.
+function ChecksumPanel({ state }: { state: ChecksumPreview | 'loading' | 'error' | undefined }) {
+  const label = (
+    <div className="text-[10.5px] font-mono uppercase tracking-wider text-c-text-3 mb-1.5">
+      Checksums that will register
+    </div>
+  )
+  if (state === undefined || state === 'loading') {
+    return <div>{label}<div className="text-[12px] text-c-text-3">Computing identity…</div></div>
+  }
+  if (state === 'error') {
+    return <div>{label}<div className="text-[12px] text-c-warning">Couldn&rsquo;t compute checksums — the Authority may be an older build without the preview endpoint.</div></div>
+  }
+  const rows: [string, string, string][] = [
+    ['v1', state.checksum_v1, 'SHA-256, patchet-compat (legacy)'],
+    ['v2', state.checksum_v2, 'SHA3-512 full-component (canonical stored)'],
+    ['v3', state.checksum_v3, 'identity: prompt + config — matched at runtime'],
+    ['v4', state.checksum_v4, 'v3 + tool interface (name/desc/params)'],
+    ['v5', state.checksum_v5, 'v4 + AST-normalized source'],
+  ]
+  return (
+    <div>
+      {label}
+      <div className="rounded-md border border-c-border bg-c-surface-2/50 divide-y divide-c-border">
+        {rows.map(([v, sum, note]) => (
+          <div key={v} className="flex items-baseline gap-3 px-2.5 py-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-c-accent-2 w-5 shrink-0">{v}</span>
+            <span className="text-[11.5px] font-mono text-c-text truncate flex-1" title={sum}>{sum}</span>
+            <span className="text-[10.5px] text-c-text-3 hidden sm:block shrink-0">{note}</span>
+          </div>
+        ))}
+      </div>
+      {state.already_registered && (
+        <div className="mt-2 text-[11.5px] text-c-warning">
+          ⚠ An agent with this identity is already registered — Register will return a Registration-First (A2) conflict.
+        </div>
+      )}
     </div>
   )
 }
