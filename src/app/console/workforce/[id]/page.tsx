@@ -25,7 +25,8 @@ import type { AgentSpec, Profile } from '@/lib/console/workforceTypes'
  */
 
 type RunResult = { tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string; fields?: ElicitField[]; use_case?: string }
-type Tab = 'usecases' | 'agents'
+type RunSummary = { run_id: string; status: string; use_case?: string; agent?: string }
+type Tab = 'usecases' | 'agents' | 'runs'
 
 export default function WorkforcePage() {
   const params = useParams()
@@ -48,6 +49,22 @@ export default function WorkforcePage() {
   const [traceSpans, setTraceSpans] = useState<Span[]>([])
   const [resumeText, setResumeText] = useState('')
   const [runBusy, setRunBusy] = useState(false)
+  const [history, setHistory] = useState<RunSummary[] | null>(null)
+
+  // Agents that actually participated in the current run (from the trace), for
+  // highlighting the delegation tree of the use case being run.
+  const activeAgents = useMemo(() => {
+    if (!profile || traceSpans.length === 0) return undefined
+    const ids = new Set(profile.agents.map((a) => a.id))
+    const found = new Set<string>()
+    for (const s of traceSpans) {
+      if (s.name && ids.has(s.name)) found.add(s.name)
+      for (const v of Object.values(s.attributes ?? {})) {
+        if (typeof v === 'string' && ids.has(v)) found.add(v)
+      }
+    }
+    return found.size ? found : undefined
+  }, [traceSpans, profile])
 
   // Registration action busy-state, keyed by agent id ('*' = bulk).
   const [regBusy, setRegBusy] = useState<string | null>(null)
@@ -74,6 +91,14 @@ export default function WorkforcePage() {
     }
   }, [currentContext])
 
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/cp/runs?profile=${encodeURIComponent(id)}`, { cache: 'no-store' })
+      const data = await res.json().catch(() => ({}))
+      setHistory(Array.isArray(data.runs) ? data.runs : [])
+    } catch { setHistory([]) }
+  }, [id])
+
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
@@ -88,6 +113,7 @@ export default function WorkforcePage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { loadRegistered() }, [loadRegistered])
+  useEffect(() => { if (tab === 'runs' && profile) loadHistory() }, [tab, profile, loadHistory])
 
   // ── Run controller ──
   const fetchTrace = useCallback(async (rid: string) => {
@@ -129,10 +155,16 @@ export default function WorkforcePage() {
         setRunResult(data.result ?? null)
         setRunningUseCase(data.result?.use_case ?? null)
         fetchTrace(data.run_id)
+        // A still-RUNNING run keeps advancing on the backend — follow it so the
+        // panel updates live, and keep new runs blocked until it settles/pauses.
+        if (data.status === 'running') {
+          setRunBusy(true)
+          pollRun(data.run_id).finally(() => setRunBusy(false))
+        }
       } catch { /* best-effort */ }
     })()
     return () => { cancelled = true }
-  }, [profile, id, fetchTrace])
+  }, [profile, id, fetchTrace, pollRun])
 
   async function runUseCase(useCaseTitle: string) {
     setRunBusy(true); setRunStatus('starting'); setRunResult(null)
@@ -167,6 +199,20 @@ export default function WorkforcePage() {
     } catch (e) {
       setError(String(e)); setRunStatus('paused')
     } finally { setRunBusy(false) }
+  }
+
+  // Open a past run from history into the run panel (loads its status + trace).
+  async function openRun(rid: string) {
+    setTab('usecases'); setRunId(rid); setError(null); setTraceSpans([])
+    try {
+      const res = await fetch(`/api/cp/run/${rid}`, { cache: 'no-store' })
+      const d = await res.json().catch(() => ({}))
+      setRunStatus(d.status ?? null)
+      setRunResult(d.result ?? (d.error ? { error: d.error } : null))
+      setRunningUseCase(d.result?.use_case ?? null)
+      await fetchTrace(rid)
+      if (d.status === 'running') { setRunBusy(true); pollRun(rid).finally(() => setRunBusy(false)) }
+    } catch (e) { setError(String(e)) }
   }
 
   // ── Registration actions ──
@@ -245,10 +291,10 @@ export default function WorkforcePage() {
 
       {/* Tabs */}
       <div className="mt-5 flex items-center gap-1 border-b border-c-border">
-        {(['usecases', 'agents'] as const).map((t) => (
+        {(['usecases', 'agents', 'runs'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-3 py-2 text-[13px] -mb-px border-b-2 ${tab === t ? 'border-c-accent text-c-text font-medium' : 'border-transparent text-c-text-3 hover:text-c-text-2'}`}>
-            {t === 'usecases' ? `Use cases (${profile.programs.length})` : `Agents (${roster.length})`}
+            {t === 'usecases' ? `Use cases (${profile.programs.length})` : t === 'agents' ? `Agents (${roster.length})` : 'Runs'}
           </button>
         ))}
       </div>
@@ -290,10 +336,37 @@ export default function WorkforcePage() {
                 {!entryRegistered && (
                   <div className="mt-2 text-[11px] text-c-warning">Entry agent <span className="font-mono">{entry}</span> is not registered — register it to run.</div>
                 )}
-                <DelegationTree entryId={p.entry_agent} members={p.members} agents={roster} />
+                <DelegationTree entryId={p.entry_agent} members={p.members} agents={roster}
+                  active={runningUseCase === p.title ? activeAgents : undefined} />
               </div>
             )
           })}
+        </div>
+      )}
+
+      {tab === 'runs' && (
+        <div className="mt-4">
+          {history === null ? (
+            <div className="rounded-xl border border-c-border px-4 py-8 text-center text-[13px] text-c-text-3">Loading…</div>
+          ) : history.length === 0 ? (
+            <div className="rounded-xl border border-c-border px-4 py-8 text-center text-[13px] text-c-text-3">No runs yet. Run a use case to see it here.</div>
+          ) : (
+            <div className="rounded-xl border border-c-border divide-y divide-c-border">
+              {history.map((r) => (
+                <button key={r.run_id} onClick={() => openRun(r.run_id)}
+                  className="w-full text-left px-4 py-3 hover:bg-c-surface-2 flex items-center gap-3">
+                  <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                    r.status === 'done' ? 'border-c-success/30 bg-c-success/10 text-c-success'
+                    : r.status === 'error' ? 'border-c-danger/30 bg-c-danger/10 text-c-danger'
+                    : r.status === 'paused' ? 'border-c-accent/30 bg-c-accent/10 text-c-accent-2'
+                    : r.status === 'running' ? 'border-c-accent/30 bg-c-accent/10 text-c-accent-2'
+                    : 'border-c-border bg-c-surface-2 text-c-text-3'}`}>{r.status}</span>
+                  <span className="text-[13px] text-c-text truncate flex-1">{r.use_case || '(ad-hoc)'}</span>
+                  {r.agent && <span className="text-[11px] font-mono text-c-text-3 shrink-0">{r.agent}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
