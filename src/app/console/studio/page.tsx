@@ -18,7 +18,10 @@ import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
  * server-side and calls workforce with it, scoping the pack to this org.
  */
 
-type OperationRef = { operation_id: string; method: string; path: string; scope: string; summary?: string }
+type OperationRef = {
+  operation_id: string; method: string; path: string; scope: string; summary?: string
+  interface?: { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } | null
+}
 type ToolRef = { ref: string; op?: OperationRef | null }
 type AgentSpec = {
   id: string; role?: string; system_prompt: string
@@ -531,6 +534,9 @@ export default function StudioPage() {
             </div>
           </div>
 
+          {/* ── Stage & register the roster (git add → commit) ── */}
+          <RegistrationStaging profile={profile} />
+
           {/* ── Run a use case (governed live agent) ── */}
           <div className="mb-4 rounded-lg border border-c-border bg-c-surface-2 px-4 py-3">
             <div className="flex items-center justify-between gap-3 mb-2">
@@ -705,6 +711,132 @@ export default function StudioPage() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Registration staging (git add → commit) ──────────────────────────────────
+// The roster is a set of registration CANDIDATES. Stage the ones you want, pull
+// any out for review, then commit only the staged subset. Registering everything
+// is the default (all staged); unstage to hold agents back. Idempotent — a
+// re-register of an unchanged agent is reported ok, not an error.
+function RegistrationStaging({ profile }: { profile: Profile }) {
+  const allIds = useMemo(() => profile.agents.map((a) => a.id), [profile.agents])
+  const [staged, setStaged] = useState<Set<string>>(() => new Set(allIds))
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [result, setResult] = useState<{ ok_count?: number; agents?: { agent_id: string; ok: boolean; error?: string | null }[]; error?: string } | null>(null)
+
+  // Reset staging when the pack changes (open a different roster).
+  useEffect(() => { setStaged(new Set(allIds)); setExpanded(null); setResult(null); setErr(null) }, [profile.id, allIds])
+
+  const toggle = (id: string) => setStaged((s) => {
+    const n = new Set(s)
+    if (n.has(id)) n.delete(id); else n.add(id)
+    return n
+  })
+  const stageAll = () => setStaged(new Set(allIds))
+  const unstageAll = () => setStaged(new Set())
+
+  async function commit() {
+    if (staged.size === 0) return
+    setBusy(true); setErr(null); setResult(null)
+    try {
+      const res = await fetch(`/api/cp/profiles/${encodeURIComponent(profile.id)}/register`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agent_ids: [...staged] }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setErr(data.error || `Register failed (HTTP ${res.status})`); return }
+      setResult(data)
+    } catch (e) {
+      setErr(String(e))
+    } finally { setBusy(false) }
+  }
+
+  const failed = (result?.agents ?? []).filter((a) => !a.ok)
+
+  return (
+    <div className="mb-4 rounded-lg border border-c-border bg-c-surface-2 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <div className="text-[12px] font-semibold text-c-text">
+          Register agents <span className="font-normal text-c-text-3">— stage what to register, then commit</span>
+        </div>
+        <button onClick={commit} disabled={busy || staged.size === 0}
+          className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          {busy ? 'Registering…' : `Register ${staged.size} staged`}
+        </button>
+      </div>
+      <div className="mb-2 flex items-center gap-3 text-[11px] text-c-text-3">
+        <span>{staged.size} of {allIds.length} staged</span>
+        <button onClick={stageAll} className="hover:text-c-text underline">Stage all</button>
+        <button onClick={unstageAll} className="hover:text-c-text underline">Unstage all</button>
+      </div>
+
+      {err && <div className="mb-2 rounded-md border border-c-danger/30 bg-c-danger/5 px-3 py-2 text-[12px] text-c-danger">{err}</div>}
+      {result && (
+        <div className={`mb-2 rounded-md border px-3 py-2 text-[12px] ${failed.length ? 'border-c-warning/30 bg-c-warning/5 text-c-warning' : 'border-c-success/30 bg-c-success/5 text-c-success'}`}>
+          Registered {result.ok_count ?? 0}/{result.agents?.length ?? 0} agents.
+          {failed.length > 0 && <span> Failed: {failed.map((a) => a.agent_id).join(', ')}.</span>}
+        </div>
+      )}
+
+      <div className="rounded-md border border-c-border divide-y divide-c-border bg-c-bg">
+        {profile.agents.map((a) => {
+          const isStaged = staged.has(a.id)
+          const open = expanded === a.id
+          return (
+            <div key={a.id} className="px-3 py-2">
+              <div className="flex items-center gap-2.5">
+                <input type="checkbox" checked={isStaged} onChange={() => toggle(a.id)}
+                  className="h-3.5 w-3.5 accent-c-accent shrink-0" aria-label={`stage ${a.id}`} />
+                <span className={`text-[12.5px] font-mono ${isStaged ? 'text-c-text' : 'text-c-text-3 line-through'}`}>{a.id}</span>
+                {a.role && <span className="text-[11px] text-c-text-3">{a.role}</span>}
+                <span className="text-[10.5px] text-c-text-3">· {a.tools.length} tool{a.tools.length === 1 ? '' : 's'}</span>
+                <button onClick={() => setExpanded(open ? null : a.id)}
+                  className="ml-auto text-[11px] text-c-accent-2 hover:underline">
+                  {open ? 'hide' : 'review'}
+                </button>
+              </div>
+              {open && (
+                <div className="mt-2 ml-6 space-y-2">
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-c-text-3 mb-1">System prompt (identity)</div>
+                    <pre className="text-[11.5px] font-mono text-c-text-2 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto rounded border border-c-border bg-c-surface-2 p-2">{a.system_prompt}</pre>
+                  </div>
+                  {a.tools.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-c-text-3 mb-1">Tools / capabilities ({a.tools.length})</div>
+                      <div className="space-y-1">
+                        {a.tools.map((t) => (
+                          <div key={t.ref} className="text-[11px]">
+                            <span className="font-mono text-c-accent-2" title={t.op?.scope || t.ref}>
+                              {t.op ? `${t.op.method.toUpperCase()} ${t.op.path}` : t.ref}
+                            </span>
+                            {t.op?.interface?.properties && Object.keys(t.op.interface.properties).length > 0 && (
+                              <span className="ml-2 text-c-text-3 font-mono">
+                                ({Object.keys(t.op.interface.properties).join(', ')})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {a.delegates_to.length > 0 && (
+                    <div className="text-[11px] text-c-text-3">delegates → <span className="font-mono">{a.delegates_to.join(', ')}</span></div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-2 text-[10.5px] text-c-text-3">
+        Staging is a review step; nothing registers until you commit. Re-registering an unchanged agent is a safe no-op.
+      </p>
     </div>
   )
 }
