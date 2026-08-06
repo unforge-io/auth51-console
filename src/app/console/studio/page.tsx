@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
 import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
@@ -680,35 +680,79 @@ export default function StudioPage() {
                       )}
                     </div>
                     {p.goal && <p className="mt-1 text-[12px] text-c-text-3">{p.goal}</p>}
-                    {(() => {
-                      // The roster this use case exercises: entry first (starts the
-                      // run), then any agents it delegates to. Falls back to just the
-                      // entry for older packs generated before `members` existed.
-                      const entry = p.entry_agent || undefined
-                      const rest = (p.members || []).filter((m) => m !== entry)
-                      const roster = entry ? [entry, ...rest] : rest
-                      if (roster.length === 0) return null
-                      return (
-                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] uppercase tracking-wider text-c-text-3">Agents</span>
-                          {roster.map((m) => (
-                            <span key={m}
-                              title={m === entry ? 'Entry agent — starts this use case' : 'Delegated to by the entry agent'}
-                              className={`rounded-md px-1.5 py-0.5 text-[11px] font-mono ${
-                                m === entry
-                                  ? 'bg-c-accent/10 border border-c-accent/30 text-c-accent-2'
-                                  : 'bg-c-surface-2 text-c-text-2'}`}>
-                              {m === entry ? `▶ ${m}` : m}
-                            </span>
-                          ))}
-                        </div>
-                      )
-                    })()}
+                    <DelegationTree
+                      entryId={p.entry_agent}
+                      members={p.members}
+                      agents={profile.agents}
+                    />
                   </div>
                 ))}
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Delegation tree (2.C) ─────────────────────────────────────────────────────
+// A use case's supervisor→sub-agent structure, rooted at its entry agent and
+// walked over each agent's `delegates_to`. Static (read from the pack), cycle-
+// guarded. A single-agent use case renders as one node — which is the honest
+// picture (many jobs are single-capability), not a bug.
+function DelegationTree({ entryId, members, agents }: {
+  entryId?: string | null
+  members?: string[]
+  agents: AgentSpec[]
+}) {
+  const byId = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents])
+  const root = entryId || members?.[0] || agents[0]?.id
+  if (!root) return null
+
+  const node = (id: string, path: Set<string>, depth: number): ReactNode => {
+    const agent = byId.get(id)
+    const cycle = path.has(id)
+    const next = new Set(path).add(id)
+    const kids = (!cycle && agent ? (agent.delegates_to || []) : []).filter((d) => byId.has(d))
+    return (
+      <div key={`${depth}:${id}`}>
+        <div className="flex items-center gap-2 py-0.5" style={{ paddingLeft: depth * 16 }}>
+          {depth > 0 && <span className="text-c-text-3 font-mono text-[11px] -ml-2">└</span>}
+          <span
+            title={depth === 0 ? 'Entry agent — starts this use case' : 'Delegated to by its parent'}
+            className={`font-mono text-[11.5px] ${depth === 0 ? 'text-c-accent-2 font-medium' : 'text-c-text-2'}`}>
+            {depth === 0 ? `▶ ${id}` : id}
+          </span>
+          {agent?.role && <span className="text-[10.5px] text-c-text-3">{agent.role}</span>}
+          {agent && <span className="text-[10px] text-c-text-3">· {agent.tools.length} tool{agent.tools.length === 1 ? '' : 's'}</span>}
+          {cycle && <span className="text-[10px] text-c-warning">↻ cycle</span>}
+          {!agent && <span className="text-[10px] text-c-warning">missing from roster</span>}
+        </div>
+        {kids.map((k) => node(k, next, depth + 1))}
+      </div>
+    )
+  }
+
+  // Members not reachable from the entry via delegation (defensive — e.g. a
+  // sequential use case whose agents aren't wired with edges): list them flat.
+  const reachable = new Set<string>()
+  const walk = (id: string, path: Set<string>) => {
+    if (path.has(id)) return
+    reachable.add(id)
+    const p = new Set(path).add(id)
+    ;(byId.get(id)?.delegates_to || []).forEach((d) => walk(d, p))
+  }
+  walk(root, new Set())
+  const orphans = (members || []).filter((m) => !reachable.has(m))
+
+  return (
+    <div className="mt-2">
+      <div className="text-[10px] uppercase tracking-wider text-c-text-3 mb-1">Delegation</div>
+      {node(root, new Set(), 0)}
+      {orphans.length > 0 && (
+        <div className="mt-1 text-[10.5px] text-c-text-3" style={{ paddingLeft: 16 }}>
+          also involved: <span className="font-mono">{orphans.join(', ')}</span>
         </div>
       )}
     </div>
