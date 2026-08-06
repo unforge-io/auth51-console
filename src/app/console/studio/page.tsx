@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
 import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
@@ -54,6 +55,7 @@ function deriveRsId(specText: string): string {
 
 export default function StudioPage() {
   const { currentContext } = useControlPlane()
+  const router = useRouter()
   const [specText, setSpecText] = useState('')
   const [specUrl, setSpecUrl] = useState('')
   const [rsId, setRsId] = useState('')
@@ -102,49 +104,10 @@ export default function StudioPage() {
   }
   useEffect(() => { loadSaved() }, [])
 
-  // Clear the run panel — used when switching rosters so one pack's run never
-  // bleeds into another's. The backend keeps a paused run durably per roster, so
-  // clearing here only parks it; re-opening the pack restores it.
-  function resetRunState() {
-    setRunId(null); setRunStatus(null); setRunResult(null)
-    setTraceSpans([]); setResumeText(''); setRunUseCaseText('')
-  }
-
-  // Re-attach to whatever scenario THIS roster left paused (durable, backend-owned).
-  // Best-effort: nothing paused ⇒ {} ⇒ the panel stays idle. A finished/aborted run
-  // isn't stored, so we never restore stale state.
-  async function restorePausedRun(profileId: string) {
-    try {
-      const res = await fetch(`/api/cp/run/latest?profile=${encodeURIComponent(profileId)}`, { cache: 'no-store' })
-      if (!res.ok) return
-      const data = await res.json().catch(() => ({})) as {
-        run_id?: string; status?: string
-        result?: { tool_outputs?: Record<string, unknown>; agent?: string; reason?: string; fields?: ElicitField[]; use_case?: string } | null
-      }
-      if (!data.run_id) return
-      setRunId(data.run_id)
-      setRunStatus(data.status || 'paused')
-      setRunResult(data.result ?? null)
-      if (data.result?.use_case) setRunUseCaseText(data.result.use_case)
-      fetchTrace(data.run_id)   // rebuild the waterfall as it stood at the pause
-    } catch { /* best-effort restore */ }
-  }
-
-  // Open a saved pack into the roster view (GET returns the full profile object).
-  async function openSaved(id: string) {
-    setError(null); setNotice(null); setResult(null); setProgress([])
-    resetRunState()   // park the previous roster's run before showing this one
-    try {
-      const res = await fetch(`/api/cp/profiles/${encodeURIComponent(id)}`, { cache: 'no-store' })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || `Could not load "${id}"`); return }
-      setResult({ profile: data as Profile, warnings: [] })
-      await restorePausedRun(id)   // re-attach this roster's paused scenario, if any
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-    } catch (e) {
-      setError(String(e))
-    }
-  }
+  // Opening/operating a SAVED pack now lives on the dedicated workforce page
+  // (/console/workforce/[id]); the saved list navigates there. Studio keeps only
+  // generate → review → save. The inline roster below renders a freshly generated
+  // pack for review before saving.
 
   async function onGenerate() {
     setError(null); setNotice(null); setResult(null); setProgress([])
@@ -356,7 +319,7 @@ export default function StudioPage() {
                 key={p.id}
                 className="px-4 py-3 hover:bg-c-surface-2 flex items-center justify-between gap-3"
               >
-                <button onClick={() => openSaved(p.id)} className="min-w-0 flex-1 text-left">
+                <button onClick={() => router.push(`/console/workforce/${encodeURIComponent(p.id)}`)} className="min-w-0 flex-1 text-left">
                   <div className="text-[14px] text-c-text truncate">{p.name}</div>
                   {p.description && (
                     <div className="text-[12px] text-c-text-3 truncate">{p.description}</div>
@@ -373,7 +336,7 @@ export default function StudioPage() {
                       Delete
                     </button>
                   )}
-                  <button onClick={() => openSaved(p.id)} aria-label="Open" className="text-c-text-3 hover:text-c-text">→</button>
+                  <button onClick={() => router.push(`/console/workforce/${encodeURIComponent(p.id)}`)} aria-label="Open" className="text-c-text-3 hover:text-c-text">→</button>
                 </div>
               </div>
             ))}
