@@ -20,7 +20,7 @@ export const runtime = 'nodejs'
  * customer's own pack under their org is Slice 2 (forward the caller's token).
  */
 export async function POST(req: Request) {
-  let body: { profile?: string; use_case?: string } = {}
+  let body: { profile?: string; use_case?: string; mode?: string } = {}
   try {
     body = await req.json()
   } catch {
@@ -39,7 +39,10 @@ export async function POST(req: Request) {
     const res = await fetch(`${WORKFORCE_URL}/run`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ run_id, profile: body.profile, use_case: body.use_case }),
+      body: JSON.stringify({
+        run_id, profile: body.profile, use_case: body.use_case,
+        mode: body.mode === 'oauth' ? 'oauth' : 'intent',
+      }),
     })
     const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))
     // Surface the run_id so the client can poll even if the body is minimal.

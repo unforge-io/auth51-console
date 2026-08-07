@@ -28,7 +28,7 @@ import type { AgentSpec, Profile } from '@/lib/console/workforceTypes'
  */
 
 type RunResult = { tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string; fields?: ElicitField[]; use_case?: string }
-type RunSummary = { run_id: string; status: string; use_case?: string; agent?: string }
+type RunSummary = { run_id: string; status: string; use_case?: string; agent?: string; mode?: string }
 type Tab = 'usecases' | 'agents' | 'runs'
 
 export default function WorkforcePage() {
@@ -53,6 +53,8 @@ export default function WorkforcePage() {
   const [traceSpans, setTraceSpans] = useState<Span[]>([])
   const [resumeText, setResumeText] = useState('')
   const [runBusy, setRunBusy] = useState(false)
+  const [runMode, setRunMode] = useState<'intent' | 'oauth'>('intent')
+  const [runningMode, setRunningMode] = useState<string | null>(null)  // the ACTIVE run's mode
   const [history, setHistory] = useState<RunSummary[] | null>(null)
 
   // Agents that actually participated in the current run (from the trace), for
@@ -166,12 +168,13 @@ export default function WorkforcePage() {
       try {
         const res = await fetch(`/api/cp/run/latest?profile=${encodeURIComponent(id)}`, { cache: 'no-store' })
         if (!res.ok) return
-        const data = await res.json().catch(() => ({})) as { run_id?: string; status?: string; result?: RunResult }
+        const data = await res.json().catch(() => ({})) as { run_id?: string; status?: string; result?: RunResult; mode?: string }
         if (cancelled || !data.run_id) return
         setRunId(data.run_id)
         setRunStatus(data.status || 'paused')
         setRunResult(data.result ?? null)
         setRunningUseCase(data.result?.use_case ?? null)
+        setRunningMode(data.mode ?? null)
         fetchTrace(data.run_id)
         // A still-RUNNING run keeps advancing on the backend — follow it so the
         // panel updates live, and keep new runs blocked until it settles/pauses.
@@ -187,12 +190,12 @@ export default function WorkforcePage() {
   async function runUseCase(useCaseTitle: string) {
     setRunBusy(true); setRunStatus('starting'); setRunResult(null)
     setResumeText(''); setRunId(null); setError(null); setTraceSpans([])
-    setRunningUseCase(useCaseTitle); setTab('usecases')
+    setRunningUseCase(useCaseTitle); setRunningMode(runMode); setTab('usecases')
     try {
       const res = await fetch('/api/cp/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ profile: id, use_case: useCaseTitle }),
+        body: JSON.stringify({ profile: id, use_case: useCaseTitle, mode: runMode }),
       })
       const started = await res.json()
       if (!res.ok || !started.run_id) { setError(started.error || `Run failed (HTTP ${res.status})`); setRunStatus(null); return }
@@ -220,8 +223,8 @@ export default function WorkforcePage() {
   }
 
   // Open a past run from history into the run panel (loads its status + trace).
-  async function openRun(rid: string) {
-    setTab('usecases'); setRunId(rid); setError(null); setTraceSpans([])
+  async function openRun(rid: string, mode?: string) {
+    setTab('usecases'); setRunId(rid); setError(null); setTraceSpans([]); setRunningMode(mode ?? null)
     try {
       const res = await fetch(`/api/cp/run/${rid}`, { cache: 'no-store' })
       const d = await res.json().catch(() => ({}))
@@ -336,11 +339,30 @@ export default function WorkforcePage() {
 
       {tab === 'usecases' && (
         <div className="mt-4 space-y-3">
+          {/* Mode selector — the OAuth-vs-Intent contrast (same use case, two modes) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] uppercase tracking-wider text-c-text-3">Auth mode</span>
+            <div className="inline-flex rounded-md border border-c-border overflow-hidden">
+              {(['intent', 'oauth'] as const).map((m) => (
+                <button key={m} onClick={() => setRunMode(m)} disabled={runBusy}
+                  className={`px-2.5 py-1 text-[12px] ${runMode === m ? 'bg-c-accent text-white' : 'bg-c-bg text-c-text-2 hover:bg-c-surface-2'} disabled:opacity-50`}>
+                  {m === 'intent' ? 'Intent' : 'OAuth'}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-c-text-3">
+              {runMode === 'intent'
+                ? 'per-op intent token — checksum identity + workflow binding + DPoP'
+                : 'plain OAuth bearer, same scope — no identity/workflow/DPoP binding (baseline)'}
+            </span>
+          </div>
+
           {/* Active run panel */}
           {(runStatus || runId) && (
             <RunPanel
               status={runStatus} result={runResult} traceSpans={traceSpans} useCase={runningUseCase}
-              busy={runBusy} resumeText={resumeText} setResumeText={setResumeText} onResume={submitResume}
+              mode={runningMode} busy={runBusy} resumeText={resumeText} setResumeText={setResumeText}
+              onResume={submitResume}
             />
           )}
           {profile.programs.length === 0 && (
@@ -388,7 +410,7 @@ export default function WorkforcePage() {
           ) : (
             <div className="rounded-xl border border-c-border divide-y divide-c-border">
               {history.map((r) => (
-                <button key={r.run_id} onClick={() => openRun(r.run_id)}
+                <button key={r.run_id} onClick={() => openRun(r.run_id, r.mode)}
                   className="w-full text-left px-4 py-3 hover:bg-c-surface-2 flex items-center gap-3">
                   <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
                     r.status === 'done' ? 'border-c-success/30 bg-c-success/10 text-c-success'
@@ -396,6 +418,7 @@ export default function WorkforcePage() {
                     : r.status === 'paused' ? 'border-c-accent/30 bg-c-accent/10 text-c-accent-2'
                     : r.status === 'running' ? 'border-c-accent/30 bg-c-accent/10 text-c-accent-2'
                     : 'border-c-border bg-c-surface-2 text-c-text-3'}`}>{r.status}</span>
+                  {r.mode && <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${r.mode === 'oauth' ? 'border-c-warning/30 bg-c-warning/10 text-c-warning' : 'border-c-border bg-c-surface-2 text-c-text-3'}`}>{r.mode}</span>}
                   <span className="text-[13px] text-c-text truncate flex-1">{r.use_case || '(ad-hoc)'}</span>
                   {r.agent && <span className="text-[11px] font-mono text-c-text-3 shrink-0">{r.agent}</span>}
                 </button>
@@ -438,11 +461,12 @@ function declaredScopes(agent: AgentSpec): string[] {
 }
 
 // ── Run panel ──
-function RunPanel({ status, result, traceSpans, useCase, busy, resumeText, setResumeText, onResume }: {
+function RunPanel({ status, result, traceSpans, useCase, mode, busy, resumeText, setResumeText, onResume }: {
   status: string | null
   result: RunResult | null
   traceSpans: Span[]
   useCase: string | null
+  mode: string | null
   busy: boolean
   resumeText: string
   setResumeText: (v: string) => void
@@ -450,8 +474,14 @@ function RunPanel({ status, result, traceSpans, useCase, busy, resumeText, setRe
 }) {
   return (
     <div className="rounded-xl border border-c-accent/30 bg-c-accent/5 p-4">
-      <div className="text-[12px] font-semibold text-c-text">
-        Run{useCase ? `: ${useCase}` : ''} <span className="font-normal text-c-text-3">— governed, per-op minted</span>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12px] font-semibold text-c-text">Run{useCase ? `: ${useCase}` : ''}</span>
+        {mode && (
+          <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border ${mode === 'oauth' ? 'border-c-warning/30 bg-c-warning/10 text-c-warning' : 'border-c-accent/30 bg-c-accent/10 text-c-accent-2'}`}>{mode}</span>
+        )}
+        <span className="text-[11px] font-normal text-c-text-3">
+          {mode === 'oauth' ? '— plain OAuth bearer, no intent binding' : '— governed, per-op minted'}
+        </span>
       </div>
       {status === 'paused' && !busy && (
         <div className="mt-3 rounded-md border border-c-accent/40 bg-c-bg px-3 py-2.5">
