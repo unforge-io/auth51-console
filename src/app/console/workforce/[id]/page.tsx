@@ -298,6 +298,19 @@ export default function WorkforcePage() {
   const regCount = roster.filter((a) => registeredIds.has(a.id)).length
   const allRegistered = registered !== null && unregisteredAgents.length === 0
 
+  // The active run's panel renders INLINE under the use case it belongs to (not
+  // floating at the top). Match by title or goal (the workforce may store either).
+  const activeRunUC = profile.programs.find(
+    (p) => !!runningUseCase && (p.title === runningUseCase || p.goal === runningUseCase),
+  ) || null
+  const runPanelEl = (runStatus || runId) ? (
+    <RunPanel
+      status={runStatus} result={runResult} traceSpans={traceSpans} useCase={runningUseCase}
+      mode={runningMode} busy={runBusy} resumeText={resumeText} setResumeText={setResumeText}
+      onResume={submitResume}
+    />
+  ) : null
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       {/* Header */}
@@ -357,14 +370,9 @@ export default function WorkforcePage() {
             </span>
           </div>
 
-          {/* Active run panel */}
-          {(runStatus || runId) && (
-            <RunPanel
-              status={runStatus} result={runResult} traceSpans={traceSpans} useCase={runningUseCase}
-              mode={runningMode} busy={runBusy} resumeText={resumeText} setResumeText={setResumeText}
-              onResume={submitResume}
-            />
-          )}
+          {/* Fallback: an active run whose use case isn't in the list (ad-hoc)
+              still shows here; otherwise the panel renders INLINE below its use case. */}
+          {runPanelEl && !activeRunUC && runPanelEl}
           {profile.programs.length === 0 && (
             <div className="rounded-xl border border-c-border px-4 py-8 text-center text-[13px] text-c-text-3">This pack has no use cases.</div>
           )}
@@ -394,7 +402,11 @@ export default function WorkforcePage() {
                   <div className="mt-2 text-[11px] text-c-warning">Entry agent <span className="font-mono">{entry}</span> is not registered — register it to run.</div>
                 )}
                 <DelegationTree entryId={p.entry_agent} members={p.members} agents={roster}
-                  active={runningUseCase === p.title ? activeAgents : undefined} />
+                  active={activeRunUC?.id === p.id ? activeAgents : undefined} />
+                {/* The run panel lives INLINE, right under its use case. */}
+                {activeRunUC?.id === p.id && runPanelEl && (
+                  <div className="mt-3">{runPanelEl}</div>
+                )}
               </div>
             )
           })}
