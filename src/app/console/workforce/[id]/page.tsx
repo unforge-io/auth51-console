@@ -8,11 +8,14 @@ import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
 import { DelegationTree } from '@/components/console/DelegationTree'
 import {
   AuthorityError,
+  assignGrant,
   listAgents,
+  listGrants,
   previewChecksums,
   shortChecksum,
   unregisterAgent,
   type ChecksumPreview,
+  type GrantView,
   type Proposal,
   type Registration,
 } from '@/lib/console/api'
@@ -36,6 +39,7 @@ export default function WorkforcePage() {
 
   const [profile, setProfile] = useState<Profile | null>(null)
   const [registered, setRegistered] = useState<Registration[] | null>(null)
+  const [grants, setGrants] = useState<GrantView[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -77,6 +81,10 @@ export default function WorkforcePage() {
     () => new Map((registered ?? []).map((r) => [r.agent_id, r])),
     [registered],
   )
+  const grantByAgent = useMemo(
+    () => new Map((grants ?? []).map((g) => [g.agent_id, g])),
+    [grants],
+  )
   const unregisteredAgents = useMemo(
     () => (profile?.agents ?? []).filter((a) => !registeredIds.has(a.id)),
     [profile, registeredIds],
@@ -90,6 +98,15 @@ export default function WorkforcePage() {
       setRegistered([]) // Authority unreachable ⇒ treat as none registered
     }
   }, [currentContext])
+
+  const loadGrants = useCallback(async () => {
+    if (!currentContext) return
+    try {
+      setGrants(await listGrants(currentContext, profile?.app_id ?? undefined))
+    } catch {
+      setGrants([])
+    }
+  }, [currentContext, profile])
 
   const loadHistory = useCallback(async () => {
     try {
@@ -113,6 +130,7 @@ export default function WorkforcePage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { loadRegistered() }, [loadRegistered])
+  useEffect(() => { if (profile) loadGrants() }, [profile, loadGrants])
   useEffect(() => { if (tab === 'runs' && profile) loadHistory() }, [tab, profile, loadHistory])
 
   // ── Run controller ──
@@ -228,7 +246,7 @@ export default function WorkforcePage() {
       if (!res.ok) { setError(data.error || `Register failed (HTTP ${res.status})`); return }
       const failed = (data.agents ?? []).filter((a: { ok: boolean }) => !a.ok)
       setNotice(`Registered ${data.ok_count ?? 0}/${data.agents?.length ?? ids.length} agent${ids.length === 1 ? '' : 's'}.${failed.length ? ` Failed: ${failed.map((a: { agent_id: string }) => a.agent_id).join(', ')}.` : ''}`)
-      await loadRegistered()
+      await Promise.all([loadRegistered(), loadGrants()])
     } catch (e) {
       setError(String(e))
     } finally { setRegBusy(null) }
@@ -241,9 +259,26 @@ export default function WorkforcePage() {
     try {
       await unregisterAgent(currentContext, agentId, profile?.app_id ?? undefined)
       setNotice(`Unregistered "${agentId}".`)
-      await loadRegistered()
+      await Promise.all([loadRegistered(), loadGrants()])
     } catch (e) {
       setError(e instanceof AuthorityError ? `Unregister failed: ${e.message}` : `Unregister failed: ${String(e)}`)
+    } finally { setRegBusy(null) }
+  }
+
+  // B3 — grant the agent exactly the capabilities its tools declare (the op
+  // scopes). Fixes an empty/partial grant (e.g. a discovery-registered agent) so
+  // its governed RS calls actually carry the a51:rs scope the verifier requires.
+  async function grantDeclared(agent: AgentSpec) {
+    if (!currentContext) return
+    const scopes = declaredScopes(agent)
+    if (scopes.length === 0) return
+    setRegBusy(agent.id); setError(null); setNotice(null)
+    try {
+      await assignGrant(currentContext, agent.id, scopes, { appId: profile?.app_id ?? undefined, replace: true })
+      setNotice(`Granted ${scopes.length} capabilit${scopes.length === 1 ? 'y' : 'ies'} to "${agent.id}".`)
+      await loadGrants()
+    } catch (e) {
+      setError(e instanceof AuthorityError ? `Grant failed: ${e.message}` : `Grant failed: ${String(e)}`)
     } finally { setRegBusy(null) }
   }
 
@@ -380,9 +415,11 @@ export default function WorkforcePage() {
               <AgentRow
                 key={a.id} agent={a} ctx={currentContext} appId={profile.app_id}
                 registration={registeredById.get(a.id) ?? null}
+                grant={grantByAgent.get(a.id) ?? null}
                 busy={regBusy === a.id}
                 onRegister={() => registerAgents([a.id])}
                 onUnregister={() => unregister(a.id)}
+                onGrant={() => grantDeclared(a)}
               />
             ))}
           </div>
@@ -390,6 +427,14 @@ export default function WorkforcePage() {
       )}
     </div>
   )
+}
+
+// The a51:rs capability scopes an agent's tools declare (what its governed calls
+// need). The grant should cover these; a gap ⇒ the RS will deny (wrong scope).
+function declaredScopes(agent: AgentSpec): string[] {
+  return Array.from(new Set(
+    agent.tools.map((t) => t.op?.scope).filter((s): s is string => !!s),
+  ))
 }
 
 // ── Run panel ──
@@ -448,18 +493,28 @@ function RunPanel({ status, result, traceSpans, useCase, busy, resumeText, setRe
 }
 
 // ── One agent row (roster) ──
-function AgentRow({ agent, ctx, appId, registration, busy, onRegister, onUnregister }: {
+function AgentRow({ agent, ctx, appId, registration, grant, busy, onRegister, onUnregister, onGrant }: {
   agent: AgentSpec
   ctx: ReturnType<typeof useControlPlane>['currentContext']
   appId?: string | null
   registration: Registration | null
+  grant: GrantView | null
   busy: boolean
   onRegister: () => void
   onUnregister: () => void
+  onGrant: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<ChecksumPreview | 'loading' | 'error' | null>(null)
   const isRegistered = registration !== null
+
+  // Capabilities: what the tools declare vs what the grant actually covers. A gap
+  // means governed RS calls will be denied (wrong scope) — the discovery-path
+  // failure mode. B3's "Grant capabilities" closes it.
+  const declared = declaredScopes(agent)
+  const granted = new Set(grant?.allowed_scopes ?? [])
+  const missing = declared.filter((s) => !granted.has(s))
+  const hasGap = isRegistered && declared.length > 0 && missing.length > 0
 
   const toggle = () => {
     const next = !open
@@ -484,9 +539,19 @@ function AgentRow({ agent, ctx, appId, registration, busy, onRegister, onUnregis
         {isRegistered
           ? <span className="text-[9.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-success/30 bg-c-success/10 text-c-success">registered{registration?.version ? ` ${registration.version}` : ''}</span>
           : <span className="text-[9.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-warning/30 bg-c-warning/10 text-c-warning">unregistered</span>}
+        {isRegistered && declared.length > 0 && (
+          hasGap
+            ? <span title={`Missing: ${missing.join(', ')}`} className="text-[9.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-danger/30 bg-c-danger/10 text-c-danger">no grant · {granted.size}/{declared.length} caps</span>
+            : <span title={declared.join(', ')} className="text-[9.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-border bg-c-surface-2 text-c-text-3">{declared.length} caps</span>
+        )}
         <span className="text-[10.5px] text-c-text-3">· {agent.tools.length} tool{agent.tools.length === 1 ? '' : 's'}</span>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={toggle} className="text-[11px] text-c-accent-2 hover:underline">{open ? 'hide' : 'review'}</button>
+          {hasGap && (
+            <button onClick={onGrant} disabled={busy}
+              title={`Grant the ${missing.length} capability scope(s) this agent's tools declare`}
+              className="rounded-md border border-c-accent/40 bg-c-accent/5 px-2 py-0.5 text-[11px] text-c-accent-2 hover:bg-c-accent/10 disabled:opacity-40">{busy ? '…' : `Grant ${missing.length} caps`}</button>
+          )}
           {isRegistered
             ? <button onClick={onUnregister} disabled={busy} className="rounded-md border border-c-danger/40 px-2 py-0.5 text-[11px] text-c-danger hover:bg-c-danger/10 disabled:opacity-40">{busy ? '…' : 'Unregister'}</button>
             : <button onClick={onRegister} disabled={busy} className="rounded-md bg-c-accent px-2 py-0.5 text-[11px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40">{busy ? '…' : 'Register'}</button>}

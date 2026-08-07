@@ -723,6 +723,31 @@ export async function registerAgent(
   return await res.json() as { agent_id: string; checksum: string }
 }
 
+/** Operator capability assignment (B3): SET an agent's standing grant to `scopes`
+ * — the human-review decision that makes a discovery-registered agent (empty
+ * grant) a working governed agent. `replace` sets exactly `scopes`; false unions. */
+export async function assignGrant(
+  ctx: ControlPlaneContext,
+  agentId: string,
+  scopes: string[],
+  opts?: { appId?: string; replace?: boolean },
+): Promise<GrantView> {
+  const app = opts?.appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'register:intent')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/grants/assign`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: app, agent_id: agentId, scopes, replace: opts?.replace ?? true }),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Grant assign failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as GrantView
+}
+
 /** Deregister an agent: remove its registration(s) + capability grant from the
  * Authority (org + app scoped). Used to clean up mis-registered agents — e.g. a
  * discovery-path registration that carries no `a51:rs` grant, so its governed RS
