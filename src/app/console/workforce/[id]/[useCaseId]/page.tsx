@@ -206,6 +206,35 @@ export default function ScenarioWorkspace() {
 
   function runBoth() { runMode('oauth'); runMode('intent') }
 
+  // Reattach the last run per mode for this use case on load, so the lanes survive a
+  // reload (the runs are durable backend-side). Newest-first list ⇒ first match wins.
+  useEffect(() => {
+    if (!program) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/cp/runs?profile=${encodeURIComponent(id)}`, { cache: 'no-store' })
+        const data = await res.json().catch(() => ({}))
+        const runs: Array<{ run_id: string; status: string; use_case?: string; mode?: string }> =
+          Array.isArray(data.runs) ? data.runs : []
+        for (const mode of ['oauth', 'intent'] as Mode[]) {
+          const last = runs.find((r) => r.use_case === program.title &&
+            (r.mode === mode || (mode === 'intent' && !r.mode)))
+          if (!last) continue
+          const pr = await fetch(`/api/cp/run/${last.run_id}`, { cache: 'no-store' })
+          const pd = await pr.json().catch(() => ({}))
+          if (cancelled) return
+          setLane(mode, {
+            runId: last.run_id, status: pd.status ?? last.status,
+            result: pd.result ?? (pd.error ? { error: pd.error } : null),
+          })
+          fetchTrace(mode, last.run_id)
+        }
+      } catch { /* best-effort */ }
+    })()
+    return () => { cancelled = true }
+  }, [program, id, setLane, fetchTrace])
+
   if (error && !profile) {
     return <div className="max-w-3xl mx-auto px-6 py-16 text-center text-[13px] text-c-danger">{error}</div>
   }
@@ -310,10 +339,74 @@ export default function ScenarioWorkspace() {
         {!armed && <span className="text-[11px] text-c-text-3">no edits yet — this will run clean in both modes</span>}
       </div>
 
+      {/* ── Contrast diff (the money shot) ── */}
+      <ScenarioDiff oauth={lanes.oauth} intent={lanes.intent} />
+
       {/* ── Two lanes ── */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} />
         <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} />
+      </div>
+    </div>
+  )
+}
+
+// ── contrast diff: align the governed tool calls of both lanes ────────────────
+type Step = { tool: string; token: string; tokenDecision: string; rs: boolean }
+
+const spanAttr = (s: Span, k: string) => s.attributes?.[k]
+
+/** Extract the ordered governed tool calls from a lane's spans, each with its token
+ *  hop (mint/oauth + decision) and whether the RS was actually called. */
+function stepsOf(spans: Span[]): Step[] {
+  const tools = spans
+    .filter((s) => spanAttr(s, 'auth51.tool') !== undefined)
+    .sort((a, b) => (a.start_unix_nano ?? 0) - (b.start_unix_nano ?? 0))
+  return tools.map((t) => {
+    const children = spans.filter((s) => s.parent_span_id === t.span_id)
+    const tokenHop = children.find((s) => ['mint', 'oauth'].includes(String(spanAttr(s, 'auth51.hop'))))
+    const kind = tokenHop ? String(spanAttr(tokenHop, 'auth51.hop')) : '—'
+    const decision = tokenHop
+      ? String(spanAttr(tokenHop, 'auth51.decision.result') ?? (kind === 'oauth' ? 'issued' : 'minted'))
+      : 'none'
+    const rs = children.some((s) => String(spanAttr(s, 'auth51.hop')) === 'rs')
+    return { tool: String(spanAttr(t, 'auth51.tool')), token: kind, tokenDecision: decision, rs }
+  })
+}
+
+function ScenarioDiff({ oauth, intent }: { oauth: Lane; intent: Lane }) {
+  const o = stepsOf(oauth.spans)
+  const i = stepsOf(intent.spans)
+  if (o.length === 0 && i.length === 0) return null
+  const rows = Math.max(o.length, i.length)
+  const cell = (s?: Step) => {
+    if (!s) return { text: 'not reached', cls: 'text-c-text-3', diverge: false }
+    const denied = s.tokenDecision === 'deny'
+    const text = denied ? `${s.token} DENIED — blocked` : `${s.token} → ${s.rs ? 'RS called' : 'no RS'}`
+    return { text, cls: denied ? 'text-c-danger' : s.rs ? 'text-c-success' : 'text-c-text-2', diverge: false }
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-c-border overflow-hidden">
+      <div className="border-b border-c-border bg-c-surface-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-c-text-2">
+        Contrast — same attack, per governed call
+      </div>
+      <div className="grid grid-cols-[1fr_1fr_1fr] text-[11px]">
+        <div className="px-3 py-1.5 text-c-text-3 border-b border-c-border/60">Tool call</div>
+        <div className="px-3 py-1.5 text-c-text-3 border-b border-c-border/60">OAuth</div>
+        <div className="px-3 py-1.5 text-c-text-3 border-b border-c-border/60">Intent</div>
+        {Array.from({ length: rows }).map((_, r) => {
+          const os = o[r]; const is = i[r]
+          const oc = cell(os); const ic = cell(is)
+          const diverge = (oc.text !== ic.text)
+          const tool = os?.tool || is?.tool || '—'
+          return (
+            <div key={r} className="contents">
+              <div className={`px-3 py-1.5 font-mono border-b border-c-border/40 ${diverge ? 'bg-c-danger/5' : ''}`}>{tool}</div>
+              <div className={`px-3 py-1.5 border-b border-c-border/40 ${oc.cls} ${diverge ? 'bg-c-danger/5' : ''}`}>{oc.text}</div>
+              <div className={`px-3 py-1.5 border-b border-c-border/40 ${ic.cls} ${diverge ? 'bg-c-danger/5' : ''}`}>{ic.text}</div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
