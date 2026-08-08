@@ -564,13 +564,22 @@ export default function WorkforcePage() {
                     </div>
                     {p.goal && <p className="mt-1 text-[12px] text-c-text-3">{p.goal}</p>}
                   </div>
-                  <button
-                    onClick={() => runUseCase(p)}
-                    disabled={runBusy || !entryRegistered}
-                    title={entryRegistered ? 'Run this use case (governed)' : `Register "${entry}" first — an unregistered entry agent can’t mint`}
-                    className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                    {isRunning ? (runStatus ?? 'Running…') : 'Run'}
-                  </button>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <button
+                      onClick={() => runUseCase(p)}
+                      disabled={runBusy || !entryRegistered}
+                      title={entryRegistered ? 'Run this use case (governed)' : `Register "${entry}" first — an unregistered entry agent can’t mint`}
+                      className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                      {isRunning ? (runStatus ?? 'Running…') : 'Run'}
+                    </button>
+                    {/* The attack-scenario workspace: configure an attack once, run it in
+                        OAuth vs Intent side by side. */}
+                    <button
+                      onClick={() => router.push(`/console/workforce/${encodeURIComponent(id)}/${encodeURIComponent(p.id)}`)}
+                      className="text-[11px] text-c-danger hover:underline">
+                      Attack scenario →
+                    </button>
+                  </div>
                 </div>
                 {!entryRegistered && (
                   <div className="mt-2 text-[11px] text-c-warning">Entry agent <span className="font-mono">{entry}</span> is not registered — register it to run.</div>

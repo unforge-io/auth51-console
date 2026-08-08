@@ -33,6 +33,19 @@ export type UseCase = {
   members?: string[] // agents this use case exercises (entry + any delegates)
 }
 
+export type ScenarioAttack = {
+  kind: string // prompt_injection | excessive_agency | custom
+  overrides: Record<string, { system_prompt: string }>
+  input_injection: string
+}
+
+export type Scenario = {
+  id: string
+  name: string
+  use_case_id: string
+  attack: ScenarioAttack
+}
+
 export type Profile = {
   id: string
   name: string
@@ -41,6 +54,7 @@ export type Profile = {
   structure: string
   agents: AgentSpec[]
   programs: UseCase[]
+  scenarios?: Scenario[]
   use_cases: string[]
   owner_org?: string | null
   app_id?: string | null
