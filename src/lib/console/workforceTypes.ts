@@ -20,6 +20,7 @@ export type AgentSpec = {
   tools: ToolRef[]
   delegates_to: string[]
   limit?: number
+  llm?: string // ReActAgent model id (e.g. "openai:gpt-4.1") — shown read-only in the attack editor
 }
 
 export type UseCase = {

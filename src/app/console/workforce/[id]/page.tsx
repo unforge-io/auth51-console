@@ -19,7 +19,7 @@ import {
   type Proposal,
   type Registration,
 } from '@/lib/console/api'
-import type { AgentSpec, Profile } from '@/lib/console/workforceTypes'
+import type { AgentSpec, Profile, UseCase } from '@/lib/console/workforceTypes'
 
 /**
  * Dedicated workforce page (2.F) — operate one saved pack: run its use cases with
@@ -30,6 +30,50 @@ import type { AgentSpec, Profile } from '@/lib/console/workforceTypes'
 type RunResult = { tool_outputs?: Record<string, unknown>; agent?: string; error?: string; reason?: string; fields?: ElicitField[]; use_case?: string }
 type RunSummary = { run_id: string; status: string; use_case?: string; agent?: string; mode?: string }
 type Tab = 'usecases' | 'agents' | 'runs'
+type AttackKind = 'prompt_injection' | 'excessive_agency' | 'custom'
+
+/**
+ * The attack catalog labels + explains each simulation. The injected CONTENT is not
+ * here — it's the agent's own components, edited live per use case and sent verbatim
+ * as a RUN-ONLY override (never registered). `promptEditable` / `inputEditable` say
+ * which vectors the operator edits for a given kind; `ready` flags whether Intent
+ * blocks it today.
+ */
+const KINDS: Record<AttackKind, {
+  label: string; blurb: string; intent: string; oauth: string
+  promptEditable: boolean; inputEditable: boolean; ready: boolean; note?: string
+}> = {
+  prompt_injection: {
+    label: 'Prompt injection',
+    blurb:
+      "Edit an agent's system prompt — a supply-chain / prompt-swap compromise. The embed " +
+      "re-derives the identity checksum from the live prompt; it no longer matches the " +
+      "registered one.",
+    intent: 'DENIED at mint — checksum mismatch. Unconditional, any grant mode.',
+    oauth: 'Proceeds — OAuth has no notion of agent composition to check.',
+    promptEditable: true, inputEditable: false, ready: true,
+  },
+  excessive_agency: {
+    label: 'Excessive agency',
+    blurb:
+      "Plant an injection in the agent's input to steer it toward a high-consequence action " +
+      "outside its job. Identity is unchanged — the over-reach rides in DATA, not the prompt.",
+    intent: 'DENIED at mint — out-of-grant / out-of-workflow.',
+    oauth: 'Proceeds — OAuth mints a per-op token regardless of workflow.',
+    promptEditable: false, inputEditable: true, ready: false,
+    note: 'Blocks in Intent once this agent’s grant is in enforce mode (6.3, in progress). Runs now, but completes in both modes until then.',
+  },
+  custom: {
+    label: 'Custom',
+    blurb:
+      'Edit the system prompt and/or plant an input injection freely, with LLM help. Any ' +
+      'system-prompt edit diverges the checksum (Intent denies at mint); input-only steering ' +
+      'rides in data.',
+    intent: 'System-prompt edits: DENIED at mint (checksum). Input-only: as excessive agency.',
+    oauth: 'Proceeds.',
+    promptEditable: true, inputEditable: true, ready: true,
+  },
+}
 
 export default function WorkforcePage() {
   const params = useParams()
@@ -55,7 +99,16 @@ export default function WorkforcePage() {
   const [runBusy, setRunBusy] = useState(false)
   const [runMode, setRunMode] = useState<'intent' | 'oauth'>('intent')
   const [runningMode, setRunningMode] = useState<string | null>(null)  // the ACTIVE run's mode
-  const [attackType, setAttackType] = useState<'none' | 'identity_tamper'>('none')
+  const [attackKind, setAttackKind] = useState<'none' | AttackKind>('none')
+  // Run-only overrides the operator authors against the agents' REAL components. These
+  // are sent verbatim and applied only to the run — never registered. `overrides` maps
+  // agent_id → an edited system prompt; `inputInjections` maps use-case id → injected
+  // input text. Absent/unchanged ⇒ not sent ⇒ that agent runs clean.
+  const [overrides, setOverrides] = useState<Record<string, string>>({})
+  const [inputInjections, setInputInjections] = useState<Record<string, string>>({})
+  // "Ask the LLM" per-field instruction + busy, keyed `sp:<agentId>` / `in:<useCaseId>`.
+  const [suggestInstr, setSuggestInstr] = useState<Record<string, string>>({})
+  const [suggestBusy, setSuggestBusy] = useState<Record<string, boolean>>({})
   const [runningAttack, setRunningAttack] = useState<string | null>(null)  // the ACTIVE run's attack
   const [history, setHistory] = useState<RunSummary[] | null>(null)
 
@@ -189,18 +242,68 @@ export default function WorkforcePage() {
     return () => { cancelled = true }
   }, [profile, id, fetchTrace, pollRun])
 
-  async function runUseCase(useCaseTitle: string) {
+  // ── Attack override helpers (run-only; the registered agent is never touched) ──
+  const agentById = useMemo(
+    () => new Map((profile?.agents ?? []).map((a) => [a.id, a])),
+    [profile])
+  const registeredPrompt = useCallback(
+    (agentId: string) => agentById.get(agentId)?.system_prompt ?? '', [agentById])
+  const currentPrompt = useCallback(
+    (agentId: string) => overrides[agentId] ?? registeredPrompt(agentId),
+    [overrides, registeredPrompt])
+  const isPromptModified = useCallback(
+    (agentId: string) => overrides[agentId] != null && overrides[agentId] !== registeredPrompt(agentId),
+    [overrides, registeredPrompt])
+  const membersOf = useCallback((p: UseCase): string[] => {
+    const ids = [p.entry_agent || '', ...(p.members ?? [])].filter(Boolean) as string[]
+    return Array.from(new Set(ids)).filter((x) => agentById.has(x))
+  }, [agentById])
+
+  /** Assemble the run-only attack plan for a use case from the operator's edits, or
+   *  null when nothing is armed/edited (⇒ a clean run). */
+  function buildAttack(p: UseCase): Record<string, unknown> | null {
+    if (attackKind === 'none') return null
+    const meta = KINDS[attackKind]
+    const ov: Record<string, { system_prompt: string }> = {}
+    if (meta.promptEditable) {
+      for (const aid of membersOf(p)) {
+        if (isPromptModified(aid)) ov[aid] = { system_prompt: overrides[aid] }
+      }
+    }
+    const inj = meta.inputEditable ? (inputInjections[p.id] || '').trim() : ''
+    if (Object.keys(ov).length === 0 && !inj) return null
+    return { kind: attackKind, overrides: ov, input_injection: inj }
+  }
+
+  /** "Ask the LLM": draft a tampered component and drop it into the editable field. */
+  async function askLLM(key: string, body: Record<string, unknown>, apply: (s: string) => void) {
+    setSuggestBusy((b) => ({ ...b, [key]: true })); setError(null)
+    try {
+      const res = await fetch('/api/cp/suggest', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({} as { suggestion?: string; error?: string }))
+      if (res.ok && typeof data.suggestion === 'string' && data.suggestion.trim()) apply(data.suggestion)
+      else setError(data.error || `Suggestion failed (HTTP ${res.status})`)
+    } catch (e) { setError(String(e)) }
+    finally { setSuggestBusy((b) => ({ ...b, [key]: false })) }
+  }
+
+  async function runUseCase(p: UseCase) {
+    const attack = buildAttack(p)
     setRunBusy(true); setRunStatus('starting'); setRunResult(null)
     setResumeText(''); setRunId(null); setError(null); setTraceSpans([])
-    setRunningUseCase(useCaseTitle); setRunningMode(runMode)
-    setRunningAttack(attackType === 'none' ? null : attackType); setTab('usecases')
+    setRunningUseCase(p.title); setRunningMode(runMode)
+    setRunningAttack(attack ? attackKind : null); setTab('usecases')
     try {
       const res = await fetch('/api/cp/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          profile: id, use_case: useCaseTitle, mode: runMode,
-          ...(attackType === 'none' ? {} : { attack: { type: attackType } }),
+          profile: id, use_case: p.title, mode: runMode,
+          // The operator-authored, run-only override (or nothing ⇒ a clean run).
+          ...(attack ? { attack } : {}),
         }),
       })
       const started = await res.json()
@@ -376,24 +479,44 @@ export default function WorkforcePage() {
             </span>
           </div>
 
-          {/* Attack selector — inject a deterministic, identity-preserving-of-the-
-              registered-agent compromise; run it in both modes to contrast. */}
+          {/* Attack kind — arms the per-agent component editors under each use case.
+              The injected content is the agents' OWN components, edited live and sent
+              as a RUN-ONLY override (never registered). */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] uppercase tracking-wider text-c-text-3">Attack</span>
             <div className="inline-flex rounded-md border border-c-border overflow-hidden">
-              {([['none', 'None'], ['identity_tamper', 'Tampered identity']] as const).map(([v, label]) => (
-                <button key={v} onClick={() => setAttackType(v)} disabled={runBusy}
-                  className={`px-2.5 py-1 text-[12px] ${attackType === v ? (v === 'none' ? 'bg-c-accent text-white' : 'bg-c-danger text-white') : 'bg-c-bg text-c-text-2 hover:bg-c-surface-2'} disabled:opacity-50`}>
-                  {label}
+              {(['none', 'prompt_injection', 'excessive_agency', 'custom'] as const).map((v) => (
+                <button key={v} onClick={() => setAttackKind(v)} disabled={runBusy}
+                  className={`px-2.5 py-1 text-[12px] ${attackKind === v ? (v === 'none' ? 'bg-c-accent text-white' : 'bg-c-danger text-white') : 'bg-c-bg text-c-text-2 hover:bg-c-surface-2'} disabled:opacity-50`}>
+                  {v === 'none' ? 'None' : KINDS[v].label}
                 </button>
               ))}
             </div>
             <span className="text-[11px] text-c-text-3">
-              {attackType === 'identity_tamper'
-                ? 'prompt-swap / supply-chain edit — Intent denies at mint (checksum mismatch); OAuth proceeds'
-                : 'no attack — a clean run'}
+              {attackKind === 'none'
+                ? 'no attack — a clean run'
+                : 'edit the involved agents below, then run the same edit in each mode to contrast'}
             </span>
           </div>
+          {attackKind !== 'none' && (
+            <div className="rounded-lg border border-c-danger/40 bg-c-danger/5 p-3 space-y-1.5">
+              <p className="text-[12px] text-c-text-2 leading-snug">{KINDS[attackKind].blurb}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div className="rounded border border-c-border/60 bg-c-bg px-2 py-1.5">
+                  <span className="font-mono uppercase tracking-wider text-c-accent">Intent</span>
+                  <div className="text-c-text-2 mt-0.5">{KINDS[attackKind].intent}</div>
+                </div>
+                <div className="rounded border border-c-border/60 bg-c-bg px-2 py-1.5">
+                  <span className="font-mono uppercase tracking-wider text-c-text-3">OAuth</span>
+                  <div className="text-c-text-2 mt-0.5">{KINDS[attackKind].oauth}</div>
+                </div>
+              </div>
+              {!KINDS[attackKind].ready && KINDS[attackKind].note && (
+                <p className="text-[11px] text-c-danger">⚠ {KINDS[attackKind].note}</p>
+              )}
+              <p className="text-[11px] text-c-text-3">Edits apply to the run only — the registered agent is never changed.</p>
+            </div>
+          )}
 
           {/* Fallback: an active run whose use case isn't in the list (ad-hoc)
               still shows here; otherwise the panel renders INLINE below its use case. */}
@@ -416,7 +539,7 @@ export default function WorkforcePage() {
                     {p.goal && <p className="mt-1 text-[12px] text-c-text-3">{p.goal}</p>}
                   </div>
                   <button
-                    onClick={() => runUseCase(p.title)}
+                    onClick={() => runUseCase(p)}
                     disabled={runBusy || !entryRegistered}
                     title={entryRegistered ? 'Run this use case (governed)' : `Register "${entry}" first — an unregistered entry agent can’t mint`}
                     className="rounded-md bg-c-accent px-3 py-1.5 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
@@ -428,6 +551,52 @@ export default function WorkforcePage() {
                 )}
                 <DelegationTree entryId={p.entry_agent} members={p.members} agents={roster}
                   active={activeRunUC?.id === p.id ? activeAgents : undefined} />
+
+                {/* Live, editable agent components for THIS use case — the tamper surface.
+                    System-prompt edits (prompt_injection/custom) diverge the checksum;
+                    the input injection (excessive_agency/custom) rides in data. Run-only. */}
+                {attackKind !== 'none' && (
+                  <div className="mt-3 space-y-2 border-t border-c-border/60 pt-3">
+                    <div className="text-[11px] uppercase tracking-wider text-c-text-3">
+                      Tamper the components this use case runs — applied to the run only
+                    </div>
+                    {KINDS[attackKind].promptEditable && membersOf(p).map((aid) => {
+                      const agent = agentById.get(aid)
+                      if (!agent) return null
+                      const key = `sp:${aid}`
+                      return (
+                        <AgentTamperCard
+                          key={aid} agent={agent} isEntry={aid === (p.entry_agent || membersOf(p)[0])}
+                          prompt={currentPrompt(aid)} modified={isPromptModified(aid)} busy={runBusy}
+                          onChange={(t) => setOverrides((o) => ({ ...o, [aid]: t }))}
+                          onReset={() => setOverrides((o) => { const n = { ...o }; delete n[aid]; return n })}
+                          instruction={suggestInstr[key] || ''}
+                          onInstruction={(t) => setSuggestInstr((s) => ({ ...s, [key]: t }))}
+                          asking={!!suggestBusy[key]}
+                          onAsk={() => askLLM(key,
+                            { profile: id, agent_id: aid, component: 'system_prompt', kind: attackKind, instruction: suggestInstr[key] || '', current: currentPrompt(aid) },
+                            (s) => setOverrides((o) => ({ ...o, [aid]: s })))}
+                        />
+                      )
+                    })}
+                    {KINDS[attackKind].inputEditable && (() => {
+                      const key = `in:${p.id}`
+                      const entryId = p.entry_agent || membersOf(p)[0] || ''
+                      return (
+                        <InputInjectionCard
+                          value={inputInjections[p.id] || ''} busy={runBusy}
+                          onChange={(t) => setInputInjections((m) => ({ ...m, [p.id]: t }))}
+                          instruction={suggestInstr[key] || ''}
+                          onInstruction={(t) => setSuggestInstr((s) => ({ ...s, [key]: t }))}
+                          asking={!!suggestBusy[key]}
+                          onAsk={() => askLLM(key,
+                            { profile: id, agent_id: entryId, component: 'input', kind: attackKind, instruction: suggestInstr[key] || '', current: inputInjections[p.id] || '' },
+                            (s) => setInputInjections((m) => ({ ...m, [p.id]: s })))}
+                        />
+                      )
+                    })()}
+                  </div>
+                )}
                 {/* The run panel lives INLINE, right under its use case. */}
                 {activeRunUC?.id === p.id && runPanelEl && (
                   <div className="mt-3">{runPanelEl}</div>
@@ -495,6 +664,120 @@ function declaredScopes(agent: AgentSpec): string[] {
   return Array.from(new Set(
     agent.tools.map((t) => t.op?.scope).filter((s): s is string => !!s),
   ))
+}
+
+// ── Attack editors (run-only overrides against the agents' real components) ──
+
+/** One involved agent, with its live system prompt editable + an "Ask the LLM" row.
+ *  Tools + config are shown read-only (editable + tool poisoning is a follow-up). */
+function AgentTamperCard({ agent, isEntry, prompt, modified, busy, onChange, onReset, instruction, onInstruction, asking, onAsk }: {
+  agent: AgentSpec
+  isEntry: boolean
+  prompt: string
+  modified: boolean
+  busy: boolean
+  onChange: (t: string) => void
+  onReset: () => void
+  instruction: string
+  onInstruction: (t: string) => void
+  asking: boolean
+  onAsk: () => void
+}) {
+  const scopes = declaredScopes(agent)
+  return (
+    <div className={`rounded-lg border p-3 space-y-2 ${modified ? 'border-c-danger/50 bg-c-danger/5' : 'border-c-border bg-c-bg'}`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-[12px] text-c-text">{agent.id}</span>
+        {isEntry && <span className="rounded bg-c-surface-2 px-1.5 py-0.5 text-[10px] text-c-text-2">entry</span>}
+        {agent.role && <span className="text-[11px] text-c-text-3">{agent.role}</span>}
+        {modified && <span className="text-[10px] font-mono uppercase tracking-wider text-c-danger">● modified · not registered</span>}
+      </div>
+
+      <label className="block">
+        <span className="text-[11px] uppercase tracking-wider text-c-text-3">System prompt</span>
+        <textarea
+          value={prompt} disabled={busy} rows={5}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-1 w-full rounded-md border border-c-border bg-c-surface px-2.5 py-2 text-[12px] font-mono text-c-text leading-snug focus:outline-none focus:ring-1 focus:ring-c-danger/50 disabled:opacity-50" />
+      </label>
+
+      {/* Ask the generator LLM to draft a tampered prompt for the operator. */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={instruction} disabled={busy || asking}
+          onChange={(e) => onInstruction(e.target.value)}
+          placeholder="tell the LLM what compromise to simulate (optional)…"
+          className="flex-1 min-w-[180px] rounded-md border border-c-border bg-c-surface px-2 py-1 text-[12px] text-c-text placeholder:text-c-text-3 focus:outline-none focus:ring-1 focus:ring-c-accent/40 disabled:opacity-50" />
+        <button onClick={onAsk} disabled={busy || asking}
+          className="rounded-md border border-c-accent/50 px-2.5 py-1 text-[12px] text-c-accent hover:bg-c-accent/10 disabled:opacity-40">
+          {asking ? 'Thinking…' : 'Ask the LLM'}
+        </button>
+        {modified && (
+          <button onClick={onReset} disabled={busy}
+            className="text-[11px] text-c-text-3 hover:underline disabled:opacity-40">Reset</button>
+        )}
+      </div>
+
+      {/* Read-only context so the components are visible, not just editable. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-c-text-3">
+        <div className="rounded border border-c-border/60 px-2 py-1.5">
+          <span className="uppercase tracking-wider">Tools</span>
+          <div className="mt-0.5 space-y-0.5">
+            {agent.tools.length === 0 && <span>—</span>}
+            {agent.tools.map((t) => (
+              <div key={t.ref} className="font-mono text-c-text-2 truncate" title={t.op?.scope || t.ref}>
+                {t.op ? `${t.op.method} ${t.op.path}` : t.ref}
+              </div>
+            ))}
+            <span className="italic text-c-text-3">tool poisoning — editable soon</span>
+          </div>
+        </div>
+        <div className="rounded border border-c-border/60 px-2 py-1.5">
+          <span className="uppercase tracking-wider">Config</span>
+          <div className="mt-0.5 font-mono text-c-text-2">model: {agent.llm || 'default'}</div>
+          <div className="font-mono text-c-text-2">loop cap: {agent.limit ?? '—'}</div>
+          {scopes.length > 0 && <div className="mt-0.5 truncate" title={scopes.join(' ')}>scopes: {scopes.length}</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** The entry-input injection editor (data vector — identity unchanged). */
+function InputInjectionCard({ value, busy, onChange, instruction, onInstruction, asking, onAsk }: {
+  value: string
+  busy: boolean
+  onChange: (t: string) => void
+  instruction: string
+  onInstruction: (t: string) => void
+  asking: boolean
+  onAsk: () => void
+}) {
+  return (
+    <div className={`rounded-lg border p-3 space-y-2 ${value.trim() ? 'border-c-danger/50 bg-c-danger/5' : 'border-c-border bg-c-bg'}`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12px] text-c-text">Input injection</span>
+        <span className="text-[11px] text-c-text-3">planted in the entry agent’s input (data — identity unchanged)</span>
+        {value.trim() && <span className="text-[10px] font-mono uppercase tracking-wider text-c-danger">● armed</span>}
+      </div>
+      <textarea
+        value={value} disabled={busy} rows={3}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="injected content the agent will read (e.g. a follow-up instruction from 'retrieved' data)…"
+        className="w-full rounded-md border border-c-border bg-c-surface px-2.5 py-2 text-[12px] font-mono text-c-text leading-snug placeholder:text-c-text-3 focus:outline-none focus:ring-1 focus:ring-c-danger/50 disabled:opacity-50" />
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={instruction} disabled={busy || asking}
+          onChange={(e) => onInstruction(e.target.value)}
+          placeholder="tell the LLM what over-reach to steer toward (optional)…"
+          className="flex-1 min-w-[180px] rounded-md border border-c-border bg-c-surface px-2 py-1 text-[12px] text-c-text placeholder:text-c-text-3 focus:outline-none focus:ring-1 focus:ring-c-accent/40 disabled:opacity-50" />
+        <button onClick={onAsk} disabled={busy || asking}
+          className="rounded-md border border-c-accent/50 px-2.5 py-1 text-[12px] text-c-accent hover:bg-c-accent/10 disabled:opacity-40">
+          {asking ? 'Thinking…' : 'Ask the LLM'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ── Run panel ──
