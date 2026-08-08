@@ -20,7 +20,7 @@ export const runtime = 'nodejs'
  * customer's own pack under their org is Slice 2 (forward the caller's token).
  */
 export async function POST(req: Request) {
-  let body: { profile?: string; use_case?: string; mode?: string } = {}
+  let body: { profile?: string; use_case?: string; mode?: string; attack?: Record<string, unknown> | null } = {}
   try {
     body = await req.json()
   } catch {
@@ -42,6 +42,10 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         run_id, profile: body.profile, use_case: body.use_case,
         mode: body.mode === 'oauth' ? 'oauth' : 'intent',
+        // Optional deterministic attack plan (Phase 6.2) — forwarded verbatim; the
+        // workforce applies it to the RUNTIME agent (identity/data), never the
+        // registered agent. Absent ⇒ a clean run.
+        ...(body.attack ? { attack: body.attack } : {}),
       }),
     })
     const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))
