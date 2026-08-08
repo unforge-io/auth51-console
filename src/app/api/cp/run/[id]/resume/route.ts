@@ -18,7 +18,7 @@ export const runtime = 'nodejs'
  * Body: { input: string }
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  let body: { input?: string; answers?: Record<string, unknown> } = {}
+  let body: { input?: string; answers?: Record<string, unknown>; attack?: Record<string, unknown> | null } = {}
   try {
     body = await req.json()
   } catch {
@@ -37,7 +37,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ answers: body.answers, input: body.input }),
+        // Forward the armed attack so run-only overrides re-apply to the RESUMED
+        // portion — the agents that run after an elicitation pause (the workforce's
+        // apply_run_attack re-tampers the roster on resume; input injection is not
+        // re-applied, it's already in the restored state).
+        body: JSON.stringify({ answers: body.answers, input: body.input,
+                               ...(body.attack ? { attack: body.attack } : {}) }),
       },
     )
     const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))

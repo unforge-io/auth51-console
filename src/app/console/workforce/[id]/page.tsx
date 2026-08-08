@@ -318,10 +318,16 @@ export default function WorkforcePage() {
   async function submitResume(payload: { answers?: Record<string, unknown>; input?: string }) {
     if (!runId) return
     setRunBusy(true); setRunStatus('running'); setError(null)
+    // Re-send the currently-armed attack so agents that run AFTER this pause are
+    // tampered too (this use case pauses for input, and the tampered agent often
+    // runs post-resume). Rebuilt from the running use case's current edits.
+    const runningProgram = profile?.programs.find((pr) => pr.title === runningUseCase)
+    const attack = runningProgram ? buildAttack(runningProgram) : null
+    setRunningAttack(attack ? attackKind : runningAttack)
     try {
       const res = await fetch(`/api/cp/run/${runId}/resume`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, ...(attack ? { attack } : {}) }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) { setError(d.error || `Resume failed (HTTP ${res.status})`); setRunStatus('paused'); return }
