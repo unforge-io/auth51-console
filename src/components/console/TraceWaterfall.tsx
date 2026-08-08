@@ -30,6 +30,7 @@ const durMs = (s: Span) =>
 function kindOf(s: Span): string {
   const hop = attr(s, 'auth51.hop')
   if (hop) return String(hop) // mint | dpop | rs
+  if (attr(s, 'auth51.tool') !== undefined) return 'tool' // our explicit tool-call span
   const oi = attr(s, 'openinference.span.kind')
   if (oi) return String(oi).toLowerCase() // llm | tool | chain | agent
   return ''
@@ -43,13 +44,43 @@ const KIND_STYLE: Record<string, string> = {
   tool: 'bg-c-surface-2 text-c-text-2 border-c-border',
 }
 
+// The workforce opens an explicit `tool <name>` span (carrying `auth51.tool`) around
+// each tool call, so the embed's mint/dpop/rs hops nest under it. But that span is
+// created via the run tracer under whatever OTel span is active — the `agent.run`
+// root — because OpenInference nests its own nodes by LangChain run-tree lineage, not
+// by the active OTel context. So the tool span (with its hops) ends up "pulled out" of
+// the node tree. Reparent each such span under the TIGHTEST non-auth51 span whose time
+// interval contains it — the `run_tool` node that actually invoked it. The hops keep
+// their (unchanged) parent = the tool span, so the whole subtree moves together.
+function reparentAuth51Tools(spans: Span[]): Map<string, string> {
+  const overrides = new Map<string, string>()
+  const isAuth51 = (s: Span) =>
+    attr(s, 'auth51.tool') !== undefined || attr(s, 'auth51.hop') !== undefined
+  const contains = (a: Span, b: Span) =>
+    a.span_id !== b.span_id &&
+    (a.start_unix_nano ?? 0) <= (b.start_unix_nano ?? 0) &&
+    (a.end_unix_nano ?? 0) >= (b.end_unix_nano ?? 0)
+  for (const s of spans) {
+    if (attr(s, 'auth51.tool') === undefined) continue // only the tool-call spans
+    let best: Span | undefined
+    for (const c of spans) {
+      if (isAuth51(c) || !contains(c, s)) continue
+      if (best === undefined || durMs(c) < durMs(best)) best = c // tightest container
+    }
+    if (best) overrides.set(s.span_id, best.span_id)
+  }
+  return overrides
+}
+
 function buildForest(spans: Span[]): Node[] {
+  const parentOverride = reparentAuth51Tools(spans)
   const byId = new Map<string, Node>()
   spans.forEach((s) => byId.set(s.span_id, { ...s, depth: 0, children: [] }))
   const roots: Node[] = []
   for (const n of byId.values()) {
-    const p = n.parent_span_id ? byId.get(n.parent_span_id) : undefined
-    if (p) p.children.push(n)
+    const pid = parentOverride.get(n.span_id) ?? n.parent_span_id
+    const p = pid ? byId.get(pid) : undefined
+    if (p && p !== n) p.children.push(n)
     else roots.push(n)
   }
   const sortRec = (n: Node, d: number) => {
