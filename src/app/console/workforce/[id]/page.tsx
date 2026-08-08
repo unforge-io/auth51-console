@@ -377,6 +377,26 @@ export default function WorkforcePage() {
     } finally { setRegBusy(null) }
   }
 
+  // Clean-slate reset: unregister every registered agent of THIS roster (each
+  // registration + its capability grant). The saved pack is untouched — re-register
+  // anytime. Symmetric with the bulk "Register N unregistered" action.
+  async function unregisterAll() {
+    if (!currentContext) return
+    const ids = (profile?.agents ?? []).map((a) => a.id).filter((aid) => registeredIds.has(aid))
+    if (ids.length === 0) return
+    if (!window.confirm(`Unregister all ${ids.length} registered agent${ids.length === 1 ? '' : 's'} in this roster? Removes each registration + capability grant. The saved pack is NOT deleted — you can re-register anytime.`)) return
+    setRegBusy('*'); setError(null); setNotice(null)
+    const failed: string[] = []
+    for (const aid of ids) {
+      try {
+        await unregisterAgent(currentContext, aid, profile?.app_id ?? undefined)
+      } catch { failed.push(aid) }
+    }
+    setNotice(`Unregistered ${ids.length - failed.length}/${ids.length} agent${ids.length === 1 ? '' : 's'}.${failed.length ? ` Failed: ${failed.join(', ')}.` : ''}`)
+    await Promise.all([loadRegistered(), loadGrants()])
+    setRegBusy(null)
+  }
+
   // B3 — grant the agent exactly the capabilities its tools declare (the op
   // scopes). Fixes an empty/partial grant (e.g. a discovery-registered agent) so
   // its governed RS calls actually carry the a51:rs scope the verifier requires.
@@ -652,6 +672,30 @@ export default function WorkforcePage() {
               />
             ))}
           </div>
+
+          {/* Danger zone — clean-slate reset of all registrations for this roster.
+              Modeled after GitHub's repo danger zone: a red-bordered section whose
+              rows pair a plain-language consequence with the destructive control. */}
+          {regCount > 0 && (
+            <div className="mt-6 rounded-xl border border-c-danger/40 overflow-hidden">
+              <div className="border-b border-c-danger/30 bg-c-danger/5 px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-c-danger">
+                Danger zone
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-[13px] text-c-text">Unregister all agents in this roster</div>
+                  <p className="mt-0.5 text-[12px] text-c-text-3 max-w-xl">
+                    Removes every registration ({regCount} of {roster.length}) and its capability grant from the Authority.
+                    The saved pack is not deleted — you can re-register anytime. Use this to start from a clean slate.
+                  </p>
+                </div>
+                <button onClick={unregisterAll} disabled={regBusy !== null}
+                  className="rounded-md border border-c-danger/50 px-3 py-1.5 text-[12px] font-medium text-c-danger hover:bg-c-danger/10 disabled:opacity-40 shrink-0">
+                  {regBusy === '*' ? 'Working…' : `Unregister all ${regCount}`}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -74,6 +74,31 @@ export default function RegisteredAgentsPage() {
     } finally { setUnregBusy(null) }
   }, [currentContext, load])
 
+  // App-level clean slate — unregister EVERY registered agent for this app, across
+  // all rosters (no pack context). Each removal drops the registration + its
+  // capability grant. `unregBusy === '*'` marks the bulk action in flight.
+  const handleUnregisterAll = useCallback(async () => {
+    if (!currentContext || agents.length === 0) return
+    const n = agents.length
+    if (!window.confirm(
+      `Unregister ALL ${n} registered agent${n === 1 ? '' : 's'} for ${currentContext.appId ?? 'this app'}? ` +
+      `This removes every registration and capability grant from the Authority — across every roster, not scoped to a pack. ` +
+      `Agents reappear in Discovered on their next run.`)) return
+    setUnregBusy('*'); setError(null)
+    const failed: string[] = []
+    for (const a of agents) {
+      try {
+        await unregisterAgent(currentContext, a.agent_id, a.app_id)
+      } catch { failed.push(a.agent_id) }
+    }
+    setSelected(null)
+    await load()
+    setUnregBusy(null)
+    if (failed.length) {
+      setError(`Unregister all: ${failed.length} of ${n} failed (${failed.slice(0, 5).join(', ')}${failed.length > 5 ? '…' : ''}).`)
+    }
+  }, [currentContext, agents, load])
+
   // Live polling — interval is a user-configurable global preference
   const { intervalMs, setIntervalMs } = useRefreshInterval()
   const { lastUpdatedAt, tickedAt } = useAutoRefresh({
@@ -156,6 +181,32 @@ export default function RegisteredAgentsPage() {
         {!error && !loading && filtered.length === 0 && agents.length > 0 && (
           <div className="px-6 py-12 text-center text-[13px] text-c-text-2">
             No agents match this filter.
+          </div>
+        )}
+
+        {/* Danger zone — app-level clean slate (no roster context). GitHub-style:
+            a red-bordered footer pairing the consequence with the destructive control. */}
+        {!error && agents.length > 0 && (
+          <div className="border-t border-c-border px-6 py-4">
+            <div className="rounded-xl border border-c-danger/40 overflow-hidden">
+              <div className="border-b border-c-danger/30 bg-c-danger/5 px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-c-danger">
+                Danger zone
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-[13px] text-c-text">Unregister all registered agents</div>
+                  <p className="mt-0.5 text-[12px] text-c-text-3 max-w-xl">
+                    Removes all {agents.length} registration{agents.length === 1 ? '' : 's'} and their capability grants for{' '}
+                    <span className="font-mono">{currentContext.appId ?? 'this app'}</span> — across every roster, not scoped to a pack.
+                    Agents reappear in Discovered on their next run.
+                  </p>
+                </div>
+                <button onClick={handleUnregisterAll} disabled={unregBusy !== null}
+                  className="rounded-md border border-c-danger/50 px-3 py-1.5 text-[12px] font-medium text-c-danger hover:bg-c-danger/10 disabled:opacity-40 shrink-0">
+                  {unregBusy === '*' ? 'Unregistering…' : `Unregister all ${agents.length}`}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
