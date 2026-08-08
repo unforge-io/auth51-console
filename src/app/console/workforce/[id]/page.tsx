@@ -55,6 +55,8 @@ export default function WorkforcePage() {
   const [runBusy, setRunBusy] = useState(false)
   const [runMode, setRunMode] = useState<'intent' | 'oauth'>('intent')
   const [runningMode, setRunningMode] = useState<string | null>(null)  // the ACTIVE run's mode
+  const [attackType, setAttackType] = useState<'none' | 'identity_tamper'>('none')
+  const [runningAttack, setRunningAttack] = useState<string | null>(null)  // the ACTIVE run's attack
   const [history, setHistory] = useState<RunSummary[] | null>(null)
 
   // Agents that actually participated in the current run (from the trace), for
@@ -190,12 +192,16 @@ export default function WorkforcePage() {
   async function runUseCase(useCaseTitle: string) {
     setRunBusy(true); setRunStatus('starting'); setRunResult(null)
     setResumeText(''); setRunId(null); setError(null); setTraceSpans([])
-    setRunningUseCase(useCaseTitle); setRunningMode(runMode); setTab('usecases')
+    setRunningUseCase(useCaseTitle); setRunningMode(runMode)
+    setRunningAttack(attackType === 'none' ? null : attackType); setTab('usecases')
     try {
       const res = await fetch('/api/cp/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ profile: id, use_case: useCaseTitle, mode: runMode }),
+        body: JSON.stringify({
+          profile: id, use_case: useCaseTitle, mode: runMode,
+          ...(attackType === 'none' ? {} : { attack: { type: attackType } }),
+        }),
       })
       const started = await res.json()
       if (!res.ok || !started.run_id) { setError(started.error || `Run failed (HTTP ${res.status})`); setRunStatus(null); return }
@@ -306,8 +312,8 @@ export default function WorkforcePage() {
   const runPanelEl = (runStatus || runId) ? (
     <RunPanel
       status={runStatus} result={runResult} traceSpans={traceSpans} useCase={runningUseCase}
-      mode={runningMode} busy={runBusy} resumeText={resumeText} setResumeText={setResumeText}
-      onResume={submitResume}
+      mode={runningMode} attack={runningAttack} busy={runBusy} resumeText={resumeText}
+      setResumeText={setResumeText} onResume={submitResume}
     />
   ) : null
 
@@ -367,6 +373,25 @@ export default function WorkforcePage() {
               {runMode === 'intent'
                 ? 'per-op intent token — checksum identity + workflow binding + DPoP'
                 : 'plain OAuth bearer, same scope — no identity/workflow/DPoP binding (baseline)'}
+            </span>
+          </div>
+
+          {/* Attack selector — inject a deterministic, identity-preserving-of-the-
+              registered-agent compromise; run it in both modes to contrast. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] uppercase tracking-wider text-c-text-3">Attack</span>
+            <div className="inline-flex rounded-md border border-c-border overflow-hidden">
+              {([['none', 'None'], ['identity_tamper', 'Tampered identity']] as const).map(([v, label]) => (
+                <button key={v} onClick={() => setAttackType(v)} disabled={runBusy}
+                  className={`px-2.5 py-1 text-[12px] ${attackType === v ? (v === 'none' ? 'bg-c-accent text-white' : 'bg-c-danger text-white') : 'bg-c-bg text-c-text-2 hover:bg-c-surface-2'} disabled:opacity-50`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-c-text-3">
+              {attackType === 'identity_tamper'
+                ? 'prompt-swap / supply-chain edit — Intent denies at mint (checksum mismatch); OAuth proceeds'
+                : 'no attack — a clean run'}
             </span>
           </div>
 
@@ -473,23 +498,27 @@ function declaredScopes(agent: AgentSpec): string[] {
 }
 
 // ── Run panel ──
-function RunPanel({ status, result, traceSpans, useCase, mode, busy, resumeText, setResumeText, onResume }: {
+function RunPanel({ status, result, traceSpans, useCase, mode, attack, busy, resumeText, setResumeText, onResume }: {
   status: string | null
   result: RunResult | null
   traceSpans: Span[]
   useCase: string | null
   mode: string | null
+  attack: string | null
   busy: boolean
   resumeText: string
   setResumeText: (v: string) => void
   onResume: (payload: { answers?: Record<string, unknown>; input?: string }) => void
 }) {
   return (
-    <div className="rounded-xl border border-c-accent/30 bg-c-accent/5 p-4">
+    <div className={`rounded-xl border p-4 ${attack ? 'border-c-danger/40 bg-c-danger/5' : 'border-c-accent/30 bg-c-accent/5'}`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[12px] font-semibold text-c-text">Run{useCase ? `: ${useCase}` : ''}</span>
         {mode && (
           <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border ${mode === 'oauth' ? 'border-c-warning/30 bg-c-warning/10 text-c-warning' : 'border-c-accent/30 bg-c-accent/10 text-c-accent-2'}`}>{mode}</span>
+        )}
+        {attack && (
+          <span title="A deterministic compromise was injected into this run" className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-c-danger/40 bg-c-danger/10 text-c-danger">⚠ {attack.replace('_', ' ')}</span>
         )}
         <span className="text-[11px] font-normal text-c-text-3">
           {mode === 'oauth' ? '— plain OAuth bearer, no intent binding' : '— governed, per-op minted'}
