@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
-import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
+import { TraceWaterfall, SpanDetail, type Span } from '@/components/console/TraceWaterfall'
 import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
 import {
   AgentTamperCard, InputInjectionCard, KINDS, type AttackKind,
@@ -45,8 +45,9 @@ export default function ScenarioWorkspace() {
   const [suggestBusy, setSuggestBusy] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
 
-  // The two run lanes.
+  // The two run lanes + the currently-inspected span (shared full-width detail below).
   const [lanes, setLanes] = useState<Record<Mode, Lane>>({ oauth: EMPTY_LANE, intent: EMPTY_LANE })
+  const [selectedSpan, setSelectedSpan] = useState<{ mode: Mode; id: string } | null>(null)
   const setLane = useCallback((mode: Mode, patch: Partial<Lane>) =>
     setLanes((L) => ({ ...L, [mode]: { ...L[mode], ...patch } })), [])
 
@@ -245,8 +246,12 @@ export default function ScenarioWorkspace() {
   }
   const anyBusy = lanes.oauth.busy || lanes.intent.busy
 
+  const selDetailSpan = selectedSpan
+    ? lanes[selectedSpan.mode].spans.find((s) => s.span_id === selectedSpan.id)
+    : undefined
+
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="max-w-[1700px] mx-auto px-6 py-8">
       <button onClick={() => router.push(`/console/workforce/${encodeURIComponent(id)}`)}
         className="text-[12px] text-c-accent-2 hover:underline">← {profile.name}</button>
 
@@ -339,14 +344,54 @@ export default function ScenarioWorkspace() {
         {!armed && <span className="text-[11px] text-c-text-3">no edits yet — this will run clean in both modes</span>}
       </div>
 
+      {/* ── What this run actually injected (so a watcher sees the tampering) ── */}
+      {armed && (
+        <details className="mt-4 rounded-xl border border-c-danger/40 bg-c-danger/5" open>
+          <summary className="cursor-pointer px-4 py-2 text-[12px] font-semibold text-c-danger">
+            Injected into this run — run-only, never registered
+          </summary>
+          <div className="px-4 pb-3 space-y-2">
+            {program && KINDS[attackKind].promptEditable && membersOf(program).filter(isPromptModified).map((aid) => (
+              <div key={aid}>
+                <div className="text-[11px] uppercase tracking-wider text-c-text-3">system prompt · <span className="font-mono">{aid}</span></div>
+                <pre className="mt-0.5 max-h-64 overflow-auto rounded-md border border-c-border bg-c-bg p-2 text-[11px] font-mono text-c-text-2 whitespace-pre-wrap break-words">{overrides[aid]}</pre>
+              </div>
+            ))}
+            {KINDS[attackKind].inputEditable && inputInjection.trim() && (
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-c-text-3">input injection</div>
+                <pre className="mt-0.5 max-h-40 overflow-auto rounded-md border border-c-border bg-c-bg p-2 text-[11px] font-mono text-c-text-2 whitespace-pre-wrap break-words">{inputInjection}</pre>
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+
       {/* ── Contrast diff (the money shot) ── */}
       <ScenarioDiff oauth={lanes.oauth} intent={lanes.intent} />
 
-      {/* ── Two lanes ── */}
+      {/* ── Two lanes (trees only) ── */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} />
-        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} />
+        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)}
+          selectedId={selectedSpan?.mode === 'oauth' ? selectedSpan.id : null}
+          onSelectSpan={(sid) => setSelectedSpan(sid ? { mode: 'oauth', id: sid } : null)} />
+        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)}
+          selectedId={selectedSpan?.mode === 'intent' ? selectedSpan.id : null}
+          onSelectSpan={(sid) => setSelectedSpan(sid ? { mode: 'intent', id: sid } : null)} />
       </div>
+
+      {/* ── Shared, full-width span detail (roomy, no truncation) ── */}
+      {selDetailSpan && (
+        <div className="mt-4 rounded-xl border border-c-border bg-c-surface-2 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-wider text-c-text-3">
+              Span detail · {selectedSpan?.mode} lane
+            </span>
+            <button onClick={() => setSelectedSpan(null)} className="text-[11px] text-c-text-3 hover:text-c-text-2">clear</button>
+          </div>
+          <SpanDetail s={selDetailSpan} />
+        </div>
+      )}
     </div>
   )
 }
@@ -424,10 +469,12 @@ function verdictOf(lane: Lane): { label: string; cls: string } | null {
   return { label: lane.status, cls: 'text-c-text-3' }
 }
 
-function RunLane({ mode, lane, onResume }: {
+function RunLane({ mode, lane, onResume, selectedId, onSelectSpan }: {
   mode: Mode
   lane: Lane
   onResume: (answers: Record<string, unknown>) => void
+  selectedId: string | null
+  onSelectSpan: (id: string | null) => void
 }) {
   const v = verdictOf(lane)
   const isIntent = mode === 'intent'
@@ -456,15 +503,17 @@ function RunLane({ mode, lane, onResume }: {
       {lane.result?.tool_outputs && Object.keys(lane.result.tool_outputs).length > 0 && (
         <details className="mt-3">
           <summary className="cursor-pointer text-[11px] text-c-text-3">output</summary>
-          <pre className="mt-1 max-h-48 overflow-auto rounded-md border border-c-border bg-c-bg p-2 text-[10px] font-mono text-c-text-2 whitespace-pre-wrap">
-            {JSON.stringify(lane.result.tool_outputs, null, 2).slice(0, 4000)}
+          <pre className="mt-1 max-h-64 overflow-auto rounded-md border border-c-border bg-c-bg p-2 text-[10px] font-mono text-c-text-2 whitespace-pre-wrap break-words">
+            {JSON.stringify(lane.result.tool_outputs, null, 2).slice(0, 20000)}
           </pre>
         </details>
       )}
 
       {lane.spans.length > 0 && (
         <div className="mt-3">
-          <TraceWaterfall spans={lane.spans} />
+          {/* Tree only — the span detail renders in the shared full-width panel below. */}
+          <TraceWaterfall spans={lane.spans} showDetail={false}
+            selectedId={selectedId} onSelectSpan={onSelectSpan} />
         </div>
       )}
     </div>
