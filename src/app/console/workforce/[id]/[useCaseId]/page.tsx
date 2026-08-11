@@ -260,6 +260,9 @@ export default function ScenarioWorkspace() {
           <h1 className="text-[20px] font-semibold text-c-text tracking-tight">{program.title}</h1>
           {program.goal && <p className="mt-0.5 text-[13px] text-c-text-2 max-w-2xl">{program.goal}</p>}
           <div className="mt-1 text-[11px] text-c-text-3">Scenario: attack configured once, run in both modes to contrast.</div>
+          <div className="mt-0.5 text-[11px] text-c-text-3">
+            Runs execute live against the Authority (mint) and the resource server{profile.rs_id ? ` (${profile.rs_id})` : ''} — the tokens in the trace are real and independently verifiable.
+          </div>
         </div>
       </div>
 

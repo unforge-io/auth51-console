@@ -123,6 +123,53 @@ function asText(v: unknown): string {
   }
 }
 
+// ── real in-browser signature verification (the "this is a real backend" proof) ──
+function b64urlToBytes(s: string): Uint8Array {
+  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4))
+  const bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'))
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+
+type VerifyResult = { ok: boolean; alg?: string; kid?: string; iss?: string; jwksUrl?: string; reason?: string }
+
+/** Verify a minted JWT's signature entirely in the browser: pull the Authority's
+ *  PUBLIC JWKS (via a thin proxy) and check the signature with Web Crypto. If this
+ *  returns ok, the token was really signed by the Authority's private key — no
+ *  simulation can forge that. */
+async function verifyJwtSignature(token: string): Promise<VerifyResult> {
+  try {
+    const [h, p, sig] = token.split('.')
+    if (!h || !p || !sig) return { ok: false, reason: 'not a JWT' }
+    const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(h))) as { alg?: string; kid?: string }
+    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p))) as { iss?: string }
+    const alg = header.alg, kid = header.kid, iss = payload.iss
+    if (!iss) return { ok: false, alg, kid, reason: 'token has no iss claim' }
+    const res = await fetch(`/api/cp/jwks?iss=${encodeURIComponent(iss)}`, { cache: 'no-store' })
+    const data = await res.json() as { jwks?: { keys?: JsonWebKey[] }; jwks_url?: string; error?: string }
+    if (!res.ok) return { ok: false, alg, kid, iss, jwksUrl: data.jwks_url, reason: data.error || 'JWKS fetch failed' }
+    const keys = data.jwks?.keys ?? []
+    const jwk = keys.find((k) => (k as { kid?: string }).kid === kid) ?? keys[0]
+    if (!jwk) return { ok: false, alg, kid, iss, jwksUrl: data.jwks_url, reason: 'no key in JWKS' }
+    const isEc = alg === 'ES256' || (jwk as { kty?: string }).kty === 'EC'
+    const importAlg: EcKeyImportParams | RsaHashedImportParams = isEc
+      ? { name: 'ECDSA', namedCurve: 'P-256' }
+      : { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }
+    const verifyAlg: EcdsaParams | AlgorithmIdentifier = isEc
+      ? { name: 'ECDSA', hash: 'SHA-256' }
+      : { name: 'RSASSA-PKCS1-v1_5' }
+    const key = await crypto.subtle.importKey('jwk', jwk, importAlg, false, ['verify'])
+    const ok = await crypto.subtle.verify(
+      verifyAlg, key,
+      b64urlToBytes(sig) as unknown as BufferSource,
+      new TextEncoder().encode(`${h}.${p}`) as unknown as BufferSource)
+    return { ok, alg, kid, iss, jwksUrl: data.jwks_url }
+  } catch (e) {
+    return { ok: false, reason: String(e) }
+  }
+}
+
 // ── detail panel ────────────────────────────────────────────────────────────
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -147,6 +194,8 @@ export function SpanDetail({ s }: { s: Span }) {
   const input = attr(s, 'input.value')
   const output = attr(s, 'output.value')
   const [rawOpen, setRawOpen] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [verified, setVerified] = useState<VerifyResult | null>(null)
 
   return (
     <div className="flex flex-col gap-2.5 text-c-text">
@@ -180,10 +229,27 @@ export function SpanDetail({ s }: { s: Span }) {
       )}
 
       {tokenRaw && (
-        <Field label="raw token — a real signed JWT (select-all + paste into jwt.io to verify the signature)">
+        <Field label="raw token — a real signed JWT">
           <textarea readOnly rows={3} value={tokenRaw}
             onFocus={(e) => e.currentTarget.select()}
             className="w-full rounded-md border border-c-border bg-c-bg p-2 font-mono text-[10px] text-c-text-2 break-all resize-y" />
+          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+            <button
+              onClick={async () => { setVerifying(true); setVerified(await verifyJwtSignature(tokenRaw)); setVerifying(false) }}
+              disabled={verifying}
+              className="rounded-md border border-c-accent/50 px-2.5 py-1 text-[11px] text-c-accent hover:bg-c-accent/10 disabled:opacity-40">
+              {verifying ? 'Verifying…' : 'Verify signature in your browser'}
+            </button>
+            <span className="text-[10px] text-c-text-3">…or paste into jwt.io</span>
+          </div>
+          {verified && (
+            <div className={`mt-1.5 rounded-md border px-2 py-1.5 text-[11px] ${verified.ok ? 'border-c-success/40 bg-c-success/10 text-c-success' : 'border-c-danger/40 bg-c-danger/10 text-c-danger'}`}>
+              {verified.ok
+                ? <>✓ Valid signature — the Authority really signed this ({verified.alg}, kid {String(verified.kid).slice(0, 12)}…)</>
+                : <>✗ {verified.reason || 'signature did not verify'}</>}
+              {verified.jwksUrl && <div className="mt-0.5 text-[10px] font-mono text-c-text-3 break-all">verified against {verified.jwksUrl}</div>}
+            </div>
+          )}
         </Field>
       )}
 
