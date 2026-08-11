@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 /** A persisted OTel span from a run (as served by GET /run/{id}/trace). */
 export type Span = {
@@ -132,26 +132,34 @@ function b64urlToBytes(s: string): Uint8Array {
   return out
 }
 
-type VerifyResult = { ok: boolean; alg?: string; kid?: string; iss?: string; jwksUrl?: string; reason?: string }
+type VerifyResult = {
+  ok: boolean; alg?: string; kid?: string; iss?: string; jwksUrl?: string; reason?: string
+  header?: unknown; payload?: unknown; jwk?: JsonWebKey
+}
 
-/** Verify a minted JWT's signature entirely in the browser: pull the Authority's
- *  PUBLIC JWKS (via a thin proxy) and check the signature with Web Crypto. If this
- *  returns ok, the token was really signed by the Authority's private key — no
- *  simulation can forge that. */
+function decodeSeg(seg: string): unknown {
+  try { return JSON.parse(new TextDecoder().decode(b64urlToBytes(seg))) } catch { return undefined }
+}
+
+/** Decode a JWT AND verify its signature entirely in the browser: pull the
+ *  Authority's PUBLIC JWKS (via a thin proxy) and check the signature with Web
+ *  Crypto. If `ok`, the token was really signed by the Authority's private key — no
+ *  simulation can forge that, and jwt.io can't do the JWKS half automatically. */
 async function verifyJwtSignature(token: string): Promise<VerifyResult> {
   try {
     const [h, p, sig] = token.split('.')
     if (!h || !p || !sig) return { ok: false, reason: 'not a JWT' }
-    const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(h))) as { alg?: string; kid?: string }
-    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p))) as { iss?: string }
-    const alg = header.alg, kid = header.kid, iss = payload.iss
-    if (!iss) return { ok: false, alg, kid, reason: 'token has no iss claim' }
+    const header = decodeSeg(h) as { alg?: string; kid?: string } | undefined
+    const payload = decodeSeg(p) as { iss?: string } | undefined
+    const alg = header?.alg, kid = header?.kid, iss = payload?.iss
+    const base = { header, payload, alg, kid, iss }
+    if (!iss) return { ok: false, ...base, reason: 'token has no iss claim' }
     const res = await fetch(`/api/cp/jwks?iss=${encodeURIComponent(iss)}`, { cache: 'no-store' })
     const data = await res.json() as { jwks?: { keys?: JsonWebKey[] }; jwks_url?: string; error?: string }
-    if (!res.ok) return { ok: false, alg, kid, iss, jwksUrl: data.jwks_url, reason: data.error || 'JWKS fetch failed' }
+    if (!res.ok) return { ok: false, ...base, jwksUrl: data.jwks_url, reason: data.error || 'JWKS fetch failed' }
     const keys = data.jwks?.keys ?? []
     const jwk = keys.find((k) => (k as { kid?: string }).kid === kid) ?? keys[0]
-    if (!jwk) return { ok: false, alg, kid, iss, jwksUrl: data.jwks_url, reason: 'no key in JWKS' }
+    if (!jwk) return { ok: false, ...base, jwksUrl: data.jwks_url, reason: 'no key in JWKS' }
     const isEc = alg === 'ES256' || (jwk as { kty?: string }).kty === 'EC'
     const importAlg: EcKeyImportParams | RsaHashedImportParams = isEc
       ? { name: 'ECDSA', namedCurve: 'P-256' }
@@ -164,10 +172,63 @@ async function verifyJwtSignature(token: string): Promise<VerifyResult> {
       verifyAlg, key,
       b64urlToBytes(sig) as unknown as BufferSource,
       new TextEncoder().encode(`${h}.${p}`) as unknown as BufferSource)
-    return { ok, alg, kid, iss, jwksUrl: data.jwks_url }
+    return { ok, ...base, jwksUrl: data.jwks_url, jwk }
   } catch (e) {
     return { ok: false, reason: String(e) }
   }
+}
+
+// ── token inspector modal: decode (like jwt.io) + live JWKS signature verify ──
+function InspectorBlock({ title, value }: { title: string; value: unknown }) {
+  if (value === undefined) return null
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-c-text-3 mb-0.5">{title}</div>
+      <pre className="max-h-72 overflow-auto rounded-md border border-c-border bg-c-surface-2 p-2 text-[11px] font-mono text-c-text-2 whitespace-pre-wrap break-words">{asText(value)}</pre>
+    </div>
+  )
+}
+
+function TokenInspector({ token, kind, onClose }: { token: string; kind: string; onClose: () => void }) {
+  const [r, setR] = useState<VerifyResult | null>(null)
+  const label = kind === 'oauth' ? 'OAuth bearer token' : 'Intent token'
+  useEffect(() => {
+    let cancelled = false
+    verifyJwtSignature(token).then((res) => { if (!cancelled) setR(res) })
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => { cancelled = true; window.removeEventListener('keydown', onKey) }
+  }, [token, onClose])
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/60 p-4" onClick={onClose}>
+      <div className="my-6 w-full max-w-3xl rounded-xl border border-c-border bg-c-bg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-c-border px-4 py-2.5">
+          <span className="text-[13px] font-semibold text-c-text">{label} — decode &amp; verify</span>
+          <div className="flex items-center gap-3">
+            <a href={`https://jwt.io/#debugger-io?token=${encodeURIComponent(token)}`} target="_blank" rel="noreferrer"
+              className="text-[11px] text-c-accent hover:underline">open in jwt.io ↗</a>
+            <button onClick={onClose} className="text-[16px] leading-none text-c-text-2 hover:text-c-text">×</button>
+          </div>
+        </div>
+        <div className="max-h-[80vh] space-y-3 overflow-auto p-4">
+          {r === null ? (
+            <div className="text-[12px] text-c-text-3">Fetching the Authority’s public keys and verifying the signature…</div>
+          ) : (
+            <div className={`rounded-md border px-3 py-2 text-[12px] ${r.ok ? 'border-c-success/40 bg-c-success/10 text-c-success' : 'border-c-danger/40 bg-c-danger/10 text-c-danger'}`}>
+              {r.ok
+                ? <>✓ <b>Signature verified</b> — really signed by the Authority’s private key ({r.alg}, kid {String(r.kid)}).</>
+                : <>✗ {r.reason || 'signature did not verify'}</>}
+              {r.jwksUrl && <div className="mt-0.5 break-all font-mono text-[10px] text-c-text-3">public keys fetched live from {r.jwksUrl}</div>}
+              <div className="mt-0.5 text-[10px] text-c-text-3">This JWKS step is the part jwt.io can’t do for you — verified against the issuer’s live keys, not a pasted one.</div>
+            </div>
+          )}
+          <InspectorBlock title="Header" value={r?.header} />
+          <InspectorBlock title="Payload (claims)" value={r?.payload} />
+          {r?.jwk && <InspectorBlock title={`Public key used (JWK, kid ${String((r.jwk as { kid?: string }).kid ?? '')})`} value={r.jwk} />}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── detail panel ────────────────────────────────────────────────────────────
@@ -194,8 +255,10 @@ export function SpanDetail({ s }: { s: Span }) {
   const input = attr(s, 'input.value')
   const output = attr(s, 'output.value')
   const [rawOpen, setRawOpen] = useState(false)
-  const [verifying, setVerifying] = useState(false)
-  const [verified, setVerified] = useState<VerifyResult | null>(null)
+  const [inspect, setInspect] = useState(false)
+  // Token label is mode-aware: the mint hop carries an INTENT token; the oauth hop
+  // carries a plain OAuth bearer.
+  const tokenWord = kind === 'oauth' ? 'OAuth token' : 'intent token'
 
   return (
     <div className="flex flex-col gap-2.5 text-c-text">
@@ -217,7 +280,7 @@ export function SpanDetail({ s }: { s: Span }) {
       )}
 
       {claims && (
-        <Field label="intent token — decoded claims">
+        <Field label={`${tokenWord} — decoded claims`}>
           <div className="rounded-md border border-c-border bg-c-bg p-2 font-mono text-[11px] space-y-0.5 break-all">
             {['sub', 'aud', 'scope', 'iss', 'cnf', 'checksum', 'computed_checksum', 'iat', 'exp', 'jti'].map((k) =>
               claims[k] !== undefined ? (
@@ -229,27 +292,16 @@ export function SpanDetail({ s }: { s: Span }) {
       )}
 
       {tokenRaw && (
-        <Field label="raw token — a real signed JWT">
+        <Field label={`raw ${tokenWord} — a real signed JWT`}>
           <textarea readOnly rows={3} value={tokenRaw}
             onFocus={(e) => e.currentTarget.select()}
             className="w-full rounded-md border border-c-border bg-c-bg p-2 font-mono text-[10px] text-c-text-2 break-all resize-y" />
-          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-            <button
-              onClick={async () => { setVerifying(true); setVerified(await verifyJwtSignature(tokenRaw)); setVerifying(false) }}
-              disabled={verifying}
-              className="rounded-md border border-c-accent/50 px-2.5 py-1 text-[11px] text-c-accent hover:bg-c-accent/10 disabled:opacity-40">
-              {verifying ? 'Verifying…' : 'Verify signature in your browser'}
-            </button>
-            <span className="text-[10px] text-c-text-3">…or paste into jwt.io</span>
-          </div>
-          {verified && (
-            <div className={`mt-1.5 rounded-md border px-2 py-1.5 text-[11px] ${verified.ok ? 'border-c-success/40 bg-c-success/10 text-c-success' : 'border-c-danger/40 bg-c-danger/10 text-c-danger'}`}>
-              {verified.ok
-                ? <>✓ Valid signature — the Authority really signed this ({verified.alg}, kid {String(verified.kid).slice(0, 12)}…)</>
-                : <>✗ {verified.reason || 'signature did not verify'}</>}
-              {verified.jwksUrl && <div className="mt-0.5 text-[10px] font-mono text-c-text-3 break-all">verified against {verified.jwksUrl}</div>}
-            </div>
-          )}
+          <button
+            onClick={() => setInspect(true)}
+            className="mt-1.5 rounded-md border border-c-accent/50 px-2.5 py-1 text-[11px] text-c-accent hover:bg-c-accent/10">
+            Inspect &amp; verify token
+          </button>
+          {inspect && <TokenInspector token={tokenRaw} kind={kind} onClose={() => setInspect(false)} />}
         </Field>
       )}
 
@@ -287,9 +339,10 @@ export function SpanDetail({ s }: { s: Span }) {
 }
 
 // ── waterfall ───────────────────────────────────────────────────────────────
-// `showDetail=false` renders ONLY the tree (full width) and drives selection via
-// `selectedId`/`onSelectSpan` — so a caller (the scenario workspace) can put two
-// trees side by side and share ONE full-width detail panel below them.
+// `showDetail=false` renders the tree with INLINE expansion — clicking a span opens
+// its detail right beneath it, so it's never off-screen and two trees can sit side by
+// side and each be inspected in place. `selectedId`/`onSelectSpan` optionally lift
+// selection; omit them for independent inline selection (the default, per instance).
 export function TraceWaterfall({ spans, selectedId, onSelectSpan, showDetail = true }: {
   spans: Span[]
   selectedId?: string | null
@@ -321,25 +374,35 @@ export function TraceWaterfall({ spans, selectedId, onSelectSpan, showDetail = t
         const hasKids = n.children.length > 0
         const isSel = n.span_id === selected
         return (
-          <div key={n.span_id}
-            onClick={() => select(n.span_id)}
-            className={`flex items-center gap-2 px-2 py-1 cursor-pointer border-b border-c-border/50 ${isSel ? 'bg-c-accent/10' : 'hover:bg-c-surface-2'}`}>
-            <div className="flex items-center gap-1 min-w-0" style={{ paddingLeft: n.depth * 12 }}>
-              {hasKids ? (
-                <button onClick={(e) => { e.stopPropagation(); setCollapsed((c) => { const x = new Set(c); if (x.has(n.span_id)) x.delete(n.span_id); else x.add(n.span_id); return x }) }}
-                  className="text-[10px] text-c-text-3 w-3">{collapsed.has(n.span_id) ? '▸' : '▾'}</button>
-              ) : <span className="w-3" />}
-              {kind && <span className={`shrink-0 rounded border px-1 text-[9px] font-mono ${KIND_STYLE[kind] ?? 'border-c-border text-c-text-3'}`}>{kind}</span>}
-              <span className="truncate text-[11px] font-mono text-c-text-2" title={n.name}>{n.name}</span>
-            </div>
-            <div className="ml-auto flex items-center gap-2 shrink-0 w-[38%] min-w-[120px]">
-              <div className="relative h-2 flex-1 rounded bg-c-surface-2">
-                <div className={`absolute h-2 rounded ${kind === 'rs' ? 'bg-c-success' : kind && KIND_STYLE[kind] ? 'bg-c-accent' : 'bg-c-text-3/50'}`}
-                  style={{ left: `${left}%`, width: `${width}%` }} />
+          <Fragment key={n.span_id}>
+            <div
+              onClick={() => select(isSel ? null : n.span_id)}
+              className={`flex items-center gap-2 px-2 py-1 cursor-pointer border-b border-c-border/50 ${isSel ? 'bg-c-accent/10' : 'hover:bg-c-surface-2'}`}>
+              <div className="flex items-center gap-1 min-w-0" style={{ paddingLeft: n.depth * 12 }}>
+                {hasKids ? (
+                  <button onClick={(e) => { e.stopPropagation(); setCollapsed((c) => { const x = new Set(c); if (x.has(n.span_id)) x.delete(n.span_id); else x.add(n.span_id); return x }) }}
+                    className="text-[10px] text-c-text-3 w-3">{collapsed.has(n.span_id) ? '▸' : '▾'}</button>
+                ) : <span className="w-3" />}
+                {!showDetail && <span className="text-[10px] text-c-text-3 w-3">{isSel ? '▾' : '▸'}</span>}
+                {kind && <span className={`shrink-0 rounded border px-1 text-[9px] font-mono ${KIND_STYLE[kind] ?? 'border-c-border text-c-text-3'}`}>{kind}</span>}
+                <span className="truncate text-[11px] font-mono text-c-text-2" title={n.name}>{n.name}</span>
               </div>
-              <span className="text-[10px] text-c-text-3 tabular-nums w-12 text-right">{durMs(n).toFixed(0)}ms</span>
+              <div className="ml-auto flex items-center gap-2 shrink-0 w-[38%] min-w-[120px]">
+                <div className="relative h-2 flex-1 rounded bg-c-surface-2">
+                  <div className={`absolute h-2 rounded ${kind === 'rs' ? 'bg-c-success' : kind && KIND_STYLE[kind] ? 'bg-c-accent' : 'bg-c-text-3/50'}`}
+                    style={{ left: `${left}%`, width: `${width}%` }} />
+                </div>
+                <span className="text-[10px] text-c-text-3 tabular-nums w-12 text-right">{durMs(n).toFixed(0)}ms</span>
+              </div>
             </div>
-          </div>
+            {/* Inline expansion: the detail opens right under the span you clicked, so
+                it's never off-screen and you can open the matching span in BOTH lanes. */}
+            {!showDetail && isSel && (
+              <div className="border-b border-c-border bg-c-surface-2 px-3 py-3 max-h-[70vh] overflow-auto">
+                <SpanDetail s={n} />
+              </div>
+            )}
+          </Fragment>
         )
       })}
     </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
-import { TraceWaterfall, SpanDetail, type Span } from '@/components/console/TraceWaterfall'
+import { TraceWaterfall, type Span } from '@/components/console/TraceWaterfall'
 import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
 import {
   AgentTamperCard, InputInjectionCard, KINDS, type AttackKind,
@@ -45,9 +45,8 @@ export default function ScenarioWorkspace() {
   const [suggestBusy, setSuggestBusy] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
 
-  // The two run lanes + the currently-inspected span (shared full-width detail below).
+  // The two run lanes (each span expands its detail inline within its own lane).
   const [lanes, setLanes] = useState<Record<Mode, Lane>>({ oauth: EMPTY_LANE, intent: EMPTY_LANE })
-  const [selectedSpan, setSelectedSpan] = useState<{ mode: Mode; id: string } | null>(null)
   const setLane = useCallback((mode: Mode, patch: Partial<Lane>) =>
     setLanes((L) => ({ ...L, [mode]: { ...L[mode], ...patch } })), [])
 
@@ -246,10 +245,6 @@ export default function ScenarioWorkspace() {
   }
   const anyBusy = lanes.oauth.busy || lanes.intent.busy
 
-  const selDetailSpan = selectedSpan
-    ? lanes[selectedSpan.mode].spans.find((s) => s.span_id === selectedSpan.id)
-    : undefined
-
   return (
     <div className="max-w-[1700px] mx-auto px-6 py-8">
       <button onClick={() => router.push(`/console/workforce/${encodeURIComponent(id)}`)}
@@ -373,28 +368,11 @@ export default function ScenarioWorkspace() {
       {/* ── Contrast diff (the money shot) ── */}
       <ScenarioDiff oauth={lanes.oauth} intent={lanes.intent} />
 
-      {/* ── Two lanes (trees only) ── */}
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)}
-          selectedId={selectedSpan?.mode === 'oauth' ? selectedSpan.id : null}
-          onSelectSpan={(sid) => setSelectedSpan(sid ? { mode: 'oauth', id: sid } : null)} />
-        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)}
-          selectedId={selectedSpan?.mode === 'intent' ? selectedSpan.id : null}
-          onSelectSpan={(sid) => setSelectedSpan(sid ? { mode: 'intent', id: sid } : null)} />
+      {/* ── Two lanes — each span expands its detail INLINE (never off-screen) ── */}
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} />
+        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} />
       </div>
-
-      {/* ── Shared, full-width span detail (roomy, no truncation) ── */}
-      {selDetailSpan && (
-        <div className="mt-4 rounded-xl border border-c-border bg-c-surface-2 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider text-c-text-3">
-              Span detail · {selectedSpan?.mode} lane
-            </span>
-            <button onClick={() => setSelectedSpan(null)} className="text-[11px] text-c-text-3 hover:text-c-text-2">clear</button>
-          </div>
-          <SpanDetail s={selDetailSpan} />
-        </div>
-      )}
     </div>
   )
 }
@@ -472,12 +450,10 @@ function verdictOf(lane: Lane): { label: string; cls: string } | null {
   return { label: lane.status, cls: 'text-c-text-3' }
 }
 
-function RunLane({ mode, lane, onResume, selectedId, onSelectSpan }: {
+function RunLane({ mode, lane, onResume }: {
   mode: Mode
   lane: Lane
   onResume: (answers: Record<string, unknown>) => void
-  selectedId: string | null
-  onSelectSpan: (id: string | null) => void
 }) {
   const v = verdictOf(lane)
   const isIntent = mode === 'intent'
@@ -514,9 +490,8 @@ function RunLane({ mode, lane, onResume, selectedId, onSelectSpan }: {
 
       {lane.spans.length > 0 && (
         <div className="mt-3">
-          {/* Tree only — the span detail renders in the shared full-width panel below. */}
-          <TraceWaterfall spans={lane.spans} showDetail={false}
-            selectedId={selectedId} onSelectSpan={onSelectSpan} />
+          {/* Tree with inline detail — click a span, its detail opens right below it. */}
+          <TraceWaterfall spans={lane.spans} showDetail={false} />
         </div>
       )}
     </div>
