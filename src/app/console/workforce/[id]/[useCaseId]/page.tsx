@@ -112,6 +112,12 @@ export default function ScenarioWorkspace() {
     return Object.keys(a.overrides).length > 0 || !!a.input_injection
   }, [buildAttack])
 
+  // Agents whose prompt is tampered this run — the trace flags their spans so a
+  // watcher can jump straight to where the injection landed.
+  const tamperedAgents = useMemo(
+    () => new Set(Object.keys(overrides).filter((aid) => isPromptModified(aid))),
+    [overrides, isPromptModified])
+
   async function askLLM(key: string, body: Record<string, unknown>, apply: (s: string) => void) {
     setSuggestBusy((b) => ({ ...b, [key]: true })); setError(null)
     try {
@@ -288,8 +294,8 @@ export default function ScenarioWorkspace() {
           </div>
           <span className="text-[11px] text-c-text-3">{KINDS[attackKind].blurb}</span>
         </div>
-        {!KINDS[attackKind].ready && KINDS[attackKind].note && (
-          <p className="text-[11px] text-c-danger">⚠ {KINDS[attackKind].note}</p>
+        {KINDS[attackKind].note && (
+          <p className="text-[11px] text-c-warning">ℹ {KINDS[attackKind].note}</p>
         )}
 
         {KINDS[attackKind].promptEditable && membersOf(program).map((aid) => {
@@ -370,8 +376,8 @@ export default function ScenarioWorkspace() {
 
       {/* ── Two lanes — each span expands its detail INLINE (never off-screen) ── */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} />
-        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} />
+        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} highlightAgents={tamperedAgents} />
+        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} highlightAgents={tamperedAgents} />
       </div>
     </div>
   )
@@ -450,10 +456,11 @@ function verdictOf(lane: Lane): { label: string; cls: string } | null {
   return { label: lane.status, cls: 'text-c-text-3' }
 }
 
-function RunLane({ mode, lane, onResume }: {
+function RunLane({ mode, lane, onResume, highlightAgents }: {
   mode: Mode
   lane: Lane
   onResume: (answers: Record<string, unknown>) => void
+  highlightAgents?: Set<string>
 }) {
   const v = verdictOf(lane)
   const isIntent = mode === 'intent'
@@ -491,7 +498,7 @@ function RunLane({ mode, lane, onResume }: {
       {lane.spans.length > 0 && (
         <div className="mt-3">
           {/* Tree with inline detail — click a span, its detail opens right below it. */}
-          <TraceWaterfall spans={lane.spans} showDetail={false} />
+          <TraceWaterfall spans={lane.spans} showDetail={false} highlightAgents={highlightAgents} />
         </div>
       )}
     </div>

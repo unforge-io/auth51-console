@@ -31,12 +31,12 @@ export const KINDS: Record<AttackKind, {
   excessive_agency: {
     label: 'Excessive agency',
     blurb:
-      "Plant an injection in the agent's input to steer it toward a high-consequence action " +
-      "outside its job. Identity is unchanged — the over-reach rides in DATA, not the prompt.",
-    intent: 'DENIED at mint — out-of-grant / out-of-workflow.',
-    oauth: 'Proceeds — OAuth mints a per-op token regardless of workflow.',
-    promptEditable: false, inputEditable: true, ready: false,
-    note: 'Blocks in Intent once this agent’s grant is in enforce mode (6.3, in progress). Runs now, but completes in both modes until then.',
+      "Plant an injection in the agent's input to steer it toward a high-consequence op held " +
+      "behind step-up. Identity is unchanged — the over-reach rides in DATA, not the prompt.",
+    intent: 'DENIED at mint — the steered op is gated behind step-up (needs an enforce-mode grant).',
+    oauth: 'Proceeds — OAuth ignores step-up / workflow, mints a per-op token regardless.',
+    promptEditable: false, inputEditable: true, ready: true,
+    note: 'Setup: gate the destructive op behind step-up + enforce on the target agent (Agents tab → Capability grant), so Intent denies the steer.',
   },
   custom: {
     label: 'Custom',

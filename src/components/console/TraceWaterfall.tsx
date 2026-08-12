@@ -123,6 +123,28 @@ function asText(v: unknown): string {
   }
 }
 
+/** Pull the SYSTEM message out of an LLM span's `input.value` (the LangChain
+ *  messages payload) so the operator sees the exact system prompt sent to the model
+ *  — which is where prompt-injection tampering shows up — without digging through a
+ *  giant JSON blob. Returns null for non-LLM spans (e.g. a delegation's state dict). */
+function extractSystemPrompt(inputValue: unknown): string | null {
+  let obj: unknown = inputValue
+  if (typeof inputValue === 'string') {
+    try { obj = JSON.parse(inputValue) } catch { return null }
+  }
+  let msgs: unknown = (obj as { messages?: unknown } | null)?.messages
+  if (Array.isArray(msgs) && Array.isArray(msgs[0])) msgs = msgs[0] // langchain nests
+  if (!Array.isArray(msgs)) return null
+  for (const m of msgs) {
+    const mm = m as { kwargs?: { type?: string; content?: unknown }; type?: string; content?: unknown; id?: unknown }
+    const idArr = Array.isArray(mm.id) ? (mm.id as unknown[]) : []
+    const typeStr = String(mm.kwargs?.type ?? mm.type ?? (idArr.length ? idArr[idArr.length - 1] : '')).toLowerCase()
+    const content = mm.kwargs?.content ?? mm.content
+    if (typeStr.includes('system') && typeof content === 'string') return content
+  }
+  return null
+}
+
 // ── real in-browser signature verification (the "this is a real backend" proof) ──
 function b64urlToBytes(s: string): Uint8Array {
   const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4))
@@ -254,6 +276,7 @@ export function SpanDetail({ s }: { s: Span }) {
   const tTok = attr(s, 'llm.token_count.total')
   const input = attr(s, 'input.value')
   const output = attr(s, 'output.value')
+  const sysPrompt = input !== undefined ? extractSystemPrompt(input) : null
   const [rawOpen, setRawOpen] = useState(false)
   const [inspect, setInspect] = useState(false)
   // Token label is mode-aware: the mint hop carries an INTENT token; the oauth hop
@@ -313,9 +336,14 @@ export function SpanDetail({ s }: { s: Span }) {
         </Field>
       )}
 
+      {sysPrompt !== null && (
+        <Field label="system prompt sent to the model — the identity the embed hashes (prompt-injection tampering shows HERE)">
+          <pre className="max-h-[32rem] overflow-auto rounded-md border border-c-danger/40 bg-c-danger/5 p-2 text-[11px] font-mono text-c-text whitespace-pre-wrap break-words">{sysPrompt.slice(0, 60000)}</pre>
+        </Field>
+      )}
       {input !== undefined && (
-        <Field label="input — the system prompt + state actually sent to the model (tampering shows here)">
-          <pre className="max-h-[32rem] overflow-auto rounded-md border border-c-border bg-c-bg p-2 text-[11px] font-mono text-c-text-2 whitespace-pre-wrap break-words">{asText(input).slice(0, 60000)}</pre>
+        <Field label={sysPrompt !== null ? 'raw input (full messages + state)' : 'input — state / messages sent to the model'}>
+          <pre className="max-h-80 overflow-auto rounded-md border border-c-border bg-c-bg p-2 text-[11px] font-mono text-c-text-2 whitespace-pre-wrap break-words">{asText(input).slice(0, 60000)}</pre>
         </Field>
       )}
       {output !== undefined && (
@@ -343,11 +371,12 @@ export function SpanDetail({ s }: { s: Span }) {
 // its detail right beneath it, so it's never off-screen and two trees can sit side by
 // side and each be inspected in place. `selectedId`/`onSelectSpan` optionally lift
 // selection; omit them for independent inline selection (the default, per instance).
-export function TraceWaterfall({ spans, selectedId, onSelectSpan, showDetail = true }: {
+export function TraceWaterfall({ spans, selectedId, onSelectSpan, showDetail = true, highlightAgents }: {
   spans: Span[]
   selectedId?: string | null
   onSelectSpan?: (id: string | null) => void
   showDetail?: boolean
+  highlightAgents?: Set<string> // agent ids tampered this run — flag their spans
 }) {
   const roots = useMemo(() => buildForest(spans), [spans])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -385,6 +414,9 @@ export function TraceWaterfall({ spans, selectedId, onSelectSpan, showDetail = t
                 ) : <span className="w-3" />}
                 {!showDetail && <span className="text-[10px] text-c-text-3 w-3">{isSel ? '▾' : '▸'}</span>}
                 {kind && <span className={`shrink-0 rounded border px-1 text-[9px] font-mono ${KIND_STYLE[kind] ?? 'border-c-border text-c-text-3'}`}>{kind}</span>}
+                {highlightAgents && (highlightAgents.has(n.name ?? '') || highlightAgents.has(String(attr(n, 'auth51.agent_id') ?? ''))) && (
+                  <span title="Tampered for this run — its system prompt is on the consult_llm/ChatOpenAI span below" className="shrink-0 text-c-danger">●</span>
+                )}
                 <span className="truncate text-[11px] font-mono text-c-text-2" title={n.name}>{n.name}</span>
               </div>
               <div className="ml-auto flex items-center gap-2 shrink-0 w-[38%] min-w-[120px]">

@@ -193,6 +193,24 @@ export default function WorkforcePage() {
     } finally { setRegBusy(null) }
   }
 
+  // Least-privilege config (6.3): set which declared scopes are ALLOWED vs held
+  // behind STEP-UP, and the grant mode. A destructive op in step-up + enforce is
+  // denied at mint when an agent is steered there (Intent) — while OAuth proceeds.
+  async function assignGrantConfig(
+    agentId: string, allowed: string[], stepUp: string[], mode: 'observe' | 'enforce',
+  ) {
+    if (!currentContext) return
+    setRegBusy(agentId); setError(null); setNotice(null)
+    try {
+      await assignGrant(currentContext, agentId, allowed,
+        { appId: profile?.app_id ?? undefined, replace: true, stepUp, mode })
+      setNotice(`Updated grant for "${agentId}" — ${allowed.length} allowed, ${stepUp.length} step-up, ${mode}.`)
+      await loadGrants()
+    } catch (e) {
+      setError(e instanceof AuthorityError ? `Grant failed: ${e.message}` : `Grant failed: ${String(e)}`)
+    } finally { setRegBusy(null) }
+  }
+
   if (loading) return <div className="max-w-5xl mx-auto px-6 py-16 text-center text-[13px] text-c-text-3">Loading…</div>
   if (error && !profile) return (
     <div className="max-w-5xl mx-auto px-6 py-16">
@@ -314,6 +332,7 @@ export default function WorkforcePage() {
                 onRegister={() => registerAgents([a.id])}
                 onUnregister={() => unregister(a.id)}
                 onGrant={() => grantDeclared(a)}
+                onAssign={(allowed, stepUp, mode) => assignGrantConfig(a.id, allowed, stepUp, mode)}
               />
             ))}
           </div>
@@ -358,7 +377,7 @@ function PreviewChip({ mode, status }: { mode: string; status: string }) {
 }
 
 // ── One agent row (roster) ──
-function AgentRow({ agent, ctx, appId, registration, grant, busy, onRegister, onUnregister, onGrant }: {
+function AgentRow({ agent, ctx, appId, registration, grant, busy, onRegister, onUnregister, onGrant, onAssign }: {
   agent: AgentSpec
   ctx: ReturnType<typeof useControlPlane>['currentContext']
   appId?: string | null
@@ -368,10 +387,21 @@ function AgentRow({ agent, ctx, appId, registration, grant, busy, onRegister, on
   onRegister: () => void
   onUnregister: () => void
   onGrant: () => void
+  onAssign: (allowed: string[], stepUp: string[], mode: 'observe' | 'enforce') => void
 }) {
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<ChecksumPreview | 'loading' | 'error' | null>(null)
   const isRegistered = registration !== null
+
+  // Least-privilege editor state — which scopes are gated behind step-up, + mode.
+  // Re-syncs from the persisted grant after an Apply (version bump), not on unrelated
+  // reloads (so mid-edit isn't clobbered).
+  const [stepUp, setStepUp] = useState<Set<string>>(() => new Set(grant?.step_up_scopes ?? []))
+  const [enforce, setEnforce] = useState(grant?.mode === 'enforce')
+  useEffect(() => {
+    setStepUp(new Set(grant?.step_up_scopes ?? []))
+    setEnforce(grant?.mode === 'enforce')
+  }, [grant?.version]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Capabilities: what the tools declare vs what the grant actually covers. A gap
   // means governed RS calls will be denied (wrong scope) — the discovery-path
@@ -440,6 +470,46 @@ function AgentRow({ agent, ctx, appId, registration, grant, busy, onRegister, on
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+          {isRegistered && declared.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1 gap-2">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-c-text-3">Capability grant · least-privilege</div>
+                <div className="inline-flex rounded-md border border-c-border overflow-hidden">
+                  {(['observe', 'enforce'] as const).map((m) => (
+                    <button key={m} onClick={() => setEnforce(m === 'enforce')} disabled={busy}
+                      className={`px-2 py-0.5 text-[10px] ${enforce === (m === 'enforce') ? 'bg-c-accent text-white' : 'bg-c-bg text-c-text-2 hover:bg-c-surface-2'} disabled:opacity-50`}>{m}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                {declared.map((sc) => {
+                  const gated = stepUp.has(sc)
+                  const t = agent.tools.find((tt) => tt.op?.scope === sc)
+                  const lbl = t?.op ? `${t.op.method.toUpperCase()} ${t.op.path}` : sc
+                  return (
+                    <div key={sc} className="flex items-center gap-2 text-[11px]">
+                      <span className="flex-1 truncate font-mono text-c-text-2" title={sc}>{lbl}</span>
+                      <div className="inline-flex shrink-0 overflow-hidden rounded border border-c-border">
+                        <button onClick={() => setStepUp((s) => { const n = new Set(s); n.delete(sc); return n })} disabled={busy}
+                          className={`px-1.5 py-0.5 text-[10px] ${!gated ? 'bg-c-success/20 text-c-success' : 'text-c-text-3 hover:bg-c-surface-2'}`}>allow</button>
+                        <button onClick={() => setStepUp((s) => { const n = new Set(s); n.add(sc); return n })} disabled={busy}
+                          className={`px-1.5 py-0.5 text-[10px] ${gated ? 'bg-c-warning/20 text-c-warning' : 'text-c-text-3 hover:bg-c-surface-2'}`}>step-up</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => onAssign(declared.filter((s) => !stepUp.has(s)), declared.filter((s) => stepUp.has(s)), enforce ? 'enforce' : 'observe')}
+                  disabled={busy}
+                  className="rounded-md border border-c-accent/50 px-2.5 py-1 text-[11px] text-c-accent hover:bg-c-accent/10 disabled:opacity-40">
+                  {busy ? '…' : 'Apply grant'}
+                </button>
+                <span className="text-[10px] text-c-text-3">Move a destructive op to <b>step-up</b> + <b>enforce</b> — an agent steered there is denied at mint (Intent); OAuth ignores it.</span>
               </div>
             </div>
           )}

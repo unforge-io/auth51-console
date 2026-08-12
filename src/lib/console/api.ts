@@ -730,7 +730,7 @@ export async function assignGrant(
   ctx: ControlPlaneContext,
   agentId: string,
   scopes: string[],
-  opts?: { appId?: string; replace?: boolean },
+  opts?: { appId?: string; replace?: boolean; stepUp?: string[]; mode?: 'observe' | 'enforce' },
 ): Promise<GrantView> {
   const app = opts?.appId ?? ctx.appId ?? 'Patchet'
   const token = await getAccessToken(ctx, 'register:intent')
@@ -738,7 +738,11 @@ export async function assignGrant(
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ app_id: app, agent_id: agentId, scopes, replace: opts?.replace ?? true }),
+    body: JSON.stringify({
+      app_id: app, agent_id: agentId, scopes, replace: opts?.replace ?? true,
+      ...(opts?.stepUp !== undefined ? { step_up_scopes: opts.stepUp } : {}),
+      ...(opts?.mode ? { mode: opts.mode } : {}),
+    }),
   })
   if (!res.ok) {
     let detail: unknown
