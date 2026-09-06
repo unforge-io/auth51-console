@@ -8,6 +8,7 @@ import { ElicitForm, type ElicitField } from '@/components/console/ElicitForm'
 import {
   AgentTamperCard, InputInjectionCard, KINDS, type AttackKind,
 } from '@/components/console/AttackEditor'
+import { WorkflowGuardPanel } from '@/components/console/WorkflowGuardPanel'
 import type { AgentSpec, Profile, Scenario, UseCase } from '@/lib/console/workforceTypes'
 
 /**
@@ -269,6 +270,11 @@ export default function ScenarioWorkspace() {
 
       {error && <div className="mt-4 rounded-lg border border-c-danger/30 bg-c-danger/5 px-4 py-3 text-[13px] text-c-danger">{error}</div>}
       {notice && <div className="mt-4 rounded-lg border border-c-success/30 bg-c-success/5 px-4 py-3 text-[13px] text-c-success">{notice}</div>}
+
+      {/* ── Workflow guard (derive from clean runs → review → approve → register) ── */}
+      <div className="mt-5">
+        <WorkflowGuardPanel profile={profile} program={program} />
+      </div>
 
       {/* ── Attack surface (configured once) ── */}
       <div className="mt-5 rounded-xl border border-c-border p-4 space-y-3">

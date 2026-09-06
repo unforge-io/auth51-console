@@ -7,8 +7,10 @@ import { DelegationTree } from '@/components/console/DelegationTree'
 import {
   AuthorityError,
   assignGrant,
+  deregisterWorkflow,
   listAgents,
   listGrants,
+  listRegisteredWorkflows,
   previewChecksums,
   shortChecksum,
   unregisterAgent,
@@ -16,8 +18,10 @@ import {
   type GrantView,
   type Proposal,
   type Registration,
+  type WorkflowDefinitionWire,
 } from '@/lib/console/api'
 import { declaredScopes } from '@/components/console/AttackEditor'
+import { GuardBadge, GuardSteps } from '@/components/console/WorkflowGuardPanel'
 import type { AgentSpec, Profile } from '@/lib/console/workforceTypes'
 
 /**
@@ -27,7 +31,7 @@ import type { AgentSpec, Profile } from '@/lib/console/workforceTypes'
  */
 
 type RunSummary = { run_id: string; status: string; use_case?: string; agent?: string; mode?: string }
-type Tab = 'usecases' | 'agents'
+type Tab = 'usecases' | 'agents' | 'guards'
 
 export default function WorkforcePage() {
   const params = useParams()
@@ -49,6 +53,10 @@ export default function WorkforcePage() {
 
   // Registration action busy-state, keyed by agent id ('*' = bulk).
   const [regBusy, setRegBusy] = useState<string | null>(null)
+
+  // Registered workflow guards for this pack's app (derived per use case, managed here).
+  const [workflows, setWorkflows] = useState<WorkflowDefinitionWire[] | null>(null)
+  const [wfBusy, setWfBusy] = useState<string | null>(null)
 
   const registeredIds = useMemo(
     () => new Set((registered ?? []).map((r) => r.agent_id)),
@@ -106,6 +114,15 @@ export default function WorkforcePage() {
     } catch { setHistory([]) }
   }, [id])
 
+  const loadWorkflows = useCallback(async () => {
+    if (!currentContext) return
+    try {
+      setWorkflows(await listRegisteredWorkflows(currentContext, profile?.app_id ?? undefined))
+    } catch {
+      setWorkflows([]) // 404 (endpoint not deployed) / unreachable ⇒ none
+    }
+  }, [currentContext, profile])
+
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
@@ -123,6 +140,20 @@ export default function WorkforcePage() {
   useEffect(() => { if (profile) loadGrants() }, [profile, loadGrants])
   // Load recent runs once (powers the per-use-case preview strip).
   useEffect(() => { if (profile) loadHistory() }, [profile, loadHistory])
+  useEffect(() => { if (profile) loadWorkflows() }, [profile, loadWorkflows])
+
+  async function deregisterGuard(wfId: string) {
+    if (!currentContext) return
+    if (!window.confirm(`Deregister guard "${wfId}"? Mints stop being bound to it.`)) return
+    setWfBusy(wfId); setError(null); setNotice(null)
+    try {
+      await deregisterWorkflow(currentContext, wfId, profile?.app_id ?? undefined)
+      setNotice(`Deregistered guard "${wfId}".`)
+      await loadWorkflows()
+    } catch (e) {
+      setError(e instanceof AuthorityError ? `Deregister failed: ${e.message}` : `Deregister failed: ${String(e)}`)
+    } finally { setWfBusy(null) }
+  }
 
   // ── Registration actions ──
   async function registerAgents(ids: string[]) {
@@ -255,10 +286,12 @@ export default function WorkforcePage() {
 
       {/* Tabs */}
       <div className="mt-5 flex items-center gap-1 border-b border-c-border">
-        {(['usecases', 'agents'] as const).map((t) => (
+        {(['usecases', 'agents', 'guards'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-3 py-2 text-[13px] -mb-px border-b-2 ${tab === t ? 'border-c-accent text-c-text font-medium' : 'border-transparent text-c-text-3 hover:text-c-text-2'}`}>
-            {t === 'usecases' ? `Use cases (${profile.programs.length})` : `Agents (${roster.length})`}
+            {t === 'usecases' ? `Use cases (${profile.programs.length})`
+              : t === 'agents' ? `Agents (${roster.length})`
+              : `Guards (${workflows?.length ?? 0})`}
           </button>
         ))}
       </div>
@@ -360,6 +393,39 @@ export default function WorkforcePage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'guards' && (
+        <div className="mt-4 space-y-3">
+          <p className="text-[12px] text-c-text-3">
+            Workflow guards registered for this pack. Each is <b>derived</b> from a use case&apos;s clean
+            runs — the observed flow stays free, the roster&apos;s dangerous capabilities become red lines
+            behind an approval gate. Derive or update a guard from a use case&apos;s scenario workspace
+            (<span className="font-mono">Open → Workflow guard</span>).
+          </p>
+          {workflows === null && <div className="rounded-xl border border-c-border px-4 py-8 text-center text-[13px] text-c-text-3">Loading…</div>}
+          {workflows !== null && workflows.length === 0 && (
+            <div className="rounded-xl border border-c-border px-4 py-8 text-center text-[13px] text-c-text-3">
+              No guards registered yet. Open a use case and derive one from its clean runs.
+            </div>
+          )}
+          {(workflows ?? []).map((wf) => (
+            <div key={wf.workflow_id} className="rounded-xl border border-c-border p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-[13px] text-c-text">{wf.workflow_id}</span>
+                  <GuardBadge wf={wf} />
+                  <span className="text-[10.5px] text-c-text-3">· {Object.keys(wf.steps).length} steps</span>
+                </div>
+                <button onClick={() => deregisterGuard(wf.workflow_id)} disabled={wfBusy !== null}
+                  className="rounded-md border border-c-danger/40 px-2.5 py-1 text-[11.5px] text-c-danger hover:bg-c-danger/10 disabled:opacity-40 shrink-0">
+                  {wfBusy === wf.workflow_id ? 'Deregistering…' : 'Deregister'}
+                </button>
+              </div>
+              <GuardSteps wf={wf} />
+            </div>
+          ))}
         </div>
       )}
     </div>

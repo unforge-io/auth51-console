@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useControlPlane } from '@/lib/console/controlPlane'
-import { listAgents, listRegisteredWorkflows, AuthorityError, type Registration } from '@/lib/console/api'
+import { listAgents, listRegisteredWorkflows, deregisterWorkflow, AuthorityError, type Registration } from '@/lib/console/api'
 import {
   classifyAgents,
   type AgentClassification,
@@ -40,6 +40,7 @@ export default function RegisteredWorkflowsPage() {
   const [unsupported, setUnsupported] = useState(false)
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [deregBusy, setDeregBusy] = useState<string | null>(null)
   const router = useRouter()
 
   const load = useCallback(async () => {
@@ -104,6 +105,22 @@ export default function RegisteredWorkflowsPage() {
     if (!activeGraph || !selectedNodeId) return null
     return activeGraph.nodes.find((n) => n.id === selectedNodeId) ?? null
   }, [activeGraph, selectedNodeId])
+
+  // For a registered workflow the graph id IS the workflow_id (workflow-graph.ts).
+  const deregister = useCallback(async (workflowId: string) => {
+    if (!currentContext) return
+    if (!window.confirm(`Deregister "${workflowId}"? Mints stop being bound to it.`)) return
+    setDeregBusy(workflowId); setError(null)
+    try {
+      await deregisterWorkflow(currentContext, workflowId, currentContext.appId ?? undefined)
+      setActiveWorkflowId(null); setSelectedNodeId(null)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setDeregBusy(null)
+    }
+  }, [currentContext, load])
 
   if (!currentContext) {
     return (
@@ -184,14 +201,22 @@ export default function RegisteredWorkflowsPage() {
               Registered with the Authority
             </p>
           </div>
-          <LiveIndicator
-            lastUpdatedAt={lastUpdatedAt}
-            tick={tickedAt}
-            loading={loading}
-            onRefresh={load}
-            intervalMs={intervalMs}
-            onIntervalChange={setIntervalMs}
-          />
+          <div className="flex items-center gap-2 shrink-0">
+            {activeGraph && (
+              <button onClick={() => deregister(activeGraph.id)} disabled={deregBusy !== null}
+                className="rounded-md border border-c-danger/40 px-2.5 py-1 text-[11.5px] text-c-danger hover:bg-c-danger/10 disabled:opacity-40">
+                {deregBusy === activeGraph.id ? 'Deregistering…' : 'Deregister'}
+              </button>
+            )}
+            <LiveIndicator
+              lastUpdatedAt={lastUpdatedAt}
+              tick={tickedAt}
+              loading={loading}
+              onRefresh={load}
+              intervalMs={intervalMs}
+              onIntervalChange={setIntervalMs}
+            />
+          </div>
         </div>
 
         {error && (

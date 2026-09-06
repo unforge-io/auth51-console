@@ -232,6 +232,10 @@ export type WorkflowStepWire = {
 export type WorkflowDefinitionWire = {
   workflow_id: string
   workflow_type?: 'dag' | string
+  // Workflow-binding enforcement + control polarity (present since the Authority's
+  // enforce-first / guarded work). Older Authorities may omit them.
+  mode?: 'observe' | 'enforce'
+  control?: 'strict' | 'guarded'
   steps: Record<string, WorkflowStepWire>
 }
 
@@ -272,6 +276,25 @@ export async function listRegisteredWorkflows(
     return values.flat()
   }
   return []
+}
+
+/** Deregister a workflow_id (all its versions) from an app at the Authority. Needs
+ * `register:workflow`. Used by the registered-workflows management view. */
+export async function deregisterWorkflow(
+  ctx: ControlPlaneContext,
+  workflowId: string,
+  appId?: string,
+): Promise<void> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'register:workflow')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/deregister/workflow`
+    + `?workflow_id=${encodeURIComponent(workflowId)}&app_id=${encodeURIComponent(app)}`
+  const res = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Workflow deregister failed (HTTP ${res.status})`, res.status, detail)
+  }
 }
 
 export async function getAgent(
