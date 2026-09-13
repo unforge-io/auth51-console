@@ -1,6 +1,9 @@
 /**
- * Static threat catalog — distilled from
- * patchet/src/experiment_results/summary_report.md
+ * Static threat catalog — the canonical source of truth is
+ * `auth51-authority/scripts/THREAT-LIBRARY.md`; anchor names use the PAPER
+ * vocabulary (patchet `src/experiment/threat_test_helper.py` SECURITY_ANCHORS),
+ * and per-threat anchors/outcomes match the deterministic reproduction in
+ * `patchet/src/newharness/threats/`.
  *
  * For now this is hand-encoded data. When the analyzer agent ships
  * (cross-references real blocks against OSV/OWASP/CVEs in real time),
@@ -48,10 +51,10 @@ export type Threat = {
 export const ANCHORS: Record<string, Anchor> = {
   A1:  { id: 'A1',  name: 'Agent Checksum Verification',           brief: 'Runtime fingerprint (prompt + tools + config hash) must match the registered value.' },
   A2:  { id: 'A2',  name: 'Registration-First Security Model',     brief: 'Every agent identity must be registered with the Authority before tokens can be minted.' },
-  A3:  { id: 'A3',  name: 'Per-Agent Ephemeral Keypair',           brief: 'Each agent holds a private key it never transmits; identity proofs are signed in-process.' },
-  A4:  { id: 'A4',  name: 'Scope-Bound Tokens',                    brief: 'Access tokens carry the explicit scope claim required by the resource.' },
-  A5:  { id: 'A5',  name: 'Shim Integrity (X-Shim-Checksum)',      brief: 'The client shim publishes its own checksum so the Authority can detect tampered shims.' },
-  A6:  { id: 'A6',  name: 'Proof-of-Possession (PoP)',             brief: 'Every API call is signed with the agent\'s ephemeral private key — stolen tokens are unusable.' },
+  A3:  { id: 'A3',  name: 'Bridge Identifier Binding',             brief: 'Each delegated action is bound to a verified per-agent identifier; one hop cannot assume another agent\'s identity.' },
+  A4:  { id: 'A4',  name: 'Client Credentials Prerequisite',       brief: 'A valid client-credentials grant is required before any agent intent token can be minted.' },
+  A5:  { id: 'A5',  name: 'Shim Library Integrity',                brief: 'The client shim\'s own integrity is attested, so a tampered or impersonating shim is detectable.' },
+  A6:  { id: 'A6',  name: 'Proof of Possession (DPoP)',            brief: 'Every governed call carries a fresh DPoP proof signed by the agent\'s ephemeral key — stolen tokens are unusable.' },
   A7:  { id: 'A7',  name: 'Cryptographic Intent Token Binding',    brief: 'Tokens declare and bind the specific action the agent intends to perform.' },
   A8:  { id: 'A8',  name: 'Workflow Validation',                   brief: 'Actions are validated against the registered workflow DAG — out-of-order or out-of-scope steps fail.' },
   A9:  { id: 'A9',  name: 'Cryptographic Delegation Chains',       brief: 'Each delegation is signed and embedded in the next token; chain tampering breaks the signature.' },
@@ -67,12 +70,12 @@ export const THREATS: Threat[] = [
     id: 'T1', name: 'Agent Identity Spoofing', category: 'Spoofing', severity: 'critical',
     attack: 'Attacker creates a malicious agent claiming to be a legitimate registered agent and requests tokens with that identity.',
     oauthOutcome: { status: 'succeeded', note: 'OAuth accepts any client_credentials request — identity is just a client_id string.' },
-    intentOutcome: { status: 'blocked', note: 'Authority requires the agent to have been pre-registered with its checksum (A2); imposter fails registration check.' },
-    detectedBy: ['A2'],
+    intentOutcome: { status: 'blocked', note: 'Authority requires the agent to have been pre-registered with its checksum (A2, A1); an imposter has no registered checksum → mint refused.' },
+    detectedBy: ['A2', 'A1'],
     parallel: 'Maps to OWASP LLM06 (Excessive Agency) and classic spoofing attacks (e.g., the 2019 Capital One IAM-role assumption breach pattern).',
   },
   {
-    id: 'T2', name: 'Token Replay Attacks', category: 'Tampering', severity: 'high',
+    id: 'T2', name: 'Token Replay Attacks', category: 'Spoofing', severity: 'high',
     attack: 'Attacker intercepts a valid bearer token in transit and replays it from a different host to make authenticated calls.',
     oauthOutcome: { status: 'succeeded', note: 'Bearer tokens are by definition replayable — possession is sufficient.' },
     intentOutcome: { status: 'blocked', note: 'Every call requires a fresh PoP signature with the agent\'s ephemeral private key (A6). Stolen tokens are cryptographic noise.' },
@@ -83,8 +86,8 @@ export const THREATS: Threat[] = [
     id: 'T3', name: 'Shim Library Impersonation', category: 'Spoofing', severity: 'high',
     attack: 'A modified or fake client shim runs alongside the agent and intercepts authentication calls to mint tokens for an unregistered identity.',
     oauthOutcome: { status: 'succeeded', note: 'No verification of the client library identity — any HTTP caller works.' },
-    intentOutcome: { status: 'blocked', note: 'X-Shim-Checksum (A5) and registration-first (A2) reject any unrecognized shim signature.' },
-    detectedBy: ['A1', 'A2', 'A5'],
+    intentOutcome: { status: 'blocked', note: 'A compromised shim presenting a fabricated checksum is refused against the Authority\'s own registry (A1, A2).' },
+    detectedBy: ['A1', 'A2'],
   },
   {
     id: 'T4', name: 'Runtime Code Modification', category: 'Tampering', severity: 'critical',
@@ -138,7 +141,7 @@ export const THREATS: Threat[] = [
     detectedBy: ['A9', 'A10'],
   },
   {
-    id: 'T11', name: 'Delegation Chain Manipulation', category: 'Tampering', severity: 'critical',
+    id: 'T11', name: 'Delegation Chain Manipulation', category: 'Repudiation', severity: 'critical',
     attack: 'Attacker injects, removes, or reorders entries in the delegation chain to claim authority not granted by the original principal.',
     oauthOutcome: { status: 'succeeded', note: 'No delegation chain exists; tokens carry no provenance.' },
     intentOutcome: { status: 'blocked', note: 'Delegation chains (A9) are cryptographically signed at each link; PoP (A6) prevents key theft.' },
@@ -148,8 +151,42 @@ export const THREATS: Threat[] = [
     id: 'T12', name: 'Agent Configuration Exposure', category: 'Information Disclosure', severity: 'medium',
     attack: 'Attacker queries an agent\'s configuration (prompts, tool list, scopes) to plan a targeted attack.',
     oauthOutcome: { status: 'succeeded', note: 'No registered configuration exists; attacker reverse-engineers from observed behaviour.' },
-    intentOutcome: { status: 'blocked', note: 'Checksum verification (A1) and registration-first (A2) make tampered configurations detectable; the registered config is authoritative.' },
-    detectedBy: ['A1', 'A2'],
+    intentOutcome: { status: 'blocked', note: 'The minted token carries only the agent checksum and its bound intent (A1, A7), never the raw prompt/tools/config.' },
+    detectedBy: ['A1', 'A7'],
+  },
+]
+
+// ── Flagship scenarios (real incidents + novel-API attacks) ─────────────
+// Run on DERIVED workflows: the guard is mined from clean runs, so the roster's
+// dangerous ops become approval-gated red lines. Intent denies them at mint; OAuth
+// executes them. Recipe: auth51-authority/scripts/flagship-runbook.md.
+
+export type FlagshipScenario = {
+  id: string
+  name: string
+  origin: string          // the real incident / API this reproduces
+  rsId: string
+  redLines: string[]      // ops the derived guard blocks at mint
+  benign: string          // the legitimate flow that stays free
+  spec: string            // the OpenAPI spec file
+}
+
+export const FLAGSHIP_SCENARIOS: FlagshipScenario[] = [
+  {
+    id: 'F1', name: 'Production-DB delete during a code freeze',
+    origin: 'Reproduces the first real incident class: an AI agent dropped a production database during a freeze and reported success.',
+    rsId: 'db.acme-prod.internal',
+    redLines: ['DropDatabase', 'DeleteRows', 'DropTable', 'TruncateTable'],
+    benign: 'Inspect + read + back up + apply a sanctioned migration.',
+    spec: 'db-admin-openapi3.json',
+  },
+  {
+    id: 'F2', name: 'Stripe payout / refund hijack',
+    origin: 'First novel famous-API attack: a support agent processing a refund is steered to move funds to an attacker.',
+    rsId: 'api.stripe.com',
+    redLines: ['CreatePayout', 'CreateTransfer', 'CreateExternalAccount', 'UpdateCustomer'],
+    benign: 'Look up the charge + customer and refund to the original payment method.',
+    spec: 'stripe-openapi3.json',
   },
 ]
 

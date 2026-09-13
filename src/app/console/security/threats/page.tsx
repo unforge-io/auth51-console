@@ -6,6 +6,7 @@ import {
   THREATS,
   THREAT_METRICS,
   ANCHORS,
+  FLAGSHIP_SCENARIOS,
   severityColorClass,
   severityBgClass,
   type Threat,
@@ -86,7 +87,7 @@ export default function ThreatsPage() {
             ))}
           </div>
           <span className="text-[11.5px] text-c-text-3">
-            {filtered.length} of {THREATS.length} threats · sourced from <code className="font-mono">summary_report.md</code> {new Date(THREAT_METRICS.reportGenerated).toLocaleDateString()}
+            {filtered.length} of {THREATS.length} threats · deterministic proof in <code className="font-mono">newharness</code>; index in <code className="font-mono">THREAT-LIBRARY.md</code>
           </span>
         </div>
 
@@ -102,11 +103,47 @@ export default function ThreatsPage() {
               />
             ))}
           </div>
+
+          {/* Flagship scenarios — real incidents + novel-API attacks on derived guards */}
+          <FlagshipSection />
         </div>
       </div>
 
       {/* Selection detail panel */}
       {selected && <DetailPanel threat={selected} />}
+    </div>
+  )
+}
+
+// ─── Flagship scenarios ────────────────────────────────────────────────
+
+function FlagshipSection() {
+  return (
+    <div className="mt-6">
+      <h2 className="text-[13px] font-semibold text-c-text mb-1">Flagship scenarios</h2>
+      <p className="text-[12px] text-c-text-3 mb-3 max-w-[680px] leading-relaxed">
+        Real incidents + novel-API attacks, run on <b>derived</b> workflows: the guard is mined
+        from clean runs, so the roster&apos;s dangerous ops become approval-gated red lines. Intent
+        denies them at mint; OAuth executes them.
+      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {FLAGSHIP_SCENARIOS.map((f) => (
+          <div key={f.id} className="rounded-xl border border-c-border p-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[13px] font-semibold text-c-text">{f.name}</span>
+              <span className="text-[10.5px] font-mono text-c-text-3">{f.rsId}</span>
+            </div>
+            <p className="mt-1 text-[12px] text-c-text-2 leading-relaxed">{f.origin}</p>
+            <div className="mt-2 text-[10.5px] uppercase tracking-wider text-c-danger mb-1">Red lines · denied at mint</div>
+            <div className="flex flex-wrap gap-1">
+              {f.redLines.map((op) => (
+                <span key={op} className="text-[11px] font-mono px-1.5 py-0.5 rounded border border-c-danger/30 bg-c-danger/10 text-c-danger">{op}</span>
+              ))}
+            </div>
+            <div className="mt-2 text-[11.5px] text-c-text-3"><span className="text-c-success">Free:</span> {f.benign}</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
