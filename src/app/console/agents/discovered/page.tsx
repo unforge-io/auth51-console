@@ -56,6 +56,10 @@ export default function DiscoveredAgentsPage() {
   const [previews, setPreviews] = useState<Record<string, ChecksumPreview | 'loading' | 'error'>>({})
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [justRegistered, setJustRegistered] = useState<string | null>(null)
+  // Operator-chosen name for a provisionally-named (unregistered-<hash>) agent,
+  // keyed by checksum. Recognition matches on prompt+config across candidates, so
+  // registering under a real name is recognized on the agent's next run.
+  const [names, setNames] = useState<Record<string, string>>({})
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = useCallback(async (background = false) => {
@@ -111,10 +115,22 @@ export default function DiscoveredAgentsPage() {
 
   const approve = async (r: Row) => {
     if (!currentContext || !r.proposal) return
+    // A provisionally-named agent (unregistered-<hash>) must be given a real name
+    // at approval — otherwise it would register under the ugly provisional id.
+    const provisional = r.agent_id.startsWith('unregistered-')
+    const chosen = (names[r.checksum] || '').trim()
+    if (provisional && !chosen) {
+      setError('Give this agent a name before registering.')
+      return
+    }
     setBusy(r.checksum); setError(null)
     try {
-      const ack = await registerAgent(currentContext, r.proposal)
-      await consumeProposal(currentContext, r.checksum)  // retire it at the source
+      const proposal = provisional ? { ...r.proposal, agent_id: chosen } : r.proposal
+      const ack = await registerAgent(currentContext, proposal)
+      await consumeProposal(currentContext, r.checksum)  // retire the proposal
+      // Retire the provisional Authority trigger too, so the old unregistered-<hash>
+      // entry doesn't linger after the real-name registration.
+      if (r.trigger) await dismissDiscovered(currentContext, r.trigger.agent_id).catch(() => {})
       setJustRegistered(ack.agent_id)
       await load()
     } catch (err) {
@@ -205,7 +221,16 @@ export default function DiscoveredAgentsPage() {
             <div key={r.checksum} className="border-t border-c-border">
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-4 py-3">
                 <div className="min-w-0">
-                  <div className="text-[14px] text-c-text font-medium truncate">{r.agent_id}</div>
+                  {r.agent_id.startsWith('unregistered-') ? (
+                    <input
+                      value={names[r.checksum] ?? ''}
+                      onChange={(e) => setNames((n) => ({ ...n, [r.checksum]: e.target.value }))}
+                      placeholder="name this agent…"
+                      className="w-full max-w-[260px] rounded-md border border-c-border bg-c-bg px-2 py-1 text-[13px] text-c-text placeholder:text-c-text-3 focus:outline-none focus:border-c-accent"
+                    />
+                  ) : (
+                    <div className="text-[14px] text-c-text font-medium truncate">{r.agent_id}</div>
+                  )}
                   <div className="text-[11.5px] text-c-text-3">
                     <span className="font-mono">{shortChecksum(r.checksum, 12)}…</span>
                     {r.proposal && (
@@ -221,7 +246,8 @@ export default function DiscoveredAgentsPage() {
                 <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={() => approve(r)}
-                    disabled={!r.proposal || busy === r.checksum}
+                    disabled={!r.proposal || busy === r.checksum
+                      || (r.agent_id.startsWith('unregistered-') && !(names[r.checksum] || '').trim())}
                     title={r.proposal ? 'Register this identity' : 'No proposal content — the client hasn’t sent this agent’s prompt/tools yet'}
                     className="rounded-md bg-c-accent px-2.5 py-1 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >

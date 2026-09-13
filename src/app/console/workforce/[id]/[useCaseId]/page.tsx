@@ -184,7 +184,8 @@ export default function ScenarioWorkspace() {
     try {
       const res = await fetch('/api/cp/run', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ profile: id, use_case: program.title, mode, attack: buildAttack() }),
+        body: JSON.stringify({ profile: id, use_case: program.title, mode, attack: buildAttack(),
+          workflow_hint: `guard-${program.id}` }),
       })
       const started = await res.json()
       if (!res.ok || !started.run_id) {

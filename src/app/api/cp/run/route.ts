@@ -20,7 +20,7 @@ export const runtime = 'nodejs'
  * customer's own pack under their org is Slice 2 (forward the caller's token).
  */
 export async function POST(req: Request) {
-  let body: { profile?: string; use_case?: string; mode?: string; attack?: Record<string, unknown> | null } = {}
+  let body: { profile?: string; use_case?: string; mode?: string; attack?: Record<string, unknown> | null; workflow_hint?: string } = {}
   try {
     body = await req.json()
   } catch {
@@ -46,6 +46,9 @@ export async function POST(req: Request) {
         // workforce applies it to the RUNTIME agent (identity/data), never the
         // registered agent. Absent ⇒ a clean run.
         ...(body.attack ? { attack: body.attack } : {}),
+        // The guard that governs THIS run (guard isolation) — the run binds only
+        // to its own use case's guard, never an unrelated/leaked one.
+        ...(body.workflow_hint ? { workflow_hint: body.workflow_hint } : {}),
       }),
     })
     const data = await res.json().catch(() => ({ error: 'workforce returned non-JSON' }))
