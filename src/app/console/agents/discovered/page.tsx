@@ -44,6 +44,25 @@ type Row = {
 
 const POLL_MS = 15_000
 
+// A friendly default name for a provisionally-named (unregistered-<hash>) agent,
+// derived from the observed system prompt so the operator rarely has to type one.
+// Most agent prompts open with "You are a/an <role> …"; we slug the role (keeping
+// through a head noun like agent/assistant/bot when present). Falls back to a
+// checksum-suffixed generic. The operator can always edit it before registering.
+function suggestName(row: Row): string {
+  const prompt = (row.proposal?.prompt || '').trim()
+  const slug = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48)
+  const m = prompt.match(/\byou are (?:a|an|the)\s+([^.,;\n]{2,60})/i)
+  if (m) {
+    const head = m[1].match(/^(.*?\b(?:agent|assistant|bot|copilot|analyst|operator|worker))\b/i)
+    const role = head ? head[1] : m[1].split(/\s+/).slice(0, 4).join(' ')
+    const s = slug(role)
+    if (s) return s
+  }
+  return `agent-${shortChecksum(row.checksum, 8)}`
+}
+
 export default function DiscoveredAgentsPage() {
   const { currentContext } = useControlPlane()
   const [rows, setRows] = useState<Row[]>([])
@@ -115,10 +134,11 @@ export default function DiscoveredAgentsPage() {
 
   const approve = async (r: Row) => {
     if (!currentContext || !r.proposal) return
-    // A provisionally-named agent (unregistered-<hash>) must be given a real name
-    // at approval — otherwise it would register under the ugly provisional id.
+    // A provisionally-named agent (unregistered-<hash>) registers under a real name
+    // instead of the ugly provisional id. The operator's edit wins; otherwise we use
+    // the prompt-derived suggestion, so naming is optional (not a mandatory field).
     const provisional = r.agent_id.startsWith('unregistered-')
-    const chosen = (names[r.checksum] || '').trim()
+    const chosen = nameFor(r).trim()
     if (provisional && !chosen) {
       setError('Give this agent a name before registering.')
       return
@@ -176,6 +196,23 @@ export default function DiscoveredAgentsPage() {
 
   const visible = rows.filter((r) => !dismissed.has(r.checksum))
 
+  // Prompt-derived default names, deduped across the visible rows — two agents that
+  // share a prompt opener (e.g. a clean vs. tampered variant) would otherwise both
+  // suggest the same name and collide on register. Second+ collisions get a short
+  // checksum suffix. nameFor() lets the operator's edit win over the suggestion.
+  const suggested = (() => {
+    const used = new Map<string, number>()
+    const map: Record<string, string> = {}
+    for (const r of visible) {
+      const base = suggestName(r)
+      const n = (used.get(base) ?? 0) + 1
+      used.set(base, n)
+      map[r.checksum] = n === 1 ? base : `${base}-${shortChecksum(r.checksum, 6)}`
+    }
+    return map
+  })()
+  const nameFor = (r: Row) => names[r.checksum] ?? suggested[r.checksum] ?? suggestName(r)
+
   if (!currentContext) return <EmptyState />
 
   return (
@@ -222,12 +259,15 @@ export default function DiscoveredAgentsPage() {
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-4 py-3">
                 <div className="min-w-0">
                   {r.agent_id.startsWith('unregistered-') ? (
-                    <input
-                      value={names[r.checksum] ?? ''}
-                      onChange={(e) => setNames((n) => ({ ...n, [r.checksum]: e.target.value }))}
-                      placeholder="name this agent…"
-                      className="w-full max-w-[260px] rounded-md border border-c-border bg-c-bg px-2 py-1 text-[13px] text-c-text placeholder:text-c-text-3 focus:outline-none focus:border-c-accent"
-                    />
+                    <div className="max-w-[260px]">
+                      <input
+                        value={nameFor(r)}
+                        onChange={(e) => setNames((n) => ({ ...n, [r.checksum]: e.target.value }))}
+                        placeholder="name this agent…"
+                        className="w-full rounded-md border border-c-border bg-c-bg px-2 py-1 text-[13px] text-c-text placeholder:text-c-text-3 focus:outline-none focus:border-c-accent"
+                      />
+                      <div className="mt-0.5 text-[10.5px] text-c-text-3">Suggested from its prompt — edit if you like.</div>
+                    </div>
                   ) : (
                     <div className="text-[14px] text-c-text font-medium truncate">{r.agent_id}</div>
                   )}
@@ -247,7 +287,7 @@ export default function DiscoveredAgentsPage() {
                   <button
                     onClick={() => approve(r)}
                     disabled={!r.proposal || busy === r.checksum
-                      || (r.agent_id.startsWith('unregistered-') && !(names[r.checksum] || '').trim())}
+                      || (r.agent_id.startsWith('unregistered-') && !nameFor(r).trim())}
                     title={r.proposal ? 'Register this identity' : 'No proposal content — the client hasn’t sent this agent’s prompt/tools yet'}
                     className="rounded-md bg-c-accent px-2.5 py-1 text-[12px] font-medium text-white hover:bg-c-accent-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >

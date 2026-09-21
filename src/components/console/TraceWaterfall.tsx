@@ -136,9 +136,12 @@ function extractSystemPrompt(inputValue: unknown): string | null {
   if (Array.isArray(msgs) && Array.isArray(msgs[0])) msgs = msgs[0] // langchain nests
   if (!Array.isArray(msgs)) return null
   for (const m of msgs) {
-    const mm = m as { kwargs?: { type?: string; content?: unknown }; type?: string; content?: unknown; id?: unknown }
+    const mm = m as { kwargs?: { type?: string; content?: unknown }; type?: string; role?: string; content?: unknown; id?: unknown }
     const idArr = Array.isArray(mm.id) ? (mm.id as unknown[]) : []
-    const typeStr = String(mm.kwargs?.type ?? mm.type ?? (idArr.length ? idArr[idArr.length - 1] : '')).toLowerCase()
+    // Accept both the LangChain serialized shape (`type`) and the raw provider wire
+    // shape (`role`) — a custom app on the auth51 client exports OpenAI/Anthropic
+    // messages, which carry `role: "system"`, not `type`.
+    const typeStr = String(mm.kwargs?.type ?? mm.type ?? mm.role ?? (idArr.length ? idArr[idArr.length - 1] : '')).toLowerCase()
     const content = mm.kwargs?.content ?? mm.content
     if (typeStr.includes('system') && typeof content === 'string') return content
   }

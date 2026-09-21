@@ -912,7 +912,11 @@ export async function listExecutions(
 ): Promise<ExecutionSummary[]> {
   const app = appId ?? ctx.appId ?? 'Patchet'
   const token = await getAccessToken(ctx, 'read:agents')
-  const url = `${ctx.endpoint.replace(/\/$/, '')}/executions/${encodeURIComponent(app)}`
+  // NB: the executions router is mounted ONLY at /v1 (unlike the intent routes, which
+  // are dual-mounted at both /intent and /v1/intent). ctx.endpoint is the bare
+  // authority base, so we add the /v1 prefix here or the read 404s while spans post
+  // fine to /v1/executions/{eid}/spans.
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/v1/executions/${encodeURIComponent(app)}`
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
   if (!res.ok) {
     let detail: unknown
@@ -929,7 +933,7 @@ export async function getExecutionTrace(
 ): Promise<ExecutionTrace> {
   const app = appId ?? ctx.appId ?? 'Patchet'
   const token = await getAccessToken(ctx, 'read:agents')
-  const url = `${ctx.endpoint.replace(/\/$/, '')}/executions/${encodeURIComponent(app)}/${encodeURIComponent(executionId)}/trace`
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/v1/executions/${encodeURIComponent(app)}/${encodeURIComponent(executionId)}/trace`
   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
   if (!res.ok) {
     let detail: unknown
