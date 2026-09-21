@@ -873,3 +873,68 @@ export function formatRegisteredAt(ms: number): string {
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
+
+
+// ── Executions (console visibility for any auth51 client) ───────────────────
+// Every governed run — studio or a custom app that only imported the client —
+// opens an execution and mints at the Authority, so these surface custom apps
+// with their governance decisions and (client-exported) trace spans.
+
+export type ExecutionSummary = {
+  execution_id: string
+  workflow_id?: string | null
+  status: string
+  mode: string
+  created_at: number
+}
+
+export type ExecutionTrace = {
+  execution_id: string
+  app_id: string
+  workflow_id?: string | null
+  status: string
+  mode: string
+  created_at: number
+  decisions: Array<{
+    kind: string
+    outcome: string
+    reason?: string | null
+    agent_id?: number | null
+    claims?: Record<string, unknown> | null
+    created_at: number
+  }>
+  spans: Array<Record<string, unknown>>
+}
+
+export async function listExecutions(
+  ctx: ControlPlaneContext,
+  appId?: string,
+): Promise<ExecutionSummary[]> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/executions/${encodeURIComponent(app)}`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Executions fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return (await res.json()) as ExecutionSummary[]
+}
+
+export async function getExecutionTrace(
+  ctx: ControlPlaneContext,
+  executionId: string,
+  appId?: string,
+): Promise<ExecutionTrace> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/executions/${encodeURIComponent(app)}/${encodeURIComponent(executionId)}/trace`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Trace fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return (await res.json()) as ExecutionTrace
+}

@@ -94,6 +94,7 @@ const SECTIONS: NavSection[] = [
   {
     heading: 'Observability',
     items: [
+      { label: 'Executions',  href: '/console/executions', indent: true },
       { label: 'Performance', href: '/console/perf',  badge: 'soon', indent: true },
       { label: 'Evals',       href: '/console/evals', badge: 'soon', indent: true },
     ],
