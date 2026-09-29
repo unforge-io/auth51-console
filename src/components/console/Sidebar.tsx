@@ -67,7 +67,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Threats',   href: '/console/security/threats',   indent: true },
       { label: 'Audit log', href: '/console/security/audit',     indent: true },
-      { label: 'Policies',  href: '/console/security/policies',  badge: 'soon', indent: true },
+      { label: 'Policies',  href: '/console/security/policies',  indent: true },
     ],
   },
   {

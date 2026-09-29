@@ -942,3 +942,89 @@ export async function getExecutionTrace(
   }
   return (await res.json()) as ExecutionTrace
 }
+
+// ── Governance / consequence tiers ──
+// Operator control over each capability's consequence tier (auth51-governance step 5).
+// The read is one call per app (composed server-side); writes are override / clear /
+// confirm-lower. Reads use read:agents; writes use manage:clients. The /governance
+// router is v1-only (like executions), so the /v1 prefix is explicit here.
+
+export type ConsequenceCapability = {
+  tool_ref: string
+  agent_id: string
+  effective_tier: string | null
+  computed_tier: string | null
+  pending_tier: string | null
+  override_tier: string | null
+  justification?: Record<string, unknown> | null
+}
+
+export type ConsequenceList = {
+  app_id: string
+  tiers: string[]                 // the org's tier vocabulary, ranked low → high
+  capabilities: ConsequenceCapability[]
+}
+
+export async function listConsequences(
+  ctx: ControlPlaneContext,
+  appId?: string,
+): Promise<ConsequenceList> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'read:agents')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/v1/governance/${encodeURIComponent(app)}/consequences`
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Consequences fetch failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return (await res.json()) as ConsequenceList
+}
+
+async function _governancePost(
+  ctx: ControlPlaneContext, path: string, body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const token = await getAccessToken(ctx, 'manage:clients')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/v1/governance/${path}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Governance action failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return (await res.json()) as Record<string, unknown>
+}
+
+export async function setTierOverride(
+  ctx: ControlPlaneContext,
+  opts: { toolRef: string; tier: string; agentId?: string; appId?: string },
+): Promise<Record<string, unknown>> {
+  const app = opts.appId ?? ctx.appId ?? 'Patchet'
+  return _governancePost(ctx, 'tier-override', {
+    app_id: app, tool_ref: opts.toolRef, tier: opts.tier, agent_id: opts.agentId ?? '',
+  })
+}
+
+export async function clearTierOverride(
+  ctx: ControlPlaneContext,
+  opts: { toolRef: string; agentId?: string; appId?: string },
+): Promise<Record<string, unknown>> {
+  const app = opts.appId ?? ctx.appId ?? 'Patchet'
+  return _governancePost(ctx, 'tier-override/clear', {
+    app_id: app, tool_ref: opts.toolRef, agent_id: opts.agentId ?? '',
+  })
+}
+
+export async function confirmTierLower(
+  ctx: ControlPlaneContext,
+  opts: { toolRef: string; agentId?: string; appId?: string },
+): Promise<Record<string, unknown>> {
+  const app = opts.appId ?? ctx.appId ?? 'Patchet'
+  return _governancePost(ctx, 'confirm-lower', {
+    app_id: app, tool_ref: opts.toolRef, agent_id: opts.agentId ?? '',
+  })
+}

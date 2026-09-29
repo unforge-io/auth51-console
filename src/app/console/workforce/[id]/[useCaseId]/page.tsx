@@ -9,6 +9,7 @@ import {
   AgentTamperCard, InputInjectionCard, KINDS, type AttackKind,
 } from '@/components/console/AttackEditor'
 import { WorkflowGuardPanel } from '@/components/console/WorkflowGuardPanel'
+import { DelegationTree } from '@/components/console/DelegationTree'
 import type { AgentSpec, Profile, Scenario, UseCase } from '@/lib/console/workforceTypes'
 
 /**
@@ -383,8 +384,10 @@ export default function ScenarioWorkspace() {
 
       {/* ── Two lanes — each span expands its detail INLINE (never off-screen) ── */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} highlightAgents={tamperedAgents} />
-        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} highlightAgents={tamperedAgents} />
+        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} highlightAgents={tamperedAgents}
+          entryId={program.entry_agent || membersOf(program)[0] || ''} members={membersOf(program)} agents={profile.agents} />
+        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} highlightAgents={tamperedAgents}
+          entryId={program.entry_agent || membersOf(program)[0] || ''} members={membersOf(program)} agents={profile.agents} />
       </div>
     </div>
   )
@@ -463,15 +466,28 @@ function verdictOf(lane: Lane): { label: string; cls: string } | null {
   return { label: lane.status, cls: 'text-c-text-3' }
 }
 
-function RunLane({ mode, lane, onResume, highlightAgents }: {
+function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agents }: {
   mode: Mode
   lane: Lane
   onResume: (answers: Record<string, unknown>) => void
   highlightAgents?: Set<string>
+  entryId?: string
+  members?: string[]
+  agents?: AgentSpec[]
 }) {
   const v = verdictOf(lane)
   const isIntent = mode === 'intent'
   const fields = lane.status === 'paused' ? lane.result?.fields : undefined
+  // 2.C / A4 — highlight the agents that actually participated in THIS run, read from
+  // the trace: every governed tool call stamps `auth51.agent_id` on its span.
+  const participants = useMemo(() => {
+    const s = new Set<string>()
+    for (const sp of lane.spans as Span[]) {
+      const aid = sp.attributes?.['auth51.agent_id']
+      if (typeof aid === 'string' && aid) s.add(aid)
+    }
+    return s
+  }, [lane.spans])
   return (
     <div className={`rounded-xl border p-3 ${isIntent ? 'border-c-accent/30' : 'border-c-border'}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -500,6 +516,10 @@ function RunLane({ mode, lane, onResume, highlightAgents }: {
             {JSON.stringify(lane.result.tool_outputs, null, 2).slice(0, 20000)}
           </pre>
         </details>
+      )}
+
+      {lane.spans.length > 0 && agents && agents.length > 0 && (
+        <DelegationTree entryId={entryId} members={members} agents={agents} active={participants} />
       )}
 
       {lane.spans.length > 0 && (

@@ -57,6 +57,9 @@ export default function WorkforcePage() {
   // Registered workflow guards for this pack's app (derived per use case, managed here).
   const [workflows, setWorkflows] = useState<WorkflowDefinitionWire[] | null>(null)
   const [wfBusy, setWfBusy] = useState<string | null>(null)
+  // 2.F — large rosters (e.g. the 36-agent Plaid pack): search + paginate the Agents tab.
+  const [agentQuery, setAgentQuery] = useState('')
+  const [agentPage, setAgentPage] = useState(0)
 
   const registeredIds = useMemo(
     () => new Set((registered ?? []).map((r) => r.agent_id)),
@@ -350,13 +353,34 @@ export default function WorkforcePage() {
         </div>
       )}
 
-      {tab === 'agents' && (
+      {tab === 'agents' && (() => {
+        const PAGE = 12
+        const q = agentQuery.trim().toLowerCase()
+        const filtered = q
+          ? roster.filter((a) => a.id.toLowerCase().includes(q) || (a.role ?? '').toLowerCase().includes(q))
+          : roster
+        const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE))
+        const page = Math.min(agentPage, pageCount - 1)
+        const paged = filtered.slice(page * PAGE, page * PAGE + PAGE)
+        return (
         <div className="mt-4">
           {allRegistered && (
             <div className="mb-3 rounded-lg border border-c-success/30 bg-c-success/5 px-4 py-2.5 text-[12px] text-c-success">✓ All {roster.length} agents are registered.</div>
           )}
+          {roster.length > PAGE && (
+            <div className="mb-3">
+              <input
+                value={agentQuery}
+                onChange={(e) => { setAgentQuery(e.target.value); setAgentPage(0) }}
+                placeholder={`Search ${roster.length} agents by id or role…`}
+                className="w-full max-w-md rounded-md border border-c-border bg-c-bg px-3 py-1.5 text-[13px] text-c-text placeholder:text-c-text-3 focus:outline-none focus:border-c-accent"
+              />
+            </div>
+          )}
           <div className="rounded-xl border border-c-border divide-y divide-c-border">
-            {roster.map((a) => (
+            {paged.length === 0 ? (
+              <div className="px-4 py-8 text-center text-[13px] text-c-text-3">No agents match &ldquo;{agentQuery}&rdquo;.</div>
+            ) : paged.map((a) => (
               <AgentRow
                 key={a.id} agent={a} ctx={currentContext} appId={profile.app_id}
                 registration={registeredById.get(a.id) ?? null}
@@ -369,6 +393,18 @@ export default function WorkforcePage() {
               />
             ))}
           </div>
+          {pageCount > 1 && (
+            <div className="mt-3 flex items-center justify-between text-[12px] text-c-text-3">
+              <span>Showing {page * PAGE + 1}–{Math.min(filtered.length, page * PAGE + PAGE)} of {filtered.length}</span>
+              <div className="flex items-center gap-2">
+                <button disabled={page === 0} onClick={() => setAgentPage(page - 1)}
+                  className="rounded border border-c-border px-2 py-1 hover:bg-c-surface-2 disabled:opacity-40">Prev</button>
+                <span className="tabular-nums">{page + 1} / {pageCount}</span>
+                <button disabled={page >= pageCount - 1} onClick={() => setAgentPage(page + 1)}
+                  className="rounded border border-c-border px-2 py-1 hover:bg-c-surface-2 disabled:opacity-40">Next</button>
+              </div>
+            </div>
+          )}
 
           {/* Danger zone — clean-slate reset of all registrations for this roster.
               Modeled after GitHub's repo danger zone: a red-bordered section whose
@@ -394,7 +430,8 @@ export default function WorkforcePage() {
             </div>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {tab === 'guards' && (
         <div className="mt-4 space-y-3">
