@@ -125,7 +125,10 @@ export default function ApiKeysPage() {
                  className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-4 py-3 border-t border-c-border">
               <div className="min-w-0">
                 <div className="text-[14px] text-c-text font-medium truncate">{k.display_name}</div>
-                <div className="text-[12px] font-mono text-c-text-3 truncate">{k.client_id}</div>
+                <div className="text-[12px] font-mono text-c-text-3 truncate">
+                  {k.client_id}
+                  {k.created_by && <span className="font-sans"> · created by {k.created_by}</span>}
+                </div>
               </div>
               <div className="text-[12px] font-mono text-c-text-2 max-w-[180px] truncate" title={k.app_id ?? 'org-wide'}>
                 {k.app_id ?? <span className="text-c-text-3">org-wide</span>}

@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { UserButton } from '@clerk/nextjs'
+import { OrganizationSwitcher, UserButton } from '@clerk/nextjs'
 import { useControlPlane } from '@/lib/console/controlPlane'
 import { useConsoleTheme } from '@/lib/console/ThemeProvider'
 import { cn } from '@/lib/utils'
@@ -39,6 +39,17 @@ export function ConsoleHeader() {
           <span className="font-mono">{shortHost(currentContext.endpoint)}</span>
         </div>
       )}
+
+      {/* Workspace — personal account or an org shared with teammates. Switching
+          re-scopes everything (agents, keys, control planes) to that org. */}
+      <OrganizationSwitcher
+        afterCreateOrganizationUrl="/console"
+        afterSelectOrganizationUrl="/console"
+        afterSelectPersonalUrl="/console"
+        organizationProfileUrl="/console/settings/members"
+        organizationProfileMode="navigation"
+        appearance={{ elements: { rootBox: 'flex items-center', organizationSwitcherTrigger: 'text-[12px] text-c-text-2 px-2 py-1 rounded border border-c-border' } }}
+      />
 
       {/* Theme toggle */}
       <ThemeToggle />

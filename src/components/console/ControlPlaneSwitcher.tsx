@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils'
  *   - add another Control Plane (opens ConnectDialog)
  *   - disconnect (remove) the current Control Plane
  *
- * Disconnect just removes the entry from localStorage; the next render
+ * Contexts are shared by the whole org (see controlPlane.tsx), so Disconnect
+ * removes the entry for every member; the next render
  * either selects another configured context or, if none remain, returns
  * the Console to the first-run EmptyState.
  */
@@ -116,7 +117,7 @@ export function ControlPlaneSwitcher() {
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-c-surface border border-c-border rounded-xl shadow-2xl p-5">
             <h2 className="text-[14px] font-semibold text-c-text mb-1">Disconnect Control Plane?</h2>
             <p className="text-[12.5px] text-c-text-2 mb-4">
-              This removes <span className="font-mono text-c-text">{confirmRemoveName}</span> from the Console&apos;s local state.
+              This removes <span className="font-mono text-c-text">{confirmRemoveName}</span> for everyone in this workspace.
               The Authority itself isn&apos;t affected — you can reconnect anytime by adding the same endpoint again.
             </p>
             <div className="flex justify-end gap-2">

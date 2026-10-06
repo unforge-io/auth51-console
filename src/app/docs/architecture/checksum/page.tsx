@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import { PageTitle, Lead, H2, P, Deep, Figure, Callout, SpecRef, Related } from '@/components/docs/prose'
 import { ChecksumDiagram } from '@/components/docs/diagrams'
 
@@ -8,25 +9,56 @@ export const metadata: Metadata = {
     'The single, byte-identical agent-identity algorithm run on both sides of the trust boundary. The reason a client can verify an agent without it self-declaring its identity.',
 }
 
+function VersionRow({
+  version,
+  status,
+  title,
+  body,
+}: {
+  version: string
+  status: 'active' | 'legacy'
+  title: string
+  body: ReactNode
+}) {
+  const pill =
+    status === 'active'
+      ? 'text-c-success border-c-success/30 bg-c-success/10'
+      : 'text-c-text-3 border-c-border bg-c-surface-2'
+  return (
+    <li className="rounded-lg border border-c-border bg-c-surface/60 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+        <span className="text-[13px] font-semibold text-c-text font-mono">{version}</span>
+        <span className={`text-[10px] font-mono uppercase tracking-wider border rounded px-1.5 py-0.5 ${pill}`}>
+          {status === 'active' ? 'In use' : 'Legacy'}
+        </span>
+        <span className="text-[13px] font-medium text-c-text">{title}</span>
+      </div>
+      <p className="text-[13.5px] text-c-text-2 leading-relaxed [&_code]:font-mono [&_code]:text-[12.5px]">
+        {body}
+      </p>
+    </li>
+  )
+}
+
 export default function ChecksumEngine() {
   return (
     <article>
       <PageTitle eyebrow="Architecture">Checksum engine</PageTitle>
 
       <Lead>
-        The checksum engine is not a service. It is the one piece of code that has to run identically
-        everywhere. The client computes an agent&rsquo;s fingerprint at runtime; the Authority independently
-        recomputes it <em>at registration</em> (rejecting a submitted checksum that doesn&rsquo;t match) and,
-        at mint, checks the presented fingerprint against that stored value. Because both sides run the
+        The checksum engine is simply Auth51's hashing infrastructure and is an important piece of code that has to run identically
+        everywhere. The client computes an agent&rsquo;s fingerprint at runtime, while the Authority independently
+        recomputes it <em>at registration</em> (rejecting a submitted checksum that doesn&rsquo;t match) and
+        at mint, where it checks the presented fingerprint against the stored value. Since both sides run the
         same bytes, a client can prove &ldquo;this is the registered, unmodified agent&rdquo; without the agent
         ever declaring who it is.
       </Lead>
 
       <H2>What it hashes</H2>
       <P>
-        The checksum is a one-way hash over what makes an agent that agent: its id, system prompt,
-        model configuration, and, where included, the interfaces of its tools. Most of the work
-        happens <em>before</em> the hash: inputs are put into a canonical form, so changes that don&rsquo;t
+        The checksum is a one-way hash over what makes an agent unique. This includes its id, system prompt,
+        model configuration and, the interfaces of its tools. Most of the work
+        happens <em>before</em> the hash. First, inputs must be put into a canonical form, so changes that don&rsquo;t
         affect behavior (formatting, key order, framework wrappers) don&rsquo;t move the fingerprint, while
         any change that does is always caught.
       </P>
@@ -35,30 +67,56 @@ export default function ChecksumEngine() {
         <ChecksumDiagram />
       </Figure>
 
-      <H2>The versions, precisely</H2>
+      <H2>Versions</H2>
       <P>
-        You&rsquo;ll see four checksum versions, and the Authority accepts the relevant one at mint:
+        The Authority can compute and store five different checksum formats at registration. Mint accepts a match
+        against any stored value, so older clients keep working. For new integrations, use{' '}
+        <strong>v3 or v4 at runtime</strong> (depending on whether in-process tool interfaces are
+        available) and <strong>v5 at registration</strong> (for the CI/CD path that seals the tool source).
       </P>
-      <P>
-        <strong>v1</strong>, patchet-compatible. <code className="code-inline">SHA-256</code>, bare
-        hex, whitespace-collapsed prompt with no Unicode NFC folding. Retained so agents registered
-        under earlier releases aren&rsquo;t orphaned.
-      </P>
-      <P>
-        <strong>v2</strong>, auth51 native. <code className="code-inline">SHA3-512</code>,
-        self-describing (<code className="code-inline">sha3-512:…</code>), over prompt, config,{' '}
-        <em>and</em> tools, with Unicode NFC folding.
-      </P>
-      <P>
-        <strong>v3</strong>, identity-only. <code className="code-inline">SHA3-512</code> over id,
-        prompt, and config, <em>no tools</em>. The baseline when tool interfaces aren&rsquo;t available at
-        the point of computation.
-      </P>
-      <P>
-        <strong>v4</strong> extends v3 with the interfaces of the agent&rsquo;s in-process tools (names,
-        normalized signatures, and where configured, AST-normalized source). The strongest form: it
-        detects a swapped tool, not only an edited prompt.
-      </P>
+
+      <ul className="my-5 space-y-4">
+        <VersionRow
+          version="v3"
+          status="active"
+          title="Identity-only"
+          body={<>SHA3-512 over agent id, prompt, and config, with <em>no tools</em>. The default at runtime when tool interfaces aren&rsquo;t available (provider-egress observation, prompt-only agents).</>}
+        />
+        <VersionRow
+          version="v4"
+          status="active"
+          title="Identity + in-process tools"
+          body={<>Extends v3 with normalized interfaces of in-process tools (names, descriptions, parameter schemas). Used at runtime when the embed captures those tools. Detects a swapped tool, not only an edited prompt.</>}
+        />
+        <VersionRow
+          version="v5"
+          status="active"
+          title="Registration seal"
+          body={<>Extends v4 with AST-normalized source for in-process tools. Computed at build/CI registration (<code className="code-inline">auth51 register</code>), stored as <code className="code-inline">checksum_v5</code>, and verified on read-back. Not used for wire-derived runtime matching; it is the strongest registration-time integrity check.</>}
+        />
+      </ul>
+
+      <Deep title="Legacy checksum versions (v1 and v2)">
+        <P>
+          These are still computed and stored on every registration, and mint still accepts them, so
+          agents registered under Patchet or earlier Auth51 releases aren&rsquo;t orphaned. New work should
+          not target them.
+        </P>
+        <ul className="space-y-4 mb-0">
+          <VersionRow
+            version="v1"
+            status="legacy"
+            title="Patchet-compatible"
+            body={<>SHA-256, bare hex, whitespace-collapsed prompt, no Unicode NFC folding. The registration ack still returns v1 for Patchet clients that echo it at mint. Legacy only.</>}
+          />
+          <VersionRow
+            version="v2"
+            status="legacy"
+            title="Full-component (canonical stored)"
+            body={<>SHA3-512, self-describing (<code className="code-inline">sha3-512:…</code>), over prompt, config, <em>and</em> tools, with Unicode NFC folding. Stored as the canonical <code className="code-inline">checksum</code> column and used for duplicate detection at registration. Superseded by v3+ for runtime identity.</>}
+          />
+        </ul>
+      </Deep>
 
       <Callout kind="warning">
         This is a wire and registration <em>contract</em>. Changing the algorithm changes the

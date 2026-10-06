@@ -24,6 +24,45 @@ export class AuthError extends Error {
 
 export type OrgToken = { token: string; org: string }
 
+/** The signed-in member and the org (workspace) they are acting in. */
+export type ConsoleIdentity = {
+  userId: string
+  email: string
+  name?: string
+  /** Tenant key sent as the `org` claim: Clerk org slug → isolated tenant shared
+   *  by every member, falling back to a per-user tenant for personal accounts. */
+  org: string
+  orgId?: string
+  orgRole?: string
+  orgName?: string
+}
+
+/**
+ * Resolve the current Clerk user + active org. Shared by every exchange path
+ * (browser /api/cp/exchange and server-side getAuthorityToken) so they always
+ * agree on the tenant. Throws AuthError(401) if not signed in.
+ */
+export async function getConsoleIdentity(): Promise<ConsoleIdentity> {
+  const { userId, orgId, orgSlug, orgRole } = await auth()
+  if (!userId) throw new AuthError(401, 'unauthenticated')
+  const user = await currentUser()
+  const email =
+    user?.primaryEmailAddress?.emailAddress ??
+    user?.emailAddresses[0]?.emailAddress ??
+    `${userId}@unknown`
+  const name =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || undefined
+  return {
+    userId,
+    email,
+    name,
+    org: orgSlug ?? orgId ?? `user_${userId}`,
+    orgId: orgId ?? undefined,
+    orgRole: orgRole ?? undefined,
+    orgName: orgSlug ?? undefined,
+  }
+}
+
 // Cache the exchanged token per user so a burst of calls (e.g. polling a
 // generation job every 1.5s) reuses ONE token instead of re-exchanging each
 // time. Each exchange makes the Authority re-fetch the console JWKS, which is
@@ -40,36 +79,31 @@ const _tokenCache = new Map<string, CacheEntry>()
  * exchange fails.
  */
 export async function getAuthorityToken(scope = 'read:agents'): Promise<OrgToken> {
-  const { userId, orgId, orgSlug } = await auth()
+  const { userId, orgId, orgSlug, orgRole } = await auth()
   if (!userId) throw new AuthError(401, 'unauthenticated')
 
-  const cacheKey = `${userId}:${scope}`
+  // Key on the active org + role too: a member who switches orgs (or whose role
+  // changes) must not keep acting with a token minted for the old one.
+  const cacheKey = `${userId}:${orgId ?? orgSlug ?? 'personal'}:${orgRole ?? ''}:${scope}`
   const cached = _tokenCache.get(cacheKey)
   if (cached && cached.exp > Date.now()) {
     return { token: cached.token, org: cached.org }
   }
 
-  const user = await currentUser()
-  const email =
-    user?.primaryEmailAddress?.emailAddress ??
-    user?.emailAddresses[0]?.emailAddress ??
-    `${userId}@unknown`
-  const name =
-    [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || undefined
-
-  // Same org resolution as /api/cp/exchange: Clerk org slug → isolated tenant,
-  // falling back to a per-user tenant so personal accounts stay isolated too.
-  const org = orgSlug ?? orgId ?? `user_${userId}`
+  const id = await getConsoleIdentity()
+  const org = id.org
 
   const subjectToken = await signSubjectToken({
-    userId,
-    email,
-    name,
+    userId: id.userId,
+    email: id.email,
+    name: id.name,
     audience: EXCHANGE_AUDIENCE,
     scopes: scope.split(' '),
     ttlSeconds: 300,
     org,
-    orgName: orgSlug ?? undefined,
+    orgName: id.orgName,
+    orgId: id.orgId,
+    orgRole: id.orgRole,
   })
 
   const res = await fetch(`${MANAGED_AUTHORITY_URL}/oauth/token`, {

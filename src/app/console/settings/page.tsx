@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/console/EmptyState'
 
 /**
  * Settings landing — org + control-plane summary and links into the
- * management surfaces. Deep configuration (team, billing) comes later.
+ * management surfaces (members, keys). Billing comes later.
  */
 export default function SettingsPage() {
   const { currentContext } = useControlPlane()
@@ -25,6 +25,8 @@ export default function SettingsPage() {
       </section>
 
       <div className="grid grid-cols-2 gap-3">
+        <LinkCard href="/console/settings/members" title="Members"
+          desc="Invite teammates — they share this org's control planes, agents and keys." />
         <LinkCard href="/console/settings/api-keys" title="API keys"
           desc="Create and revoke credentials your agents use to mint tokens." />
         <LinkCard href="/console/onboarding" title="Get started"
