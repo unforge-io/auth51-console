@@ -43,6 +43,12 @@ type CachedToken = {
 
 const tokenCache = new Map<string, CachedToken>()
 
+/** Drop every cached token — called when the member switches org, since an
+ *  exchanged token is bound to the org (tenant) it was minted for. */
+export function clearTokenCache(): void {
+  tokenCache.clear()
+}
+
 function cacheKey(endpoint: string, clientId: string, audience: string, scope: string): string {
   return `${endpoint}|${clientId}|${audience}|${scope}`
 }
@@ -331,6 +337,8 @@ export type ApiKey = {
   allowed_audiences: string[]
   is_active: boolean
   created_at: number
+  /** Org member who created the key (keys are shared across the org). */
+  created_by?: string | null
 }
 
 export type ApiKeyCreated = ApiKey & {

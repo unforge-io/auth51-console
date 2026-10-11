@@ -31,10 +31,10 @@ export default function ArchitectureIndex() {
     <div>
       <PageTitle eyebrow="Architecture">Architecture</PageTitle>
       <Lead>
-        Auth51 consists of a small set of components with distinct responsibilities. Those
-        components map to the Zero-Trust roles defined in{' '}
+        Auth51 consists of a small set of components, each with a specific purpose. Those
+        components map to the Zero-Trust roles defined earlier in{' '}
         <Link href="/docs/foundations/zero-trust" className="text-c-accent-2 hover:underline">SP 800-207</Link>.
-        This page provides the system map; the linked pages describe each component in detail.
+        Here is a diagram of the system, and below it are descriptions of each component.
       </Lead>
 
       <Figure n={1} caption={<>The runtime topology. Control-plane calls for minting, proposing identities, and fetching keys are shown with faint lines. The accent line shows the data-plane call from the agent to the resource with its intent token. The checksum engine runs identically on the client and Authority.</>}>
@@ -44,7 +44,7 @@ export default function ArchitectureIndex() {
       <H2>Two planes, one trust root</H2>
       <P>
         The diagram separates the system into two planes. The <strong>control plane</strong> includes
-        the interactions that support authorization decisions: the client runtime requesting a
+        the interactions that support authorization decisions. This consists of the client runtime requesting a
         token from the Authority, an unregistered agent&rsquo;s content going to Discovery, and a
         resource server fetching verification keys. The <strong>data plane</strong> is the request
         from the agent to a resource with an intent token. The Authority acts as the trust root but
@@ -54,7 +54,7 @@ export default function ArchitectureIndex() {
       <H2>Zero-Trust roles</H2>
       <P>
         The <Link href="/docs/architecture/authority" className="text-c-accent-2 hover:underline">Authority</Link>{' '}
-        is the Policy Decision Point. The{' '}
+        is the Policy Decision Point, while the{' '}
         <Link href="/docs/architecture/client-runtime" className="text-c-accent-2 hover:underline">client runtime</Link>{' '}
         and the <Link href="/docs/architecture/verifier" className="text-c-accent-2 hover:underline">verifier</Link>{' '}
         are Policy Enforcement Points on opposite sides of the request. The client runtime proves
@@ -66,15 +66,15 @@ export default function ArchitectureIndex() {
 
       <Deep title="Which components are on the request path, and which aren’t">
         <P>
-          Three components can touch a live request: the client runtime or MCP proxy at the source,
+          Three components can touch a live request. These are the client runtime or MCP proxy at the source,
           and the verifier at the resource. The Authority is consulted when a token is minted, not
-          on each downstream hop. Discovery remains outside the request path and receives an
-          unregistered agent&rsquo;s content out of band.
+          on each resource request. Discovery, on the other hand, remains outside the request path and stages an
+          unregistered agent&rsquo;s content.
         </P>
         <P className="!mb-0">
           The <Link href="/docs/architecture/checksum" className="text-c-accent-2 hover:underline">checksum engine</Link>{' '}
           and <Link href="/docs/architecture/contracts" className="text-c-accent-2 hover:underline">contracts</Link>{' '}
-          are shared code rather than services. The checksum engine keeps identity computation
+          are shared infrastructure. The checksum engine keeps identity computation
           identical on both sides, while the generated contracts keep client types aligned with
           the Authority API.
         </P>

@@ -85,6 +85,14 @@ export async function signSubjectToken(opts: {
    */
   org?: string
   orgName?: string
+  /**
+   * The IdP's IMMUTABLE org id (Clerk `org_...`). The Authority binds the
+   * tenant to it on first sight, so renaming the org's slug keeps its data and
+   * a new org reusing an old slug can't inherit it.
+   */
+  orgId?: string
+  /** The member's role in the org (Clerk `org:admin` / `org:member`). */
+  orgRole?: string
 }): Promise<string> {
   const priv = await getPrivateKey()
   const now = Math.floor(Date.now() / 1000)
@@ -94,6 +102,8 @@ export async function signSubjectToken(opts: {
     name: opts.name,
     scope: opts.scopes?.join(' '),
     ...(opts.org ? { org: opts.org, org_name: opts.orgName ?? opts.org } : {}),
+    ...(opts.orgId ? { org_id: opts.orgId } : {}),
+    ...(opts.orgRole ? { org_role: opts.orgRole } : {}),
   })
     .setProtectedHeader({ alg: ALG, kid: KID, typ: 'JWT' })
     .setIssuer('https://auth51.com')

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { auth, currentUser } from '@clerk/nextjs/server'
 import { signSubjectToken } from '@/lib/console/signing'
+import { AuthError, getConsoleIdentity, type ConsoleIdentity } from '@/lib/console/serverAuth'
 import { MANAGED_AUDIENCE } from '@/lib/console/managed'
 
 export const runtime = 'nodejs'
@@ -28,20 +28,16 @@ export const runtime = 'nodejs'
  * subsequent calls — only for token refresh / re-exchange.
  */
 export async function POST(req: Request) {
-  // 1. Identify the user via Clerk session
-  const { userId, orgId, orgSlug } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
+  // 1. Identify the user + active org via Clerk session. The org → an isolated
+  // Authority tenant shared by all its members (personal accounts get their own).
+  let id: ConsoleIdentity
+  try {
+    id = await getConsoleIdentity()
+  } catch (err) {
+    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.status })
+    throw err
   }
-  const user = await currentUser()
-  const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? `${userId}@unknown`
-  const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || undefined
-
-  // The customer's org → an isolated Authority tenant. Prefer the Clerk org
-  // (slug is human-readable + stable); fall back to a per-user tenant so even
-  // personal accounts (no org) get their own isolated space rather than sharing
-  // the demo default.
-  const org = orgSlug ?? orgId ?? `user_${userId}`
+  const { userId, email } = id
 
   // 2. Parse body
   let body: { endpoint?: string; audience?: string; scope?: string } = {}
@@ -61,12 +57,14 @@ export async function POST(req: Request) {
     const subjectToken = await signSubjectToken({
       userId,
       email,
-      name,
+      name: id.name,
       audience,
       scopes: scope.split(' '),
       ttlSeconds: 300,
-      org,
-      orgName: orgSlug ?? undefined,
+      org: id.org,
+      orgName: id.orgName,
+      orgId: id.orgId,
+      orgRole: id.orgRole,
     })
 
     // 4. Exchange with Authority via RFC 8693
