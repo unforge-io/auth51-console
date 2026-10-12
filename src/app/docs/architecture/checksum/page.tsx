@@ -46,7 +46,7 @@ export default function ChecksumEngine() {
       <PageTitle eyebrow="Architecture">Checksum engine</PageTitle>
 
       <Lead>
-        The checksum engine is simply Auth51's hashing infrastructure and is an important piece of code that has to run identically
+        The checksum engine is simply Auth51&rsquo;s hashing infrastructure and is an important piece of code that has to run identically
         everywhere. The client computes an agent&rsquo;s fingerprint at runtime, while the Authority independently
         recomputes it <em>at registration</em> (rejecting a submitted checksum that doesn&rsquo;t match) and
         at mint, where it checks the presented fingerprint against the stored value. Since both sides run the

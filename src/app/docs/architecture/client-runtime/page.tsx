@@ -46,7 +46,7 @@ export default function ClientRuntime() {
 
       <H2>The unbypassable path</H2>
       <P>
-        Our system's enforcement never depends on the agent&rsquo;s cooperation. Since the runtime
+        Our system&rsquo;s enforcement never depends on the agent&rsquo;s cooperation. Since the runtime
         intercepts at the HTTP layer, it catches all egress regardless of how the application is handling the call. There is no <code className="code-inline">authenticated_request()</code> the
         agent has to remember to call, and no framework-specific hook to opt out of. The tools are
         plain HTTP calls and governance happens underneath them regardless of agent cooperation.

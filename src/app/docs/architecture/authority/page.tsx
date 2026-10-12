@@ -46,7 +46,7 @@ export default function Authority() {
 
       <H2>API surface</H2>
       <P>
-        The Authority's API endpoints are organized by responsibility. An <code className="code-inline">/intent</code>{' '}
+        The Authority&rsquo;s API endpoints are organized by responsibility. An <code className="code-inline">/intent</code>{' '}
         endpoint is for token minting, a <code className="code-inline">/grants</code> endpoint for the
         scope envelopes that bound each agent, a <code className="code-inline">/decisions</code>{' '}
         endpoint reflecting its role as the decision point, an{' '}
@@ -64,7 +64,7 @@ export default function Authority() {
           since registration no longer matches. The decision tracks the running code, not a credential issued in the past.
         </P>
         <P className="!mb-0">
-          It's a light reference implementation. It's designed to be fronted by, or ported into, existing
+          It&rsquo;s a light reference implementation. It&rsquo;s designed to be fronted by, or ported into, existing
           enterprise IDPs (Okta, Auth0, Azure AD) via plugins rather than replacing them.{' '}
           <SpecRef href="/docs/reference">draft-goswami-agentic-jwt §4</SpecRef>
         </P>
