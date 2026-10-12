@@ -22,6 +22,8 @@ import type { AgentSpec, Profile, Scenario, UseCase } from '@/lib/console/workfo
 type RunResult = {
   tool_outputs?: Record<string, unknown>; agent?: string; error?: string
   reason?: string; fields?: ElicitField[]; use_case?: string; status?: string
+  // "approval" ⇒ a human-approval gate (HITL): render Approve/Deny, not a generic form.
+  kind?: string
 }
 type Mode = 'oauth' | 'intent'
 type Lane = { runId: string | null; status: string | null; result: RunResult | null; spans: Span[]; busy: boolean }
@@ -466,6 +468,43 @@ function verdictOf(lane: Lane): { label: string; cls: string } | null {
   return { label: lane.status, cls: 'text-c-text-3' }
 }
 
+// HITL approval gate (step 1c). A mint that a derived workflow guard red-lined behind
+// a human-approval step pauses the run instead of failing; the operator sanctions or
+// blocks the high-consequence action here. Approve → auth51.approve() records the
+// satisfying step so the retried mint carries it; Deny → the run blocks the action.
+function ApprovalGate({ reason, busy, onResume }: {
+  reason?: string
+  busy: boolean
+  onResume: (answers: Record<string, unknown>) => void
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-c-danger/40 bg-c-danger/5 p-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-c-danger">
+        <span aria-hidden>●</span> Human approval required
+      </div>
+      <div className="mt-1.5 text-[12px] text-c-text-2">
+        {reason || 'A high-consequence action needs human approval before it can proceed.'}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          onClick={() => onResume({ decision: 'approve' })}
+          disabled={busy}
+          className="rounded-md bg-c-success px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+        >
+          Approve &amp; proceed
+        </button>
+        <button
+          onClick={() => onResume({ decision: 'deny' })}
+          disabled={busy}
+          className="rounded-md border border-c-danger/50 px-3 py-1.5 text-[12px] font-semibold text-c-danger disabled:opacity-50"
+        >
+          Deny
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agents }: {
   mode: Mode
   lane: Lane
@@ -478,6 +517,7 @@ function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agen
   const v = verdictOf(lane)
   const isIntent = mode === 'intent'
   const fields = lane.status === 'paused' ? lane.result?.fields : undefined
+  const isApproval = lane.status === 'paused' && lane.result?.kind === 'approval'
   // 2.C / A4 — highlight the agents that actually participated in THIS run, read from
   // the trace: every governed tool call stamps `auth51.agent_id` on its span.
   const participants = useMemo(() => {
@@ -502,12 +542,14 @@ function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agen
         <div className="mt-1 text-[12px] text-c-text-3">not run yet</div>
       )}
 
-      {fields && fields.length > 0 && (
+      {isApproval ? (
+        <ApprovalGate reason={lane.result?.reason} busy={lane.busy} onResume={onResume} />
+      ) : fields && fields.length > 0 ? (
         <div className="mt-3 rounded-lg border border-c-warning/30 bg-c-warning/5 p-3">
           <div className="text-[11px] text-c-text-2 mb-2">{lane.result?.reason || 'The agent needs input to continue.'}</div>
           <ElicitForm fields={fields} busy={lane.busy} onSubmit={onResume} />
         </div>
-      )}
+      ) : null}
 
       {lane.result?.tool_outputs && Object.keys(lane.result.tool_outputs).length > 0 && (
         <details className="mt-3">
