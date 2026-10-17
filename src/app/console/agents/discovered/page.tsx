@@ -137,6 +137,7 @@ export default function DiscoveredAgentsPage() {
       if (r.proposal) ops.push(consumeProposal(currentContext, r.checksum))
       await Promise.all(ops)
       await load(true)                                // refetch; persisted ⇒ won't return
+      setDismissed((d) => { const n = new Set(d); n.delete(r.checksum); return n })
     } catch (err) {
       // Persistence failed — un-hide + surface so it isn't a silent no-op again.
       setDismissed((d) => { const n = new Set(d); n.delete(r.checksum); return n })
