@@ -23,7 +23,12 @@ type RunResult = {
   tool_outputs?: Record<string, unknown>; agent?: string; error?: string
   reason?: string; fields?: ElicitField[]; use_case?: string; status?: string
   // "approval" ⇒ a human-approval gate (HITL): render Approve/Deny, not a generic form.
+  // "value_pin" ⇒ a T3 value-binding gate: a human pins the actual operation values
+  // before the step can mint (Pin/Deny). The pin is recorded at the Authority, keyed to
+  // `execution_id`, then the run resumes.
   kind?: string
+  execution_id?: string; step?: string; scope?: string
+  targets?: string[]; proposed?: Record<string, unknown>
 }
 type Mode = 'oauth' | 'intent'
 type Lane = { runId: string | null; status: string | null; result: RunResult | null; spans: Span[]; busy: boolean }
@@ -215,6 +220,37 @@ export default function ScenarioWorkspace() {
     } catch (e) { setError(String(e)); setLane(mode, { status: 'paused', busy: false }) }
   }, [lanes, buildAttack, pollLane, setLane])
 
+  // T3 value-pin gate. A 'pin' is first RECORDED at the Authority (authenticated
+  // approver channel, keyed to the run's execution_id) so the value is server-sourced,
+  // never agent-carried; then the run resumes and the retried mint — under the same
+  // execution anchor — finds the frozen pin. A 'deny' records the deny (holding the run
+  // closed) and resumes so the workforce terminates it.
+  const valuePinLane = useCallback(async (mode: Mode, decision: 'pin' | 'deny',
+                                          pins: Record<string, unknown>) => {
+    const lane = lanes[mode]
+    const rid = lane.runId
+    const r = lane.result
+    if (!rid || !r) return
+    const appId = profile?.app_id || profile?.owner_org
+    if (!appId || !r.execution_id || !r.step) {
+      setError('cannot record the pin: missing app, execution or step'); return
+    }
+    setLane(mode, { busy: true, status: 'running' })
+    try {
+      const pres = await fetch(`/api/cp/run/${rid}/value-pin`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ app_id: appId, execution_id: r.execution_id,
+                               step: r.step, pins, decision }),
+      })
+      const pd = await pres.json().catch(() => ({}))
+      if (!pres.ok) {
+        setError(pd.error || `Pin record failed (HTTP ${pres.status})`)
+        setLane(mode, { status: 'paused', busy: false }); return
+      }
+      await resumeLane(mode, { decision })
+    } catch (e) { setError(String(e)); setLane(mode, { status: 'paused', busy: false }) }
+  }, [lanes, profile, resumeLane, setLane])
+
   function runBoth() { runMode('oauth'); runMode('intent') }
 
   // Reattach the last run per mode for this use case on load, so the lanes survive a
@@ -386,9 +422,11 @@ export default function ScenarioWorkspace() {
 
       {/* ── Two lanes — each span expands its detail INLINE (never off-screen) ── */}
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)} highlightAgents={tamperedAgents}
+        <RunLane mode="oauth" lane={lanes.oauth} onResume={(a) => resumeLane('oauth', a)}
+          onValuePin={(d, p) => valuePinLane('oauth', d, p)} highlightAgents={tamperedAgents}
           entryId={program.entry_agent || membersOf(program)[0] || ''} members={membersOf(program)} agents={profile.agents} />
-        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)} highlightAgents={tamperedAgents}
+        <RunLane mode="intent" lane={lanes.intent} onResume={(a) => resumeLane('intent', a)}
+          onValuePin={(d, p) => valuePinLane('intent', d, p)} highlightAgents={tamperedAgents}
           entryId={program.entry_agent || membersOf(program)[0] || ''} members={membersOf(program)} agents={profile.agents} />
       </div>
     </div>
@@ -505,10 +543,90 @@ function ApprovalGate({ reason, busy, onResume }: {
   )
 }
 
-function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agents }: {
+// T3 value-pin gate (P7.D.3). A value-bound step (e.g. a payout amount, a transfer
+// destination) can't mint until a human pins the ACTUAL value. The agent's proposed
+// value is shown for review and is editable; the human Pins it (recorded at the Authority
+// as source_provenance='human', then the run resumes and the retried mint freezes it) or
+// Denies (the run stops). This is why a structurally-valid step carrying dangerous data —
+// $50,000 where $500 was intended, a redirected destination — gets caught: the frozen
+// value won't match a later deviation.
+function ValuePinGate({ reason, targets, proposed, busy, onDecide }: {
+  reason?: string
+  targets?: string[]
+  proposed?: Record<string, unknown>
+  busy: boolean
+  onDecide: (decision: 'pin' | 'deny', pins: Record<string, unknown>) => void
+}) {
+  const keys = (targets && targets.length ? targets : Object.keys(proposed || {}))
+  // Edited string values, seeded from the agent's proposal. We remember each target's
+  // original JS type so the pin freezes a value of the SAME type the RS will re-check
+  // against (a numeric amount must stay a number, not become "50000").
+  const [vals, setVals] = useState<Record<string, string>>(() => {
+    const o: Record<string, string> = {}
+    for (const k of keys) {
+      const v = proposed?.[k]
+      o[k] = v === undefined || v === null ? '' : String(v)
+    }
+    return o
+  })
+  const coerce = useCallback((k: string): unknown => {
+    const raw = vals[k] ?? ''
+    const orig = proposed?.[k]
+    if (typeof orig === 'number') { const n = Number(raw); return Number.isFinite(n) ? n : raw }
+    if (typeof orig === 'boolean') return raw === 'true' || raw === '1'
+    return raw
+  }, [vals, proposed])
+  const submit = useCallback((decision: 'pin' | 'deny') => {
+    const pins: Record<string, unknown> = {}
+    for (const k of keys) pins[k] = coerce(k)
+    onDecide(decision, pins)
+  }, [keys, coerce, onDecide])
+  return (
+    <div className="mt-3 rounded-lg border border-c-warning/40 bg-c-warning/5 p-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-c-warning">
+        <span aria-hidden>◆</span> Human value pin required
+      </div>
+      <div className="mt-1.5 text-[12px] text-c-text-2">
+        {reason || 'A value-bound step needs a human to confirm the actual operation value(s) before it can proceed.'}
+      </div>
+      <div className="mt-3 flex flex-col gap-2">
+        {keys.map((k) => (
+          <label key={k} className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium text-c-text-2">{k}</span>
+            <input
+              value={vals[k] ?? ''}
+              onChange={(e) => setVals((s) => ({ ...s, [k]: e.target.value }))}
+              disabled={busy}
+              className="rounded-md border border-c-border bg-c-bg px-2 py-1.5 text-[12px] font-mono text-c-text disabled:opacity-50"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          onClick={() => submit('pin')}
+          disabled={busy}
+          className="rounded-md bg-c-success px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+        >
+          Pin &amp; proceed
+        </button>
+        <button
+          onClick={() => submit('deny')}
+          disabled={busy}
+          className="rounded-md border border-c-danger/50 px-3 py-1.5 text-[12px] font-semibold text-c-danger disabled:opacity-50"
+        >
+          Deny
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function RunLane({ mode, lane, onResume, onValuePin, highlightAgents, entryId, members, agents }: {
   mode: Mode
   lane: Lane
   onResume: (answers: Record<string, unknown>) => void
+  onValuePin: (decision: 'pin' | 'deny', pins: Record<string, unknown>) => void
   highlightAgents?: Set<string>
   entryId?: string
   members?: string[]
@@ -518,6 +636,7 @@ function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agen
   const isIntent = mode === 'intent'
   const fields = lane.status === 'paused' ? lane.result?.fields : undefined
   const isApproval = lane.status === 'paused' && lane.result?.kind === 'approval'
+  const isValuePin = lane.status === 'paused' && lane.result?.kind === 'value_pin'
   // 2.C / A4 — highlight the agents that actually participated in THIS run, read from
   // the trace: every governed tool call stamps `auth51.agent_id` on its span.
   const participants = useMemo(() => {
@@ -544,6 +663,9 @@ function RunLane({ mode, lane, onResume, highlightAgents, entryId, members, agen
 
       {isApproval ? (
         <ApprovalGate reason={lane.result?.reason} busy={lane.busy} onResume={onResume} />
+      ) : isValuePin ? (
+        <ValuePinGate reason={lane.result?.reason} targets={lane.result?.targets}
+          proposed={lane.result?.proposed} busy={lane.busy} onDecide={onValuePin} />
       ) : fields && fields.length > 0 ? (
         <div className="mt-3 rounded-lg border border-c-warning/30 bg-c-warning/5 p-3">
           <div className="text-[11px] text-c-text-2 mb-2">{lane.result?.reason || 'The agent needs input to continue.'}</div>
