@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useControlPlane } from '@/lib/console/controlPlane'
-import { listAgents, listRegisteredWorkflows, deregisterWorkflow, AuthorityError, type Registration } from '@/lib/console/api'
+import { listAgents, listRegisteredWorkflows, deregisterWorkflow, AuthorityError, type Registration, type WorkflowAck } from '@/lib/console/api'
 import {
   classifyAgents,
   type AgentClassification,
@@ -15,6 +15,8 @@ import {
   type WorkflowGraphNode,
 } from '@/lib/workflow-graph'
 import { WorkflowTree } from '@/components/console/WorkflowTree'
+import { RegisterWorkflowDialog } from '@/components/console/RegisterWorkflowDialog'
+import { describeBound, isHumanPin } from '@/lib/workflow-authoring'
 import { LiveIndicator } from '@/components/console/LiveIndicator'
 import { useAutoRefresh } from '@/lib/console/useAutoRefresh'
 import { useRefreshInterval } from '@/lib/console/useRefreshInterval'
@@ -30,6 +32,11 @@ import { cn } from '@/lib/utils'
  *
  * Until the IDP endpoint lands, the API client returns an empty list
  * and this view shows a friendly placeholder.
+ *
+ * It is also where a workflow is AUTHORED and registered for the active App —
+ * Console → Authority directly, so it works for a studio pack and for a customer's
+ * own auth51-client app alike. "Edit as new version" reloads a registered
+ * definition into the editor; a changed re-post supersedes it.
  */
 export default function RegisteredWorkflowsPage() {
   const { currentContext } = useControlPlane()
@@ -41,6 +48,9 @@ export default function RegisteredWorkflowsPage() {
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [deregBusy, setDeregBusy] = useState<string | null>(null)
+  // null = closed; a string = the editor's starting text ('' for a blank draft).
+  const [draftText, setDraftText] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const router = useRouter()
 
   const load = useCallback(async () => {
@@ -122,6 +132,24 @@ export default function RegisteredWorkflowsPage() {
     }
   }, [currentContext, load])
 
+  const onRegistered = useCallback(async (ack: WorkflowAck) => {
+    setDraftText(null)
+    setNotice(
+      ack.status === 'skipped'
+        ? `No change — "${ack.workflow_id}" already matches the registered version.`
+        : ack.status === 'superseded'
+          ? `Registered a new version of "${ack.workflow_id}". It is enforced from the next mint.`
+          : `Registered "${ack.workflow_id}".`,
+    )
+    setActiveWorkflowId(ack.workflow_id); setSelectedNodeId(null)
+    await load()
+  }, [load])
+
+  const activeDefinition = useMemo(
+    () => workflows.find((w) => w.workflow_id === activeWorkflowId) ?? null,
+    [workflows, activeWorkflowId],
+  )
+
   if (!currentContext) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-16 text-center">
@@ -163,6 +191,12 @@ export default function RegisteredWorkflowsPage() {
           <p className="text-[11.5px] text-c-text-2 mt-1">
             {graphs.length} workflow{graphs.length === 1 ? '' : 's'} in IDP
           </p>
+          <button
+            onClick={() => { setNotice(null); setDraftText('') }}
+            className="mt-2.5 w-full rounded-md px-2.5 py-1.5 text-[12px] font-medium text-white bg-c-accent hover:bg-c-accent-2 transition-colors"
+          >
+            Register workflow
+          </button>
         </div>
         <div>
           {!loading && graphs.length === 0 && (
@@ -183,6 +217,7 @@ export default function RegisteredWorkflowsPage() {
               <div className="mt-1 text-[10.5px] text-c-text-3">
                 {g.nodes.length} steps · depth {g.depth + 1}
                 {g.hasApprovalGates && <span className="ml-1 text-c-warning">· HITL</span>}
+                {g.hasValueBounds && <span className="ml-1 text-c-accent">· value-bound</span>}
                 {g.mergePoints > 0 && <span className="ml-1 text-c-text-3">· {g.mergePoints} DAG joins</span>}
               </div>
             </button>
@@ -199,9 +234,18 @@ export default function RegisteredWorkflowsPage() {
             </h1>
             <p className="text-[11px] text-c-text-3 mt-0.5">
               Registered with the Authority
+              {activeGraph?.mode && <span className="font-mono"> · {activeGraph.mode}</span>}
+              {activeGraph?.control && <span className="font-mono"> · {activeGraph.control}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {activeDefinition && (
+              <button
+                onClick={() => { setNotice(null); setDraftText(JSON.stringify(activeDefinition, null, 2)) }}
+                className="rounded-md border border-c-border px-2.5 py-1 text-[11.5px] text-c-text-2 hover:border-c-accent hover:text-c-text">
+                Edit as new version
+              </button>
+            )}
             {activeGraph && (
               <button onClick={() => deregister(activeGraph.id)} disabled={deregBusy !== null}
                 className="rounded-md border border-c-danger/40 px-2.5 py-1 text-[11.5px] text-c-danger hover:bg-c-danger/10 disabled:opacity-40">
@@ -218,6 +262,12 @@ export default function RegisteredWorkflowsPage() {
             />
           </div>
         </div>
+
+        {notice && (
+          <div className="mx-5 mt-4 px-4 py-2.5 rounded-md border border-c-border bg-c-surface text-[12.5px] text-c-text-2" role="status">
+            {notice}
+          </div>
+        )}
 
         {error && (
           <div className="mx-5 mt-4 px-4 py-3 rounded-md border border-c-danger/30 bg-c-danger/5 text-[12.5px] text-c-danger">
@@ -267,6 +317,30 @@ export default function RegisteredWorkflowsPage() {
             {selectedNode.approvalGate && (
               <DetailRow k="Approval" v="Required (human-in-loop)" />
             )}
+            {selectedNode.tier && (
+              <DetailRow k="Tier" v={selectedNode.tier} />
+            )}
+            {selectedNode.valueBounds && selectedNode.valueBounds.length > 0 && (
+              <div>
+                <div className="text-[10.5px] uppercase tracking-wider text-c-text-3 mb-1.5">Value bounds</div>
+                <ul className="space-y-1">
+                  {selectedNode.valueBounds.map((b, i) => (
+                    <li key={i} className="flex items-baseline justify-between gap-2">
+                      <span className="font-mono text-[11.5px] text-c-text min-w-0 break-words">{describeBound(b)}</span>
+                      <span className={cn(
+                        'shrink-0 text-[10px] font-mono px-1 rounded border',
+                        isHumanPin(b) ? 'border-c-warning/50 text-c-warning' : 'border-c-border text-c-text-3',
+                      )}>
+                        {isHumanPin(b) ? 'human pin' : (b.tier || 'bound')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-[11px] text-c-text-3 leading-relaxed">
+                  Checked when the token is minted. A call outside these values is denied.
+                </p>
+              </div>
+            )}
             {selectedNode.classification && (
               <>
                 <DetailRow k="Role" v={selectedNode.classification.labels.role} />
@@ -294,6 +368,14 @@ export default function RegisteredWorkflowsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {draftText !== null && (
+        <RegisterWorkflowDialog
+          initialText={draftText}
+          onClose={() => setDraftText(null)}
+          onRegistered={onRegistered}
+        />
       )}
     </div>
   )

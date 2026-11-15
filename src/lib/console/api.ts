@@ -233,7 +233,24 @@ export type WorkflowStepWire = {
   required?: boolean
   approval_gate?: boolean
   requires_approval?: boolean
+  // Governance metadata (auth51-governance). `tier` is advisory on the wire — the
+  // Authority validates against its OWN per-capability tier. `value_bounds` are the
+  // authored value constraints the Authority resolves and freezes at mint.
+  tier?: string | null
+  value_bound?: boolean
+  value_bounds?: ValueBoundWire[]
 }
+
+/** An authored value bound on a workflow step (auth51-governance `Bound.to_dict`). */
+export type ValueBoundWire = {
+  target: string
+  op: string
+  operand: Record<string, unknown>
+  tier?: string
+  provenance_floor?: string
+}
+
+export type WorkflowAck = { status: string; workflow_id: string }
 
 export type WorkflowDefinitionWire = {
   workflow_id: string
@@ -282,6 +299,38 @@ export async function listRegisteredWorkflows(
     return values.flat()
   }
   return []
+}
+
+/**
+ * Register an AUTHORED workflow under an app at the Authority — the host-agnostic
+ * path: it works for any app (a studio pack or a customer's own auth51-client app),
+ * because it talks to the Authority, not to the workforce. Needs `register:workflow`.
+ *
+ * Versioned server-side: a first post is `registered`, an identical re-post is
+ * `skipped`, a changed definition is `superseded` (a new version; the latest wins).
+ * The Authority re-validates every step against its own tier floor and rejects a
+ * workflow that frees a dangerous operation (HTTP 400, reasons in `detail`).
+ */
+export async function registerWorkflow(
+  ctx: ControlPlaneContext,
+  workflow: WorkflowDefinitionWire,
+  appId?: string,
+): Promise<WorkflowAck> {
+  const app = appId ?? ctx.appId ?? 'Patchet'
+  const token = await getAccessToken(ctx, 'register:workflow')
+  const url = `${ctx.endpoint.replace(/\/$/, '')}/intent/register/workflow`
+    + `?app_id=${encodeURIComponent(app)}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(workflow),
+  })
+  if (!res.ok) {
+    let detail: unknown
+    try { detail = await res.json() } catch { detail = await res.text() }
+    throw new AuthorityError(`Workflow register failed (HTTP ${res.status})`, res.status, detail)
+  }
+  return await res.json() as WorkflowAck
 }
 
 /** Deregister a workflow_id (all its versions) from an app at the Authority. Needs

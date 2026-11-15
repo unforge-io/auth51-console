@@ -70,6 +70,10 @@ export type WorkflowGraphNode = {
   scopes?: string[]
   approvalGate?: boolean
   required?: boolean
+  /** Consequence tier declared on the step (advisory; the Authority holds its own). */
+  tier?: string
+  /** Authored value bounds on the step (value binding). */
+  valueBounds?: RegisteredValueBound[]
 
   /** Runtime/call-specific metadata (kind === 'call') */
   startedAt?: number
@@ -97,6 +101,11 @@ export type WorkflowGraph = {
   hasApprovalGates: boolean
   provenance?: Provenance
   scenarioId?: string
+  /** Registered workflows only: enforcement mode and control polarity. */
+  mode?: string
+  control?: string
+  /** True when any step carries value bounds. */
+  hasValueBounds?: boolean
   /** Number of nodes whose parentId in the tree projection differs from real DAG. Indicates DAG-ness. */
   mergePoints: number
 }
@@ -189,11 +198,25 @@ export type RegisteredWorkflowStep = {
   required?: boolean
   approval_gate?: boolean
   requires_approval?: boolean
+  tier?: string | null
+  value_bound?: boolean
+  value_bounds?: RegisteredValueBound[]
+}
+
+/** An authored value bound, as the Authority stores and returns it. */
+export type RegisteredValueBound = {
+  target: string
+  op: string
+  operand: Record<string, unknown>
+  tier?: string
+  provenance_floor?: string
 }
 
 export type RegisteredWorkflow = {
   workflow_id: string
   workflow_type?: 'dag' | string
+  mode?: string
+  control?: string
   steps: Record<string, RegisteredWorkflowStep>
 }
 
@@ -282,6 +305,8 @@ export function registeredWorkflowToGraph(
       scopes: step.scopes ?? [],
       approvalGate: isApproval,
       required: step.required,
+      tier: step.tier ?? undefined,
+      valueBounds: step.value_bounds && step.value_bounds.length > 0 ? step.value_bounds : undefined,
     })
   }
 
@@ -310,6 +335,9 @@ export function registeredWorkflowToGraph(
     agentCount: agentsSeen.size,
     hasApprovalGates: hasApproval,
     mergePoints: [...extraParentsByStep.values()].reduce((s, arr) => s + arr.length, 0),
+    mode: wf.mode,
+    control: wf.control,
+    hasValueBounds: stepEntries.some(([, s]) => (s.value_bounds?.length ?? 0) > 0),
   }
 }
 
